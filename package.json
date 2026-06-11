@@ -1,0 +1,48 @@
+{
+  "name": "oficina",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema de gestão para oficina mecânica — monorepo (NestJS + Next.js + Prisma)",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "prisma": {
+    "schema": "apps/api/prisma/schema.prisma",
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} apps/api/prisma/seed.ts"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @oficina/shared build && pnpm prisma:generate && pnpm prisma:deploy && turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "prisma:migrate": "prisma migrate dev --schema apps/api/prisma/schema.prisma",
+    "prisma:deploy": "prisma migrate deploy --schema apps/api/prisma/schema.prisma",
+    "prisma:seed": "prisma db seed --schema apps/api/prisma/schema.prisma",
+    "prisma:generate": "prisma generate --schema apps/api/prisma/schema.prisma",
+    "prepare": "husky || true",
+    "dev:turbo": "pnpm --filter @oficina/shared build && turbo run dev",
+    "dev:no-migrate": "pnpm --filter @oficina/shared build && turbo run dev"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3",
+    "prisma": "^5.20.0",
+    "ts-node": "^10.9.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.6.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "prettier --write"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
+    ]
+  }
+}

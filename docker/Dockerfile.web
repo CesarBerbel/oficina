@@ -1,0 +1,41 @@
+# ─── Dockerfile do Web (Next.js) — monorepo pnpm ───
+FROM node:22-slim AS base
+RUN corepack enable
+WORKDIR /app
+
+# ---- deps: apenas o subgrafo do web ----
+FROM base AS deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+RUN pnpm install --frozen-lockfile
+
+# ---- build ----
+FROM deps AS build
+ENV NEXT_TELEMETRY_DISABLED=1
+# URL pública da API (embutida no bundle do browser). Atrás do Nginx, /api.
+ARG NEXT_PUBLIC_API_URL=/api
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+COPY tsconfig.base.json ./
+COPY packages/shared packages/shared
+COPY apps/web apps/web
+RUN pnpm --filter @oficina/shared build \
+ && pnpm --filter @oficina/web build
+
+# ---- runtime ----
+FROM base AS runtime
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=build /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=build /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=build /app/apps/web/.next ./apps/web/.next
+COPY --from=build /app/apps/web/public ./apps/web/public
+COPY --from=build /app/apps/web/package.json ./apps/web/package.json
+COPY --from=build /app/apps/web/next.config.mjs ./apps/web/next.config.mjs
+WORKDIR /app/apps/web
+EXPOSE 3000
+CMD ["npx", "next", "start", "-p", "3000"]

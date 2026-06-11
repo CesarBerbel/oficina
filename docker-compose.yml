@@ -1,0 +1,24 @@
+# Dev: sobe apenas a infraestrutura (PostgreSQL). Os apps rodam localmente
+# com `pnpm dev` para ter hot-reload. Para subir tudo em containers, use o
+# docker-compose.prod.yml.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: oficina_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-oficina}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oficina_dev_pwd}
+      POSTGRES_DB: ${POSTGRES_DB:-oficina}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - oficina_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-oficina}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  oficina_pgdata:
