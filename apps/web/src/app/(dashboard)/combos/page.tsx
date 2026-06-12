@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Plus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import type { ComboDto } from '@oficina/shared';
 import { ApiError } from '@/lib/api';
@@ -54,7 +55,7 @@ export default function CombosPage() {
       </p>
 
       {isLoading ? (
-        <div className="grid h-40 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+        <div className="grid h-40 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>
       ) : combos.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">Nenhum combo cadastrado.</p>
       ) : (

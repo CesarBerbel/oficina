@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+
+import { CarLoader } from '@/components/car-loader';
 import { useAudit } from '@/features/settings/use-settings';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +51,7 @@ export default function AuditPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
             ) : rows.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Nenhum evento.</TableCell></TableRow>
             ) : (

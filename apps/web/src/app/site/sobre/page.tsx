@@ -8,12 +8,17 @@ export default async function SiteSobre() {
   const s = data?.settings;
 
   return (
-    <div className="container max-w-3xl py-16">
+    <div className="container py-16">
       <h1 className="text-3xl font-bold tracking-tight">Sobre {s?.shopName ?? 'a oficina'}</h1>
       {s?.tagline && <p className="mt-2 text-lg text-muted-foreground">{s.tagline}</p>}
       <div className="mt-6 whitespace-pre-wrap text-pretty leading-relaxed">
         {s?.about ?? 'Em breve, mais informações sobre a nossa oficina.'}
       </div>
+      {s?.aboutExtra && (
+        <div className="mt-4 whitespace-pre-wrap text-pretty leading-relaxed text-muted-foreground">
+          {s.aboutExtra}
+        </div>
+      )}
 
       {(s?.address || s?.hours) && (
         <div className="mt-8 grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2">

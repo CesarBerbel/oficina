@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { ImagePlus, Loader2, X } from 'lucide-react';
+import { ImagePlus, X } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { uploadImage } from '@/features/uploads/upload';
 
@@ -65,7 +66,7 @@ export function PhotoGrid({
           className="grid aspect-square place-items-center rounded-lg border border-dashed text-muted-foreground transition hover:border-foreground hover:text-foreground"
         >
           {busy ? (
-            <Loader2 className="size-5 animate-spin" />
+            <CarLoader className="size-5 animate-spin" />
           ) : (
             <ImagePlus className="size-5" />
           )}

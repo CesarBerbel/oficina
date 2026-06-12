@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Loader2, Clock } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import type { ActionItem } from '@oficina/shared';
 import { useDashboardActions } from '@/features/dashboard/use-dashboard';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,7 +34,7 @@ export default function CentralAcoesPage() {
 
       {isLoading ? (
         <div className="grid h-40 place-items-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CarLoader className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : !actions || actions.length === 0 ? (
         <Card>

@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Upload, Loader2, X } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { uploadImage } from '@/features/uploads/upload';
 import { Button } from '@/components/ui/button';
@@ -55,7 +56,7 @@ export function ImageUpload({
           }}
         />
         <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={busy} onClick={() => ref.current?.click()} aria-label="Enviar imagem">
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {busy ? <CarLoader className="size-4 animate-spin" /> : <Upload className="size-4" />}
         </Button>
         {value && (
           <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => onChange('')} aria-label="Remover">

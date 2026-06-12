@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { createServiceSchema, updateServiceSchema, type ServiceDto } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
@@ -246,7 +247,7 @@ export function ServiceFormDialog({
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={pending}>
-              {pending && <Loader2 className="size-4 animate-spin" />}
+              {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}
             </Button>
           </DialogFooter>

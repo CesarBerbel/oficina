@@ -2,7 +2,8 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Loader2, Camera, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Camera, AlertTriangle } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { FUEL_LEVEL_LABELS, type FuelLevel } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
 import { useCheckins } from '@/features/checkins/use-checkins';
@@ -93,7 +94,7 @@ function CheckinsContent() {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">
-                  <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
+                  <CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : checkins.length === 0 ? (
@@ -165,7 +166,7 @@ function CheckinsContent() {
       <div className="space-y-3 md:hidden">
         {isLoading ? (
           <div className="grid h-24 place-items-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : checkins.length === 0 ? (
           <p className="py-8 text-center text-muted-foreground">
@@ -240,7 +241,7 @@ export default function CheckinsPage() {
     <Suspense
       fallback={
         <div className="grid h-64 place-items-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CarLoader className="size-6 animate-spin text-muted-foreground" />
         </div>
       }
     >

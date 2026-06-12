@@ -24,6 +24,7 @@ export class SiteService {
       shopName: s.shopName,
       tagline: s.tagline,
       about: s.about,
+      aboutExtra: s.aboutExtra,
       heroTitle: s.heroTitle,
       heroSubtitle: s.heroSubtitle,
       phone: s.phone,
@@ -39,6 +40,8 @@ export class SiteService {
       logoPdfUrl: s.logoPdfUrl,
       pdfFooterText: s.pdfFooterText,
       blogFallbackImageUrl: s.blogFallbackImageUrl,
+      serviceCardImageUrl: s.serviceCardImageUrl,
+      heroImageUrl: s.heroImageUrl,
       capacity: s.capacity,
       published: s.published,
     };

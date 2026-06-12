@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Wrench, Loader2 } from 'lucide-react';
+import { Wrench } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { loginSchema } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
@@ -173,7 +174,7 @@ export default function LoginPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting && <Loader2 className="size-4 animate-spin" />}
+            {submitting && <CarLoader className="size-4 animate-spin" />}
             Entrar
           </Button>
         </div>

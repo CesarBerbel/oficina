@@ -4,13 +4,8 @@ import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Plus,
-  MoreHorizontal,
-  Search,
-  Loader2,
-  Pencil,
-  Trash2,
-} from 'lucide-react';
+  Plus, MoreHorizontal, Search, Pencil, Trash2 } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   FUEL_TYPES,
@@ -142,7 +137,7 @@ function VehiclesContent() {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
-                  <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
+                  <CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : vehicles.length === 0 ? (
@@ -188,7 +183,7 @@ function VehiclesContent() {
       <div className="space-y-3 md:hidden">
         {isLoading ? (
           <div className="grid h-24 place-items-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : vehicles.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Nenhum veículo encontrado.</p>
@@ -246,7 +241,7 @@ function VehiclesContent() {
 
 export default function VehiclesPage() {
   return (
-    <Suspense fallback={<div className="grid h-64 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+    <Suspense fallback={<div className="grid h-64 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>}>
       <VehiclesContent />
     </Suspense>
   );

@@ -13,14 +13,14 @@ export default async function SiteBlog() {
   const fallback = site?.settings.blogFallbackImageUrl || BLOG_FALLBACK_IMAGE;
 
   return (
-    <div className="container max-w-4xl py-16">
+    <div className="container py-16">
       <h1 className="text-3xl font-bold tracking-tight">Blog</h1>
       <p className="mt-1 text-muted-foreground">Dicas e novidades.</p>
 
       {posts.length === 0 ? (
         <p className="mt-10 text-muted-foreground">Nenhum artigo publicado ainda.</p>
       ) : (
-        <div className="mt-8 grid gap-6 sm:grid-cols-2">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((p) => (
             <Link key={p.slug} href={`/site/blog/${p.slug}`} className="group rounded-xl border bg-card p-5 transition-colors hover:border-primary">
               {/* eslint-disable-next-line @next/next/no-img-element */}

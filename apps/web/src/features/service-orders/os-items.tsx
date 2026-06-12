@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   SERVICE_ORDER_ITEM_KIND_LABELS,
@@ -190,7 +191,7 @@ export function OsItems({
             aria-label="Valor unitário"
           />
           <Button type="submit" size="icon" disabled={add.isPending} aria-label="Adicionar">
-            {add.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            {add.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
           </Button>
         </form>
       )}

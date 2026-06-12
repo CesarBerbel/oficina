@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { createComboSchema, updateComboSchema, type ComboDto } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
@@ -155,7 +156,7 @@ export function ComboFormDialog({
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={pending}>
-              {pending && <Loader2 className="size-4 animate-spin" />}
+              {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}
             </Button>
           </DialogFooter>

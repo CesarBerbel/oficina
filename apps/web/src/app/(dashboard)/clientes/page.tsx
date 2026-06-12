@@ -3,15 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import {
-  Plus,
-  MoreHorizontal,
-  Search,
-  Loader2,
-  Pencil,
-  Trash2,
-  Eye,
-  Car,
-} from 'lucide-react';
+  Plus, MoreHorizontal, Search, Pencil, Trash2, Eye, Car } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   CUSTOMER_TYPE_LABELS,
@@ -138,7 +131,7 @@ export default function CustomersPage() {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
-                  <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
+                  <CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : customers.length === 0 ? (
@@ -181,7 +174,7 @@ export default function CustomersPage() {
       <div className="space-y-3 md:hidden">
         {isLoading ? (
           <div className="grid h-24 place-items-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : customers.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>

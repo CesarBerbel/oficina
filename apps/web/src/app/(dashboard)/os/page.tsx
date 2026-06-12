@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, Loader2, AlertTriangle } from 'lucide-react';
+import { Plus, Search, AlertTriangle } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import {
   SERVICE_ORDER_STATUSES,
   SERVICE_ORDER_STATUS_LABELS,
@@ -106,7 +107,7 @@ export default function ServiceOrdersPage() {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
-                  <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
+                  <CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : orders.length === 0 ? (
@@ -161,7 +162,7 @@ export default function ServiceOrdersPage() {
       <div className="space-y-3 md:hidden">
         {isLoading ? (
           <div className="grid h-24 place-items-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : orders.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma OS encontrada.</p>

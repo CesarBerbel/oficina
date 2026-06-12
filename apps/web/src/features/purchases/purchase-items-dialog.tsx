@@ -1,10 +1,11 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
+
 import {
   PURCHASE_ORDER_STATUS_LABELS,
   type PurchaseOrderDto,
 } from '@oficina/shared';
+import { CarLoader } from '@/components/car-loader';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -51,7 +52,7 @@ export function PurchaseItemsDialog({
 
         {loading || !purchase ? (
           <div className="grid h-24 place-items-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <div className="space-y-2">

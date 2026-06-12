@@ -11,7 +11,7 @@ export default async function SiteContato() {
   const s = data?.settings;
 
   return (
-    <div className="container max-w-5xl py-16">
+    <div className="container py-16">
       <h1 className="text-3xl font-bold tracking-tight">Contato</h1>
       <p className="mt-1 text-muted-foreground">Peça um orçamento ou tire suas dúvidas.</p>
 

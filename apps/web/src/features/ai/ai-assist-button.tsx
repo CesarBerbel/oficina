@@ -1,6 +1,7 @@
 'use client';
 
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api';
 import { useAiAssist } from './use-ai';
@@ -37,7 +38,7 @@ export function AiAssistButton({
 
   return (
     <Button type="button" size="sm" variant="outline" onClick={run} disabled={assist.isPending}>
-      {assist.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+      {assist.isPending ? <CarLoader className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
       {label}
     </Button>
   );

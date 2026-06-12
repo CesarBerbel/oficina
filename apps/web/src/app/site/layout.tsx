@@ -38,10 +38,21 @@ export default async function SiteLayout({
       <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <Link href="/site" className="flex items-center gap-2 font-semibold">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Wrench className="size-4" />
-            </span>
-            {name}
+            {s?.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={s.logoUrl}
+                alt={name}
+                className="h-10 w-auto max-w-[200px] object-contain"
+              />
+            ) : (
+              <>
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <Wrench className="size-4" />
+                </span>
+                {name}
+              </>
+            )}
           </Link>
           <nav className="hidden gap-6 text-sm font-medium sm:flex">
             {NAV.map((n) => (

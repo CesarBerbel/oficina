@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, FileInput } from 'lucide-react';
+import { FileInput } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   PURCHASE_ORDER_STATUS_LABELS,
@@ -96,7 +97,7 @@ export function PurchaseReceiveDialog({
             onClick={() => fileRef.current?.click()}
           >
             {receiveNfe.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
+              <CarLoader className="size-4 animate-spin" />
             ) : (
               <FileInput className="size-4" />
             )}
@@ -128,7 +129,7 @@ export function PurchaseReceiveDialog({
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={receive.isPending}>
-              {receive.isPending && <Loader2 className="size-4 animate-spin" />}
+              {receive.isPending && <CarLoader className="size-4 animate-spin" />}
               Confirmar recebimento
             </Button>
           </DialogFooter>

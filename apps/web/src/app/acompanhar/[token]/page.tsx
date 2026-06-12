@@ -1,7 +1,8 @@
 'use client';
 
 import { use, useState } from 'react';
-import { Wrench, Loader2, Car, CheckCircle2, FileText } from 'lucide-react';
+import { Wrench, Car, CheckCircle2, FileText } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { cpfCnpjSchema, type QuoteItemDto } from '@oficina/shared';
 import { usePublicTracking, useQuoteDecision } from '@/features/public/use-tracking';
@@ -29,7 +30,7 @@ export default function PublicTrackingPage({
   if (isLoading) {
     return (
       <main className="grid min-h-dvh place-items-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <CarLoader className="size-6 animate-spin text-muted-foreground" />
       </main>
     );
   }
@@ -237,7 +238,7 @@ export default function PublicTrackingPage({
                     disabled={decide.isPending || !canSubmit}
                     className="flex-1"
                   >
-                    {decide.isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                    {decide.isPending ? <CarLoader className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
                     Aprovar
                   </Button>
                   <Button

@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   createCheckinSchema,
@@ -303,7 +304,7 @@ function CheckinFormContent() {
       <div className="flex justify-end gap-2">
         <BackButton fallbackHref="/check-in" label="Cancelar" variant="outline" />
         <Button type="submit" disabled={create.isPending}>
-          {create.isPending && <Loader2 className="size-4 animate-spin" />}
+          {create.isPending && <CarLoader className="size-4 animate-spin" />}
           Registrar check-in
         </Button>
       </div>
@@ -316,7 +317,7 @@ export default function NewCheckinPage() {
     <Suspense
       fallback={
         <div className="grid h-64 place-items-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CarLoader className="size-6 animate-spin text-muted-foreground" />
         </div>
       }
     >

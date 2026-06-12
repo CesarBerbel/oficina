@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Loader2, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api';
 import { useServices, useCombos } from '@/features/catalog/use-catalog';
@@ -72,7 +73,7 @@ export function OsCatalogPicker({ osId }: { osId: string }) {
           disabled={!serviceId || addService.isPending}
           onClick={() => run(() => addService.mutateAsync(serviceId), 'Serviço adicionado', () => setServiceId(''))}
         >
-          {addService.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          {addService.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
         </Button>
       </div>
 
@@ -90,7 +91,7 @@ export function OsCatalogPicker({ osId }: { osId: string }) {
           disabled={!comboId || addCombo.isPending}
           onClick={() => run(() => addCombo.mutateAsync(comboId), 'Combo expandido na OS', () => setComboId(''))}
         >
-          {addCombo.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          {addCombo.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
         </Button>
       </div>
 
@@ -117,7 +118,7 @@ export function OsCatalogPicker({ osId }: { osId: string }) {
             () => { setPartId(''); setPartQty('1'); },
           )}
         >
-          {addPart.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          {addPart.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
         </Button>
       </div>
     </div>

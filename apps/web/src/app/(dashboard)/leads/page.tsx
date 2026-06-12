@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2 as Spinner, Phone, Mail } from 'lucide-react';
+import { Phone, Mail } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   LEAD_STATUSES,
@@ -47,7 +48,7 @@ export default function LeadsPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid h-40 place-items-center"><Spinner className="size-6 animate-spin text-muted-foreground" /></div>
+        <div className="grid h-40 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>
       ) : leads.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">Nenhum lead.</p>
       ) : (

@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Car, LogOut, Wrench, Clock, FileText } from 'lucide-react';
+import { Car, LogOut, Wrench, Clock, FileText } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import {
   SERVICE_ORDER_STATUS_LABELS,
   type GarageOrderDto,
@@ -44,7 +45,7 @@ export default function GaragemPage() {
   if (isLoading) {
     return (
       <div className="grid h-64 place-items-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <CarLoader className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -65,7 +66,7 @@ export default function GaragemPage() {
   }
 
   return (
-    <div className="container max-w-3xl space-y-6 py-10">
+    <div className="container space-y-6 py-10">
       {/* Cabeçalho do veículo */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">

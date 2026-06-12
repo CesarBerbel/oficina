@@ -2,7 +2,8 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { Loader2, FileDown } from 'lucide-react';
+import { FileDown } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   CHECKLIST_STATUS_LABELS,
@@ -58,7 +59,7 @@ export default function CheckinDetailPage({
   if (isLoading) {
     return (
       <div className="grid h-64 place-items-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <CarLoader className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }

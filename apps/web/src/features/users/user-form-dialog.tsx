@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   createUserSchema,
@@ -170,7 +171,7 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
               Cancelar
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending && <Loader2 className="size-4 animate-spin" />}
+              {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}
             </Button>
           </DialogFooter>

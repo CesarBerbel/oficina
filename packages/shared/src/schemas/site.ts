@@ -37,6 +37,7 @@ export const updateSiteSettingsSchema = z.object({
   shopName: z.string().trim().min(1).max(160).optional(),
   tagline: optionalText(200),
   about: optionalText(4000),
+  aboutExtra: optionalText(4000),
   heroTitle: optionalText(160),
   heroSubtitle: optionalText(300),
   phone: optionalText(40),
@@ -52,6 +53,8 @@ export const updateSiteSettingsSchema = z.object({
   logoPdfUrl: optionalText(500),
   pdfFooterText: optionalText(2000),
   blogFallbackImageUrl: optionalText(500),
+  serviceCardImageUrl: optionalText(500),
+  heroImageUrl: optionalText(500),
   capacity: optionalCapacity,
   published: z.boolean().optional(),
 });
@@ -61,6 +64,7 @@ export interface SiteSettingsDto {
   shopName: string;
   tagline: string | null;
   about: string | null;
+  aboutExtra: string | null;
   heroTitle: string | null;
   heroSubtitle: string | null;
   phone: string | null;
@@ -76,6 +80,8 @@ export interface SiteSettingsDto {
   logoPdfUrl: string | null;
   pdfFooterText: string | null;
   blogFallbackImageUrl: string | null;
+  serviceCardImageUrl: string | null;
+  heroImageUrl: string | null;
   capacity: number | null;
   published: boolean;
 }

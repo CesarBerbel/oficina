@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { ServiceWorkerRegister } from '@/components/sw-register';
+import { ProcessingOverlay } from '@/components/processing-overlay';
 import { AuthProvider } from '@/lib/auth-context';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -27,6 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>{children}</AuthProvider>
         <ServiceWorkerRegister />
+        <ProcessingOverlay />
         <Toaster />
       </QueryClientProvider>
     </ThemeProvider>

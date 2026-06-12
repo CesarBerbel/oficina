@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   createCustomerSchema,
@@ -340,7 +341,7 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: Props) {
                   aria-label="Buscar CEP"
                 >
                   {cepLoading ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <CarLoader className="size-4 animate-spin" />
                   ) : (
                     <Search className="size-4" />
                   )}
@@ -434,7 +435,7 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: Props) {
               Cancelar
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending && <Loader2 className="size-4 animate-spin" />}
+              {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}
             </Button>
           </DialogFooter>

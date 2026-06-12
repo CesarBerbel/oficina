@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { createServiceOrderSchema } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
@@ -194,7 +195,7 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
               Cancelar
             </Button>
             <Button type="submit" disabled={create.isPending}>
-              {create.isPending && <Loader2 className="size-4 animate-spin" />}
+              {create.isPending && <CarLoader className="size-4 animate-spin" />}
               Abrir OS
             </Button>
           </DialogFooter>

@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Upload, Loader2, FileCheck2, PackagePlus, Save } from 'lucide-react';
+import { Upload, FileCheck2, PackagePlus, Save } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   PART_TYPES,
@@ -137,7 +138,7 @@ export default function NfeImportPage() {
             }}
           />
           <Button className="mt-4" onClick={() => fileRef.current?.click()} disabled={parsing}>
-            {parsing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+            {parsing ? <CarLoader className="size-4 animate-spin" /> : <Upload className="size-4" />}
             Escolher arquivo
           </Button>
         </div>
@@ -208,11 +209,11 @@ export default function NfeImportPage() {
 
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={() => doConfirm(false)} disabled={confirm.isPending}>
-              {confirm.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              {confirm.isPending ? <CarLoader className="size-4 animate-spin" /> : <Save className="size-4" />}
               Só cadastrar/atualizar
             </Button>
             <Button onClick={() => doConfirm(true)} disabled={confirm.isPending}>
-              {confirm.isPending ? <Loader2 className="size-4 animate-spin" /> : <PackagePlus className="size-4" />}
+              {confirm.isPending ? <CarLoader className="size-4 animate-spin" /> : <PackagePlus className="size-4" />}
               Cadastrar + dar entrada no estoque
             </Button>
           </div>

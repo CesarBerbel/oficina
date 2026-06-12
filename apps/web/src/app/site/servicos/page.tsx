@@ -7,6 +7,7 @@ export const metadata: Metadata = { title: 'Serviços' };
 export default async function SiteServicos() {
   const data = await getPublicSite();
   const services = data?.services ?? [];
+  const cardImage = data?.settings.serviceCardImageUrl || null;
 
   return (
     <div className="container py-16">
@@ -18,7 +19,12 @@ export default async function SiteServicos() {
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((s) => (
-            <div key={s.id} className="rounded-xl border bg-card p-5">
+            <div key={s.id} className="overflow-hidden rounded-xl border bg-card">
+              {cardImage && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={cardImage} alt={s.name} className="h-36 w-full object-cover" />
+              )}
+              <div className="p-5">
               {s.category && (
                 <span className="text-xs font-medium uppercase text-primary">{s.category}</span>
               )}
@@ -27,6 +33,7 @@ export default async function SiteServicos() {
               {s.salePrice > 0 && (
                 <p className="mt-3 font-semibold">{formatCurrency(s.salePrice)}</p>
               )}
+              </div>
             </div>
           ))}
         </div>

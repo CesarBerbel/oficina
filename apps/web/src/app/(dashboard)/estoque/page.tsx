@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, Loader2, MoreHorizontal, Pencil, ArrowLeftRight, AlertTriangle } from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Pencil, ArrowLeftRight, AlertTriangle } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import {
   PART_TYPE_LABELS,
   PART_TYPES,
@@ -108,7 +109,7 @@ export default function InventoryPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
             ) : parts.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Nenhuma peça encontrada.</TableCell></TableRow>
             ) : (
@@ -149,7 +150,7 @@ export default function InventoryPage() {
       {/* Mobile */}
       <div className="space-y-3 md:hidden">
         {isLoading ? (
-          <div className="grid h-24 place-items-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+          <div className="grid h-24 place-items-center"><CarLoader className="size-5 animate-spin text-muted-foreground" /></div>
         ) : parts.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma peça encontrada.</p>
         ) : (

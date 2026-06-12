@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Eraser, Loader2 } from 'lucide-react';
+import { Eraser } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { uploadImage } from '@/features/uploads/upload';
 import { Button } from '@/components/ui/button';
@@ -132,7 +133,7 @@ export function SignaturePad({
           <Eraser className="size-4" /> Limpar
         </Button>
         <Button type="button" size="sm" disabled={busy} onClick={save}>
-          {busy && <Loader2 className="size-4 animate-spin" />} Salvar assinatura
+          {busy && <CarLoader className="size-4 animate-spin" />} Salvar assinatura
         </Button>
       </div>
     </div>

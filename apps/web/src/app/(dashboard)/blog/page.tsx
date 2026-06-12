@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Loader2, MoreHorizontal, Pencil, Trash2, ExternalLink, Send, Undo2 } from 'lucide-react';
+import { Plus, MoreHorizontal, Pencil, Trash2, ExternalLink, Send, Undo2 } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { BLOG_STATUS_LABELS, type BlogPostDto, type BlogStatus } from '@oficina/shared';
@@ -80,7 +81,7 @@ export default function BlogAdminPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
             ) : posts.length === 0 ? (
               <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">Nenhum artigo.</TableCell></TableRow>
             ) : (

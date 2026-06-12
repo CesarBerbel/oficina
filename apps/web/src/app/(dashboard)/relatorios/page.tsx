@@ -1,6 +1,7 @@
 'use client';
 
-import { Loader2, DollarSign, PackageCheck, Receipt } from 'lucide-react';
+import { DollarSign, PackageCheck, Receipt } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import type { NamedTotal } from '@oficina/shared';
 import { useReports } from '@/features/settings/use-settings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +11,7 @@ export default function ReportsPage() {
   const { data, isLoading } = useReports();
 
   if (isLoading || !data) {
-    return <div className="grid h-64 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
+    return <div className="grid h-64 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>;
   }
 
   const maxMonth = Math.max(1, ...data.revenueByMonth.map((m) => m.total));

@@ -2,18 +2,8 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  Loader2,
-  Save,
-  User,
-  Car,
-  Clock,
-  AlertTriangle,
-  XCircle,
-  CheckCircle2,
-  FileDown,
-  ClipboardCheck,
-} from 'lucide-react';
+import { Save, User, Car, Clock, AlertTriangle, XCircle, CheckCircle2, FileDown, ClipboardCheck } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   SERVICE_ORDER_TRANSITIONS,
@@ -72,7 +62,7 @@ export default function ServiceOrderDetailPage({
   if (isLoading) {
     return (
       <div className="grid h-64 place-items-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <CarLoader className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -340,7 +330,7 @@ export default function ServiceOrderDetailPage({
           {canWrite && os.editable && (
             <Button className="w-full" onClick={saveChanges} disabled={!dirty || update.isPending}>
               {update.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <CarLoader className="size-4 animate-spin" />
               ) : (
                 <Save className="size-4" />
               )}

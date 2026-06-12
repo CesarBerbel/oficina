@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { createPurchaseSchema } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
@@ -119,7 +120,7 @@ export function PurchaseFormDialog({
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={create.isPending || items.length === 0}>
-              {create.isPending && <Loader2 className="size-4 animate-spin" />}
+              {create.isPending && <CarLoader className="size-4 animate-spin" />}
               Criar pedido
             </Button>
           </DialogFooter>

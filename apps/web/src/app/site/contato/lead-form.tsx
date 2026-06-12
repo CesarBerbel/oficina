@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { createLeadSchema } from '@oficina/shared';
 import { maskPhone } from '@/lib/masks';
 import { zodFieldErrors } from '@/lib/form-errors';
@@ -85,7 +86,7 @@ export function LeadForm() {
       </div>
       {errors.form && <p className="text-xs text-destructive">{errors.form}</p>}
       <button type="submit" disabled={sending} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 font-medium text-primary-foreground disabled:opacity-50">
-        {sending && <Loader2 className="size-4 animate-spin" />}
+        {sending && <CarLoader className="size-4 animate-spin" />}
         Enviar pedido de orçamento
       </button>
     </form>

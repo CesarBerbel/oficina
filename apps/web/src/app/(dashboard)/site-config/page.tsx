@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, Loader2, Save } from 'lucide-react';
+import { ExternalLink, Save } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { updateSiteSettingsSchema } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
@@ -19,7 +20,9 @@ const FIELDS: { key: string; label: string; area?: boolean; full?: boolean; requ
   { key: 'tagline', label: 'Slogan' },
   { key: 'heroTitle', label: 'Título da home' },
   { key: 'heroSubtitle', label: 'Subtítulo da home', full: true },
-  { key: 'about', label: 'Sobre (texto institucional)', area: true, full: true },
+  { key: 'heroImageUrl', label: 'Imagem de fundo do hero (home)', full: true },
+  { key: 'about', label: 'Sobre — resumo (aparece na home e no topo do Sobre)', area: true, full: true },
+  { key: 'aboutExtra', label: 'Sobre — texto complementar (abaixo do resumo, só no Sobre)', area: true, full: true },
   { key: 'phone', label: 'Telefone' },
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'email', label: 'E-mail' },
@@ -31,6 +34,7 @@ const FIELDS: { key: string; label: string; area?: boolean; full?: boolean; requ
   { key: 'logoUrl', label: 'Logo (URL)' },
   { key: 'logoPdfUrl', label: 'Logo para PDF (URL)' },
   { key: 'blogFallbackImageUrl', label: 'Imagem padrão do blog (artigos sem imagem)', full: true },
+  { key: 'serviceCardImageUrl', label: 'Imagem dos cards de serviço (site público)', full: true },
   { key: 'pdfFooterText', label: 'Rodapé do PDF', area: true, full: true },
   { key: 'capacity', label: 'Capacidade da oficina (OS simultâneas)' },
   { key: 'mapsEmbed', label: 'Google Maps (código embed)', area: true, full: true },
@@ -97,7 +101,7 @@ export default function SiteConfigPage() {
   if (isLoading) {
     return (
       <div className="grid h-64 place-items-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <CarLoader className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -133,7 +137,7 @@ export default function SiteConfigPage() {
         {FIELDS.map((f) => (
           <div key={f.key} className={`space-y-1.5 ${f.full ? 'sm:col-span-2' : ''}`}>
             <Label required={f.required}>{f.label}</Label>
-            {f.key === 'logoUrl' || f.key === 'logoPdfUrl' || f.key === 'blogFallbackImageUrl' ? (
+            {f.key === 'logoUrl' || f.key === 'logoPdfUrl' || f.key === 'blogFallbackImageUrl' || f.key === 'serviceCardImageUrl' || f.key === 'heroImageUrl' ? (
               <ImageUpload value={form[f.key] ?? ''} onChange={(url) => setField(f.key, url)} />
             ) : f.area ? (
               <Textarea
@@ -156,7 +160,7 @@ export default function SiteConfigPage() {
       </div>
 
       <Button onClick={save} disabled={update.isPending}>
-        {update.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+        {update.isPending ? <CarLoader className="size-4 animate-spin" /> : <Save className="size-4" />}
         Salvar
       </Button>
     </div>

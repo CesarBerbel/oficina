@@ -29,7 +29,7 @@ export default async function BlogPost({
   const fallback = site?.settings.blogFallbackImageUrl || BLOG_FALLBACK_IMAGE;
 
   return (
-    <article className="container max-w-3xl py-16">
+    <article className="container py-16">
       <BackButton
         fallbackHref="/site/blog"
         label="Voltar ao blog"

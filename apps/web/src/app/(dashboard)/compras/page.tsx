@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import {
-  Plus, Loader2, MoreHorizontal, PackageCheck, Send, XCircle, Sparkles, Pencil, Package2,
-} from 'lucide-react';
+  Plus, MoreHorizontal, PackageCheck, Send, XCircle, Sparkles, Pencil, Package2 } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   PURCHASE_ORDER_STATUS_LABELS,
@@ -102,7 +102,7 @@ function PedidosTab({ canWrite }: { canWrite: boolean }) {
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => setFormOpen(true)}><Plus className="size-4" /> Novo pedido</Button>
           <Button variant="outline" onClick={generateShortages} disabled={fromShortages.isPending}>
-            {fromShortages.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+            {fromShortages.isPending ? <CarLoader className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             Gerar de peças em falta
           </Button>
         </div>
@@ -122,7 +122,7 @@ function PedidosTab({ canWrite }: { canWrite: boolean }) {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
             ) : orders.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Nenhum pedido.</TableCell></TableRow>
             ) : (
@@ -227,7 +227,7 @@ function FornecedoresTab({ canWrite }: { canWrite: boolean }) {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
             ) : suppliers.length === 0 ? (
               <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">Nenhum fornecedor.</TableCell></TableRow>
             ) : (

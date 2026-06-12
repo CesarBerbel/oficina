@@ -3,16 +3,8 @@
 import { use, useState } from 'react';
 import Link from 'next/link';
 import {
-  Pencil,
-  Plus,
-  Loader2,
-  Phone,
-  Mail,
-  MapPin,
-  Car,
-  ClipboardList,
-  MessageSquare,
-} from 'lucide-react';
+  Pencil, Plus, Phone, Mail, MapPin, Car, ClipboardList, MessageSquare } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import {
   CUSTOMER_TYPE_LABELS,
   FUEL_TYPE_LABELS,
@@ -47,7 +39,7 @@ export default function CustomerDetailPage({
   if (isLoading) {
     return (
       <div className="grid h-64 place-items-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <CarLoader className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }

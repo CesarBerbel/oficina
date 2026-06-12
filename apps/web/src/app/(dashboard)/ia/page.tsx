@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Save, Sparkles } from 'lucide-react';
+import { Save, Sparkles } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { AI_PROVIDERS, AI_PROVIDER_LABELS, updateAiConfigSchema } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
@@ -53,7 +54,7 @@ export default function AiConfigPage() {
   }
 
   if (isLoading) {
-    return <div className="grid h-64 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
+    return <div className="grid h-64 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
@@ -101,7 +102,7 @@ export default function AiConfigPage() {
       </div>
 
       <Button onClick={save} disabled={update.isPending}>
-        {update.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+        {update.isPending ? <CarLoader className="size-4 animate-spin" /> : <Save className="size-4" />}
         Salvar
       </Button>
     </div>

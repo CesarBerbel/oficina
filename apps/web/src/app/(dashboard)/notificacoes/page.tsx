@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Bell, BellRing, CheckCheck, Loader2 } from 'lucide-react';
+import { Bell, BellRing, CheckCheck } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   useNotifications,
@@ -63,7 +64,7 @@ function NotificationsContent() {
         <div className="flex gap-2">
           {pushSupported() && !pushOn && (
             <Button variant="outline" onClick={togglePush} disabled={pushBusy}>
-              {pushBusy ? <Loader2 className="size-4 animate-spin" /> : <BellRing className="size-4" />}
+              {pushBusy ? <CarLoader className="size-4 animate-spin" /> : <BellRing className="size-4" />}
               Ativar push
             </Button>
           )}
@@ -76,7 +77,7 @@ function NotificationsContent() {
       <div className="rounded-xl border">
         {isLoading ? (
           <div className="grid h-32 place-items-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : items.length === 0 ? (
           <div className="grid h-40 place-items-center text-center text-sm text-muted-foreground">
@@ -128,7 +129,7 @@ function NotificationsContent() {
 
 export default function NotificationsPage() {
   return (
-    <Suspense fallback={<div className="grid h-64 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+    <Suspense fallback={<div className="grid h-64 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>}>
       <NotificationsContent />
     </Suspense>
   );

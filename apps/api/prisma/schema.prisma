@@ -660,7 +660,9 @@ model SiteSettings {
   tenantId     String   @unique
   shopName     String
   tagline      String?
+  // Sobre: resumo (home/topo do Sobre) + texto complementar (restante do Sobre).
   about        String?
+  aboutExtra   String?
   heroTitle    String?
   heroSubtitle String?
   phone        String?
@@ -677,6 +679,10 @@ model SiteSettings {
   pdfFooterText String?
   // Imagem padrão dos artigos do blog (quando o artigo não tem imagem própria).
   blogFallbackImageUrl String?
+  // Imagem exibida nos cards de serviço da página pública.
+  serviceCardImageUrl String?
+  // Imagem de fundo do hero (topo) da home pública.
+  heroImageUrl String?
   capacity      Int?
   published     Boolean  @default(false)
   createdAt    DateTime @default(now())

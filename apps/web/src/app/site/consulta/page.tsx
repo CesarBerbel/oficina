@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Car, KeyRound, ArrowLeft } from 'lucide-react';
+import { Car, KeyRound, ArrowLeft } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   requestGarageCode,
@@ -114,7 +115,7 @@ export default function ConsultaPage() {
                 </p>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+                {loading ? <CarLoader className="size-4 animate-spin" /> : null}
                 Enviar código
               </Button>
             </form>
@@ -139,7 +140,7 @@ export default function ConsultaPage() {
                 </p>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+                {loading ? <CarLoader className="size-4 animate-spin" /> : null}
                 Acessar histórico
               </Button>
               <button

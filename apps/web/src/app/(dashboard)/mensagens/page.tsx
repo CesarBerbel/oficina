@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Loader2, Pencil, Trash2, Send, Mail } from 'lucide-react';
+import { Plus, Pencil, Trash2, Send, Mail } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   MESSAGE_EVENT_LABELS,
@@ -102,7 +103,7 @@ function TemplatesTab({ canWrite }: { canWrite: boolean }) {
     <div className="space-y-4">
       {canWrite && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" /> Novo template</Button>}
       {isLoading ? (
-        <div className="grid h-32 place-items-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+        <div className="grid h-32 place-items-center"><CarLoader className="size-5 animate-spin text-muted-foreground" /></div>
       ) : (templates ?? []).length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Nenhum template.</p>
       ) : (
@@ -157,7 +158,7 @@ function HistoricoTab({ canWrite }: { canWrite: boolean }) {
       )}
       <div className="rounded-xl border divide-y">
         {isLoading ? (
-          <div className="grid h-24 place-items-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+          <div className="grid h-24 place-items-center"><CarLoader className="size-5 animate-spin text-muted-foreground" /></div>
         ) : logs.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma mensagem enviada.</p>
         ) : (
@@ -240,7 +241,7 @@ function TestEmailDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
           </div>
           <DialogFooter>
             <Button type="submit" disabled={test.isPending}>
-              {test.isPending ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+              {test.isPending ? <CarLoader className="size-4 animate-spin" /> : <Mail className="size-4" />}
               Enviar teste
             </Button>
           </DialogFooter>
@@ -298,7 +299,7 @@ function ManualSendDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={send.isPending}>
-              {send.isPending && <Loader2 className="size-4 animate-spin" />} Enviar
+              {send.isPending && <CarLoader className="size-4 animate-spin" />} Enviar
             </Button>
           </DialogFooter>
         </form>

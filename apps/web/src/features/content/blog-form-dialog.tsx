@@ -3,13 +3,9 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  createBlogPostSchema,
-  updateBlogPostSchema,
-  BLOG_STATUS_LABELS,
-  BlogStatus,
-  type BlogPostDto,
-} from '@oficina/shared';
-import { Loader2, Sparkles } from 'lucide-react';
+  createBlogPostSchema, updateBlogPostSchema, BLOG_STATUS_LABELS, BlogStatus, type BlogPostDto, } from '@oficina/shared';
+import { Sparkles } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { ApiError } from '@/lib/api';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useAiArticle } from '@/features/ai/use-ai';
@@ -120,7 +116,7 @@ export function BlogFormDialog({
               <div className="flex gap-2">
                 <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Assunto (ex.: importância do alinhamento)" className="flex-1" />
                 <Button type="button" variant="outline" className="shrink-0" disabled={article.isPending} onClick={generateWithAi}>
-                  {article.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  {article.isPending ? <CarLoader className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   Gerar
                 </Button>
               </div>
@@ -176,7 +172,7 @@ export function BlogFormDialog({
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={pending}>
-              {pending && <Loader2 className="size-4 animate-spin" />}
+              {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}
             </Button>
           </DialogFooter>

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import type { ServiceDto } from '@oficina/shared';
 import { ApiError } from '@/lib/api';
@@ -73,7 +74,7 @@ export default function ServicesPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
             ) : services.length === 0 ? (
               <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Nenhum serviço.</TableCell></TableRow>
             ) : (

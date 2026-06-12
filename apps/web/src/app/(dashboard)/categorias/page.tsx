@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Loader2, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   CATEGORY_KINDS,
@@ -89,7 +90,7 @@ function KindTab({ kind, canManage }: { kind: CategoryKind; canManage: boolean }
             className="max-w-sm"
           />
           <Button type="submit" disabled={create.isPending}>
-            {create.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            {create.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
             Adicionar
           </Button>
         </form>
@@ -98,7 +99,7 @@ function KindTab({ kind, canManage }: { kind: CategoryKind; canManage: boolean }
       <div className="rounded-xl border divide-y">
         {isLoading ? (
           <div className="grid h-24 place-items-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : items.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">

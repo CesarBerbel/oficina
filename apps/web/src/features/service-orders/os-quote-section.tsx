@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, FileText, Copy, CheckCircle2, XCircle, ExternalLink, Mail, RotateCcw, ShoppingCart } from 'lucide-react';
+import { FileText, Copy, CheckCircle2, XCircle, ExternalLink, Mail, RotateCcw, ShoppingCart } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   QUOTE_STATUS_LABELS,
@@ -153,7 +154,7 @@ export function OsQuoteSection({
               rows={2}
             />
             <Button size="sm" onClick={onGenerate} disabled={generate.isPending}>
-              {generate.isPending ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
+              {generate.isPending ? <CarLoader className="size-4 animate-spin" /> : <FileText className="size-4" />}
               {isRejected
                 ? 'Gerar novo orçamento'
                 : quote
@@ -192,7 +193,7 @@ export function OsQuoteSection({
                     disabled={sendEmail.isPending}
                   >
                     {sendEmail.isPending ? (
-                      <Loader2 className="size-4 animate-spin" />
+                      <CarLoader className="size-4 animate-spin" />
                     ) : (
                       <Mail className="size-4" />
                     )}
@@ -208,7 +209,7 @@ export function OsQuoteSection({
                     disabled={generatePurchase.isPending}
                   >
                     {generatePurchase.isPending ? (
-                      <Loader2 className="size-4 animate-spin" />
+                      <CarLoader className="size-4 animate-spin" />
                     ) : (
                       <ShoppingCart className="size-4" />
                     )}
@@ -227,7 +228,7 @@ export function OsQuoteSection({
                 disabled={reopen.isPending}
               >
                 {reopen.isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <CarLoader className="size-4 animate-spin" />
                 ) : (
                   <RotateCcw className="size-4" />
                 )}

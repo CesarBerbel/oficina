@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, MoreHorizontal, Search, Loader2, UserX, UserCheck, Pencil } from 'lucide-react';
+import { Plus, MoreHorizontal, Search, UserX, UserCheck, Pencil } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   USER_ROLES,
@@ -145,7 +146,7 @@ export default function UsersPage() {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
-                  <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
+                  <CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
@@ -190,7 +191,7 @@ export default function UsersPage() {
       <div className="space-y-3 md:hidden">
         {isLoading ? (
           <div className="grid h-24 place-items-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : users.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">

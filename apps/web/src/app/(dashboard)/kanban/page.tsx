@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { CarLoader } from '@/components/car-loader';
 import type { ServiceOrderStatus, ServiceOrderSummaryDto } from '@oficina/shared';
 import { useServiceOrderBoard } from '@/features/service-orders/use-service-orders';
 
@@ -33,7 +34,7 @@ export default function KanbanPage() {
 
       {isLoading ? (
         <div className="grid h-64 place-items-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <CarLoader className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-4">

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+
+import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
   stockMovementSchema,
@@ -103,7 +104,7 @@ export function StockMovementDialog({
           </div>
           <div className="col-span-2">
             <Button type="submit" className="w-full" disabled={move.isPending}>
-              {move.isPending && <Loader2 className="size-4 animate-spin" />}
+              {move.isPending && <CarLoader className="size-4 animate-spin" />}
               Registrar
             </Button>
           </div>
