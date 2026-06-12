@@ -1,14 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, FileText, Copy, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
+import { Loader2, FileText, Copy, CheckCircle2, XCircle, ExternalLink, Mail, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   QUOTE_STATUS_LABELS,
   type QuoteDto,
+  type ServiceOrderStatus,
 } from '@oficina/shared';
 import { ApiError } from '@/lib/api';
-import { useGenerateQuote } from './use-service-orders';
+import {
+  useGenerateQuote,
+  useReopenQuote,
+  useSendQuoteEmail,
+} from './use-service-orders';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
@@ -23,21 +28,37 @@ const STATUS_VARIANT: Record<string, BadgeProps['variant']> = {
   RECUSADO: 'destructive',
 };
 
+// Orçamento só pode ser gerado/regerado após o diagnóstico, enquanto em
+// orçamento, ou após uma recusa (novo orçamento). Espelha a regra do backend.
+const GENERATE_STATUSES: ServiceOrderStatus[] = [
+  'DIAGNOSTICO_PRONTO',
+  'ORCAMENTO',
+  'ORCAMENTO_RECUSADO',
+];
+
 export function OsQuoteSection({
   osId,
+  osStatus,
   quote,
   publicToken,
   editable,
   canQuote,
 }: {
   osId: string;
+  osStatus: ServiceOrderStatus;
   quote: QuoteDto | null;
   publicToken: string;
   editable: boolean;
   canQuote: boolean;
 }) {
   const generate = useGenerateQuote(osId);
+  const sendEmail = useSendQuoteEmail(osId);
+  const reopen = useReopenQuote(osId);
   const [notes, setNotes] = useState(quote?.publicNotes ?? '');
+
+  const canGenerate = GENERATE_STATUSES.includes(osStatus);
+  const isRejected = osStatus === 'ORCAMENTO_RECUSADO';
+  const isApproved = osStatus === 'ORCAMENTO_APROVADO';
 
   const trackUrl =
     typeof window !== 'undefined'
@@ -56,6 +77,32 @@ export function OsQuoteSection({
   function copyLink() {
     navigator.clipboard.writeText(trackUrl);
     toast.success('Link copiado');
+  }
+
+  async function onSendEmail() {
+    try {
+      const { to } = await sendEmail.mutateAsync();
+      toast.success(`Orçamento enviado para ${to}`);
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : 'Erro ao enviar o orçamento',
+      );
+    }
+  }
+
+  async function onReopen() {
+    if (
+      !confirm(
+        'Reabrir o orçamento? A OS volta a ser editável para adicionar serviços, combos e peças e gerar um novo orçamento.',
+      )
+    )
+      return;
+    try {
+      await reopen.mutateAsync();
+      toast.success('Orçamento reaberto. Edite a OS e gere um novo orçamento.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao reabrir o orçamento');
+    }
   }
 
   return (
@@ -77,7 +124,13 @@ export function OsQuoteSection({
           </p>
         )}
 
-        {canQuote && editable && (
+        {canQuote && editable && osStatus === 'ENTRADA' && (
+          <p className="text-xs text-muted-foreground">
+            Conclua o diagnóstico antes de gerar o orçamento.
+          </p>
+        )}
+
+        {canQuote && editable && canGenerate && (
           <div className="space-y-2">
             <Textarea
               value={notes}
@@ -87,26 +140,70 @@ export function OsQuoteSection({
             />
             <Button size="sm" onClick={onGenerate} disabled={generate.isPending}>
               {generate.isPending ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
-              {quote ? 'Regerar orçamento' : 'Gerar orçamento'}
+              {isRejected
+                ? 'Gerar novo orçamento'
+                : quote
+                  ? 'Regerar orçamento'
+                  : 'Gerar orçamento'}
             </Button>
           </div>
         )}
 
         {quote && (
           <>
-            <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2">
-              <input
-                readOnly
-                value={trackUrl}
-                className="flex-1 truncate bg-transparent text-xs text-muted-foreground outline-none"
-              />
-              <Button size="icon" variant="ghost" onClick={copyLink} aria-label="Copiar link">
-                <Copy className="size-4" />
+            {/* Orçamento aprovado: OS travada (somente leitura). Esconde link e
+                envio; oferece reabrir o orçamento para editar e refazer. */}
+            {!isApproved && (
+              <>
+                <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2">
+                  <input
+                    readOnly
+                    value={trackUrl}
+                    className="flex-1 truncate bg-transparent text-xs text-muted-foreground outline-none"
+                  />
+                  <Button size="icon" variant="ghost" onClick={copyLink} aria-label="Copiar link">
+                    <Copy className="size-4" />
+                  </Button>
+                  <a href={trackUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                    <ExternalLink className="size-4" />
+                  </a>
+                </div>
+
+                {canQuote && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={onSendEmail}
+                    disabled={sendEmail.isPending}
+                  >
+                    {sendEmail.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Mail className="size-4" />
+                    )}
+                    Enviar por e-mail
+                  </Button>
+                )}
+              </>
+            )}
+
+            {isApproved && canQuote && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={onReopen}
+                disabled={reopen.isPending}
+              >
+                {reopen.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="size-4" />
+                )}
+                Reabrir orçamento
               </Button>
-              <a href={trackUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
-                <ExternalLink className="size-4" />
-              </a>
-            </div>
+            )}
 
             {quote.decidedAt && (
               <div className="rounded-md border p-2 text-xs">

@@ -36,6 +36,20 @@ export const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional().default(''),
   VAPID_PRIVATE_KEY: z.string().optional().default(''),
   VAPID_SUBJECT: z.string().default('mailto:admin@oficina.local'),
+
+  // ─── E-mail ───
+  // 'smtp' envia de verdade (requer SMTP_* abaixo); 'log' simula no terminal.
+  MAIL_DRIVER: z.enum(['smtp', 'log']).default('smtp'),
+  SMTP_HOST: z.string().optional().default(''),
+  SMTP_PORT: z.coerce.number().int().default(465),
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  SMTP_USER: z.string().optional().default(''),
+  SMTP_PASS: z.string().optional().default(''),
+  /** Remetente exibido. Cai para SMTP_USER quando vazio. */
+  SMTP_FROM: z.string().optional().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

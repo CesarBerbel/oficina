@@ -23,6 +23,7 @@ export const createPartSchema = z.object({
   costPrice: z.coerce.number().min(0).max(9_999_999).default(0),
   salePrice: z.coerce.number().min(0).max(9_999_999).default(0),
   supplier: optionalString(120),
+  supplierId: optionalString(40),
   description: optionalString(2000),
   active: z.boolean().default(true),
   /** Estoque inicial (gera um movimento de ENTRADA). */
@@ -64,10 +65,16 @@ export interface PartDto {
   brand: string | null;
   unit: string;
   currentStock: number;
+  /** Quantidade reservada para OS aprovadas (ainda não consumida). */
+  reservedStock: number;
+  /** Disponível para novas reservas = currentStock - reservedStock. */
+  availableStock: number;
   minStock: number;
   costPrice: number;
   salePrice: number;
   supplier: string | null;
+  supplierId: string | null;
+  supplierName: string | null;
   description: string | null;
   active: boolean;
   lowStock: boolean;

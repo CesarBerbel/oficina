@@ -28,6 +28,7 @@ export * from './schemas/combo.js';
 export * from './schemas/part.js';
 export * from './schemas/quote.js';
 export * from './schemas/public-tracking.js';
+export * from './schemas/garage.js';
 export * from './schemas/supplier.js';
 export * from './schemas/purchase.js';
 export * from './schemas/nfe.js';

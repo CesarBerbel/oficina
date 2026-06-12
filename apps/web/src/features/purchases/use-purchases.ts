@@ -89,7 +89,8 @@ export function useCreatePurchase() {
 export function useCreateFromShortages() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<PurchaseOrderDto>('/purchase-orders/from-shortages'),
+    mutationFn: () =>
+      api.post<{ created: number }>('/purchase-orders/from-shortages'),
     onSuccess: () => invalidatePurchases(qc),
   });
 }

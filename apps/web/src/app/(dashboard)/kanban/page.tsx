@@ -8,6 +8,8 @@ import { useServiceOrderBoard } from '@/features/service-orders/use-service-orde
 const COLUMNS: { label: string; statuses: ServiceOrderStatus[] }[] = [
   { label: 'Aguardando diagnóstico', statuses: ['ENTRADA'] },
   { label: 'Em orçamento', statuses: ['DIAGNOSTICO_PRONTO', 'ORCAMENTO'] },
+  { label: 'Recusada', statuses: ['ORCAMENTO_RECUSADO'] },
+  { label: 'Aguardando peça', statuses: ['AGUARDANDO_PECA'] },
   { label: 'Aprovada', statuses: ['ORCAMENTO_APROVADO'] },
   { label: 'Em execução', statuses: ['EM_EXECUCAO'] },
   { label: 'Em teste', statuses: ['EM_TESTE'] },

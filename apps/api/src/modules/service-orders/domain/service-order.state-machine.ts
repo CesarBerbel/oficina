@@ -1,5 +1,6 @@
 import {
   canTransition,
+  isOrderEditable,
   isTerminalStatus,
   SERVICE_ORDER_TRANSITIONS,
   type ServiceOrderStatus,
@@ -37,12 +38,19 @@ export const ServiceOrderStateMachine = {
     return isTerminalStatus(status);
   },
 
-  /** OS em status terminal (ENTREGUE/CANCELADA) não pode ser editada. */
+  /**
+   * OS somente-leitura não pode ser editada: status terminal (ENTREGUE/CANCELADA)
+   * ou orçamento aprovado (é preciso reabrir o orçamento para editar).
+   */
   assertEditable(status: ServiceOrderStatus): void {
-    if (isTerminalStatus(status)) {
+    if (isOrderEditable(status)) return;
+    if (status === 'ORCAMENTO_APROVADO') {
       throw new ServiceOrderDomainError(
-        'OS finalizada ou cancelada não pode ser alterada',
+        'Orçamento aprovado: reabra o orçamento para editar a OS.',
       );
     }
+    throw new ServiceOrderDomainError(
+      'OS finalizada ou cancelada não pode ser alterada',
+    );
   },
 } as const;

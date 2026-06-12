@@ -33,6 +33,28 @@ export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export const listMessagesQuerySchema = paginationQuerySchema;
 export type ListMessagesQuery = z.infer<typeof listMessagesQuerySchema>;
 
+/** Envio de e-mail de teste para validar a configuração SMTP. */
+export const sendTestEmailSchema = z.object({
+  to: z.string().trim().email('Informe um e-mail válido'),
+});
+export type SendTestEmailInput = z.infer<typeof sendTestEmailSchema>;
+
+export interface SendTestEmailResult {
+  /** ENVIADO (SMTP), SIMULADO (log) ou FALHA. */
+  status: MessageStatus;
+  /** Modo efetivo no momento do envio. */
+  mode: 'smtp' | 'log';
+  error: string | null;
+}
+
+/** Estado atual do canal de e-mail (para exibir no painel). */
+export interface MailStatusDto {
+  /** 'smtp' = envia de verdade; 'log' = simulado no terminal. */
+  mode: 'smtp' | 'log';
+  /** Remetente configurado, quando em SMTP. */
+  from: string | null;
+}
+
 export interface MessageTemplateDto {
   id: string;
   name: string;

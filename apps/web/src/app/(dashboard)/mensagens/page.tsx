@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Loader2, Pencil, Trash2, Send } from 'lucide-react';
+import { Plus, Loader2, Pencil, Trash2, Send, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   MESSAGE_EVENT_LABELS,
@@ -16,7 +16,7 @@ import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { maskPhoneOrEmail } from '@/lib/masks';
 import { useAuth } from '@/lib/auth-context';
 import {
-  useTemplates, useDeleteTemplate, useMessageLogs, useSendMessage,
+  useTemplates, useDeleteTemplate, useMessageLogs, useSendMessage, useSendTestEmail, useMailStatus,
 } from '@/features/messaging/use-messaging';
 import { TemplateFormDialog } from '@/features/messaging/template-form-dialog';
 import { formatDate, cn } from '@/lib/utils';
@@ -48,6 +48,8 @@ export default function MessagesPage() {
         <p className="text-muted-foreground">Templates e histórico de envios.</p>
       </div>
 
+      <MailStatusBanner />
+
       <div className="flex gap-1 border-b">
         {(['templates', 'historico'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
@@ -59,6 +61,33 @@ export default function MessagesPage() {
       </div>
 
       {tab === 'templates' ? <TemplatesTab canWrite={canWrite} /> : <HistoricoTab canWrite={canWrite} />}
+    </div>
+  );
+}
+
+function MailStatusBanner() {
+  const { data } = useMailStatus();
+  if (!data) return null;
+
+  if (data.mode === 'smtp') {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+        <Mail className="size-4 shrink-0" />
+        <span>
+          Envio de e-mail <strong>ativo (SMTP)</strong>
+          {data.from && ` — remetente ${data.from}`}.
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+      <Mail className="size-4 shrink-0" />
+      <span>
+        E-mail em <strong>modo simulado</strong> (MAIL_DRIVER=log): as mensagens
+        não são enviadas, apenas registradas. Configure o SMTP no .env para
+        enviar de verdade.
+      </span>
     </div>
   );
 }
@@ -114,12 +143,18 @@ function HistoricoTab({ canWrite }: { canWrite: boolean }) {
   const [page, setPage] = useState(1);
   const { data, isLoading } = useMessageLogs(page);
   const [sendOpen, setSendOpen] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
   const logs = data?.data ?? [];
   const meta = data?.meta;
 
   return (
     <div className="space-y-4">
-      {canWrite && <Button variant="outline" onClick={() => setSendOpen(true)}><Send className="size-4" /> Enviar mensagem</Button>}
+      {canWrite && (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setSendOpen(true)}><Send className="size-4" /> Enviar mensagem</Button>
+          <Button variant="outline" onClick={() => setTestOpen(true)}><Mail className="size-4" /> Testar e-mail</Button>
+        </div>
+      )}
       <div className="rounded-xl border divide-y">
         {isLoading ? (
           <div className="grid h-24 place-items-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
@@ -152,7 +187,66 @@ function HistoricoTab({ canWrite }: { canWrite: boolean }) {
         </div>
       )}
       <ManualSendDialog open={sendOpen} onOpenChange={setSendOpen} />
+      <TestEmailDialog open={testOpen} onOpenChange={setTestOpen} />
     </div>
+  );
+}
+
+function TestEmailDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const test = useSendTestEmail();
+  const [to, setTo] = useState('');
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())) {
+      toast.error('Informe um e-mail válido');
+      return;
+    }
+    try {
+      const res = await test.mutateAsync(to.trim());
+      if (res.mode === 'log') {
+        toast.success('Modo simulado (MAIL_DRIVER=log): e-mail registrado no terminal, nada foi enviado.');
+      } else if (res.status === 'ENVIADO') {
+        toast.success(`E-mail enviado para ${to.trim()} via SMTP.`);
+      } else {
+        toast.error(`Falha no envio SMTP: ${res.error ?? 'erro desconhecido'}`);
+      }
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, {}, 'Erro ao enviar e-mail de teste'));
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Testar envio de e-mail</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="test-to">Enviar para</Label>
+            <Input
+              id="test-to"
+              type="email"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="seu-email@exemplo.com"
+            />
+            <p className="text-xs text-muted-foreground">
+              Valida a configuração SMTP. Com MAIL_DRIVER=log, o envio é apenas
+              simulado (aparece no terminal e no histórico).
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={test.isPending}>
+              {test.isPending ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+              Enviar teste
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -78,7 +78,11 @@ export default function ServiceOrderDetailPage({
   }
   if (!os) return <p className="text-muted-foreground">OS não encontrada.</p>;
 
-  const nextStatuses = SERVICE_ORDER_TRANSITIONS[os.status] ?? [];
+  // Reabrir o orçamento (ORCAMENTO_APROVADO → DIAGNOSTICO_PRONTO) é uma ação
+  // dedicada na seção de orçamento, não um avanço de status — fica fora da barra.
+  const nextStatuses = (SERVICE_ORDER_TRANSITIONS[os.status] ?? []).filter(
+    (s) => !(os.status === 'ORCAMENTO_APROVADO' && s === 'DIAGNOSTICO_PRONTO'),
+  );
   const dirty =
     diagnosis !== (os.diagnosis ?? '') ||
     notes !== (os.notes ?? '') ||
@@ -100,6 +104,11 @@ export default function ServiceOrderDetailPage({
   async function moveTo(status: ServiceOrderStatus) {
     if (status === 'CANCELADA' && !confirm('Cancelar esta OS? A ação trava a edição.'))
       return;
+    // Diagnóstico pronto exige o diagnóstico salvo (o back valida o valor persistido).
+    if (status === 'DIAGNOSTICO_PRONTO' && (os?.diagnosis ?? '').trim() === '') {
+      toast.error('Preencha e salve o diagnóstico técnico antes de concluir o diagnóstico.');
+      return;
+    }
     try {
       await changeStatus.mutateAsync({ status });
       toast.success(`Status: ${SERVICE_ORDER_STATUS_LABELS[status]}`);
@@ -155,22 +164,25 @@ export default function ServiceOrderDetailPage({
       {canStatus && nextStatuses.length > 0 && (
         <div className="flex flex-wrap gap-2 rounded-xl border bg-card p-3">
           <span className="self-center text-sm text-muted-foreground">Avançar para:</span>
-          {nextStatuses.map((s) => (
-            <Button
-              key={s}
-              size="sm"
-              variant={s === 'CANCELADA' ? 'destructive' : 'default'}
-              disabled={changeStatus.isPending}
-              onClick={() => moveTo(s)}
-            >
-              {s === 'CANCELADA' ? (
-                <XCircle className="size-4" />
-              ) : (
-                <CheckCircle2 className="size-4" />
-              )}
-              {SERVICE_ORDER_STATUS_LABELS[s]}
-            </Button>
-          ))}
+          {nextStatuses.map((s) => {
+            const negative = s === 'CANCELADA' || s === 'ORCAMENTO_RECUSADO';
+            return (
+              <Button
+                key={s}
+                size="sm"
+                variant={negative ? 'destructive' : 'default'}
+                disabled={changeStatus.isPending}
+                onClick={() => moveTo(s)}
+              >
+                {negative ? (
+                  <XCircle className="size-4" />
+                ) : (
+                  <CheckCircle2 className="size-4" />
+                )}
+                {SERVICE_ORDER_STATUS_LABELS[s]}
+              </Button>
+            );
+          })}
         </div>
       )}
 
@@ -330,6 +342,7 @@ export default function ServiceOrderDetailPage({
 
           <OsQuoteSection
             osId={os.id}
+            osStatus={os.status}
             quote={os.quote}
             publicToken={os.publicToken}
             editable={os.editable}

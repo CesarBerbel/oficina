@@ -3,13 +3,14 @@
 import { use, useState } from 'react';
 import { Wrench, Loader2, Car, CheckCircle2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { type QuoteItemDto } from '@oficina/shared';
+import { cpfCnpjSchema, type QuoteItemDto } from '@oficina/shared';
 import { usePublicTracking, useQuoteDecision } from '@/features/public/use-tracking';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
+import { maskCpfCnpj } from '@/lib/masks';
 
 export default function PublicTrackingPage({
   params,
@@ -23,6 +24,7 @@ export default function PublicTrackingPage({
   // Decisão por item (default aprovado)
   const [decisions, setDecisions] = useState<Record<string, boolean>>({});
   const [signature, setSignature] = useState('');
+  const [signerDoc, setSignerDoc] = useState('');
 
   if (isLoading) {
     return (
@@ -44,6 +46,12 @@ export default function PublicTrackingPage({
 
   const quote = data.quote;
   const canDecide = quote && quote.status === 'ENVIADO';
+
+  // Só permite aprovar/recusar com nome preenchido e CPF/CNPJ válido.
+  const nameOk = signature.trim().length > 0;
+  const docResult = cpfCnpjSchema.safeParse(signerDoc);
+  const docOk = docResult.success && docResult.data !== null;
+  const canSubmit = nameOk && docOk;
 
   function isApproved(item: QuoteItemDto): boolean {
     return decisions[item.id] ?? true;
@@ -70,7 +78,7 @@ export default function PublicTrackingPage({
   }
 
   async function submit(reject: boolean) {
-    if (!quote) return;
+    if (!quote || !canSubmit) return;
     const itemDecisions = quote.items.map((it) => ({
       itemId: it.id,
       decision: (isApproved(it) ? 'APROVADO' : 'RECUSADO') as 'APROVADO' | 'RECUSADO',
@@ -79,7 +87,8 @@ export default function PublicTrackingPage({
       await decide.mutateAsync({
         itemDecisions: reject ? [] : itemDecisions,
         reject,
-        signatureName: signature || undefined,
+        signatureName: signature.trim(),
+        signatureDoc: signerDoc,
       });
       toast.success(reject ? 'Orçamento recusado' : 'Orçamento aprovado. Obrigado!');
     } catch (err) {
@@ -201,18 +210,41 @@ export default function PublicTrackingPage({
               <div className="space-y-3 rounded-lg border bg-muted/40 p-3">
                 <p className="text-sm font-medium">Aprovação do orçamento</p>
                 <p className="text-xs text-muted-foreground">
-                  Desmarque itens que não deseja aprovar. Confirme com seu nome (assinatura).
+                  Desmarque itens que não deseja aprovar. Confirme com seu nome e
+                  CPF/CNPJ (assinatura).
                 </p>
                 <div className="space-y-1.5">
                   <Label>Seu nome (assinatura)</Label>
                   <Input value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="Nome completo" />
                 </div>
+                <div className="space-y-1.5">
+                  <Label>CPF ou CNPJ</Label>
+                  <Input
+                    value={signerDoc}
+                    onChange={(e) => setSignerDoc(maskCpfCnpj(e.target.value))}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                  />
+                  {signerDoc.length > 0 && !docOk && (
+                    <p className="text-xs text-destructive">
+                      Informe um CPF ou CNPJ válido.
+                    </p>
+                  )}
+                </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => submit(false)} disabled={decide.isPending} className="flex-1">
+                  <Button
+                    onClick={() => submit(false)}
+                    disabled={decide.isPending || !canSubmit}
+                    className="flex-1"
+                  >
                     {decide.isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
                     Aprovar
                   </Button>
-                  <Button variant="outline" onClick={() => submit(true)} disabled={decide.isPending}>
+                  <Button
+                    variant="outline"
+                    onClick={() => submit(true)}
+                    disabled={decide.isPending || !canSubmit}
+                  >
                     Recusar
                   </Button>
                 </div>

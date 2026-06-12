@@ -12,11 +12,13 @@ import {
   createTemplateSchema,
   listMessagesQuerySchema,
   sendMessageSchema,
+  sendTestEmailSchema,
   updateTemplateSchema,
   Permission,
   type CreateTemplateInput,
   type ListMessagesQuery,
   type SendMessageInput,
+  type SendTestEmailInput,
   type UpdateTemplateInput,
 } from '@oficina/shared';
 import { MessagingService } from './messaging.service';
@@ -60,6 +62,12 @@ export class MessagingController {
     return this.messaging.removeTemplate(actor, id);
   }
 
+  @Get('mail-status')
+  @RequirePermission(Permission.MESSAGES_READ)
+  mailStatus() {
+    return this.messaging.mailStatus();
+  }
+
   @Get('logs')
   @RequirePermission(Permission.MESSAGES_READ)
   logs(
@@ -76,5 +84,14 @@ export class MessagingController {
     @Body(new ZodValidationPipe(sendMessageSchema)) body: SendMessageInput,
   ) {
     return this.messaging.sendManual(actor, body);
+  }
+
+  @Post('test-email')
+  @RequirePermission(Permission.MESSAGES_WRITE)
+  testEmail(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body(new ZodValidationPipe(sendTestEmailSchema)) body: SendTestEmailInput,
+  ) {
+    return this.messaging.sendTestEmail(actor, body.to);
   }
 }

@@ -55,11 +55,65 @@ describe('ServiceOrderStateMachine', () => {
     expect(() => SM.assertTransition('EM_TESTE', 'EM_EXECUCAO')).not.toThrow();
   });
 
+  it('permite recusar o orçamento (ORCAMENTO -> ORCAMENTO_RECUSADO)', () => {
+    expect(() =>
+      SM.assertTransition('ORCAMENTO', 'ORCAMENTO_RECUSADO'),
+    ).not.toThrow();
+  });
+
+  it('permite gerar novo orçamento após recusa (ORCAMENTO_RECUSADO -> ORCAMENTO)', () => {
+    expect(() =>
+      SM.assertTransition('ORCAMENTO_RECUSADO', 'ORCAMENTO'),
+    ).not.toThrow();
+    expect(() =>
+      SM.assertTransition('ORCAMENTO_RECUSADO', 'CANCELADA'),
+    ).not.toThrow();
+  });
+
   it('bloqueia edição em status terminal', () => {
     expect(() => SM.assertEditable('ENTREGUE')).toThrow(ServiceOrderDomainError);
     expect(() => SM.assertEditable('CANCELADA')).toThrow(
       ServiceOrderDomainError,
     );
     expect(() => SM.assertEditable('EM_EXECUCAO')).not.toThrow();
+  });
+
+  it('bloqueia edição com orçamento aprovado (somente leitura)', () => {
+    expect(() => SM.assertEditable('ORCAMENTO_APROVADO')).toThrow(
+      ServiceOrderDomainError,
+    );
+  });
+
+  it('permite reabrir o orçamento (ORCAMENTO_APROVADO -> DIAGNOSTICO_PRONTO)', () => {
+    expect(() =>
+      SM.assertTransition('ORCAMENTO_APROVADO', 'DIAGNOSTICO_PRONTO'),
+    ).not.toThrow();
+  });
+
+  it('permite aprovar com falta de peça (ORCAMENTO -> AGUARDANDO_PECA)', () => {
+    expect(() =>
+      SM.assertTransition('ORCAMENTO', 'AGUARDANDO_PECA'),
+    ).not.toThrow();
+  });
+
+  it('da AGUARDANDO_PECA avança para aprovado ou execução', () => {
+    expect(() =>
+      SM.assertTransition('AGUARDANDO_PECA', 'ORCAMENTO_APROVADO'),
+    ).not.toThrow();
+    expect(() =>
+      SM.assertTransition('AGUARDANDO_PECA', 'EM_EXECUCAO'),
+    ).not.toThrow();
+  });
+
+  it('permite reabrir o orçamento aguardando peça (AGUARDANDO_PECA -> DIAGNOSTICO_PRONTO)', () => {
+    expect(() =>
+      SM.assertTransition('AGUARDANDO_PECA', 'DIAGNOSTICO_PRONTO'),
+    ).not.toThrow();
+  });
+
+  it('bloqueia edição aguardando peça (somente leitura)', () => {
+    expect(() => SM.assertEditable('AGUARDANDO_PECA')).toThrow(
+      ServiceOrderDomainError,
+    );
   });
 });

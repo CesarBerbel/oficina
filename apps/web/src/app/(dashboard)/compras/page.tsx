@@ -84,8 +84,10 @@ function PedidosTab({ canWrite }: { canWrite: boolean }) {
 
   async function generateShortages() {
     try {
-      const po = await fromShortages.mutateAsync();
-      toast.success(`Pedido #${po.number} gerado com itens em falta`);
+      const { created } = await fromShortages.mutateAsync();
+      toast.success(
+        `${created} pedido(s) gerado(s) — agrupados por fornecedor`,
+      );
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Erro');
     }
@@ -127,7 +129,14 @@ function PedidosTab({ canWrite }: { canWrite: boolean }) {
                     #{o.number}
                     <span className="block text-xs font-normal text-muted-foreground">{formatDate(o.createdAt)}</span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{o.supplierName ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {o.supplierName ?? '—'}
+                    {o.serviceOrderNumber != null && (
+                      <span className="block text-xs text-amber-600 dark:text-amber-400">
+                        gerado pela OS #{o.serviceOrderNumber}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{o.itemsCount}</TableCell>
                   <TableCell><Badge variant={STATUS_VARIANT[o.status]}>{PURCHASE_ORDER_STATUS_LABELS[o.status]}</Badge></TableCell>
                   <TableCell className="text-right font-medium">{formatCurrency(o.total)}</TableCell>

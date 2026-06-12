@@ -25,6 +25,7 @@ export function toQuoteDto(quote: QuoteRow, publicToken: string): QuoteDto {
     decidedAt: quote.decidedAt ? quote.decidedAt.toISOString() : null,
     decisionIp: quote.decisionIp,
     signatureName: quote.signatureName,
+    signatureDoc: quote.signatureDoc,
     createdAt: quote.createdAt.toISOString(),
     items: quote.items.map((it) => ({
       id: it.id,

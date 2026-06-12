@@ -4,13 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, type PrismaClient } from '@prisma/client';
-import type {
-  CreatePurchaseInput,
-  ListPurchasesQuery,
-  Paginated,
-  PurchaseOrderDto,
-  PurchaseOrderSummaryDto,
-  ReceivePurchaseInput,
+import {
+  canTransition,
+  type CreatePurchaseInput,
+  type ListPurchasesQuery,
+  type Paginated,
+  type PurchaseOrderDto,
+  type PurchaseOrderSummaryDto,
+  type ReceivePurchaseInput,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -21,9 +22,11 @@ type Tx = Prisma.TransactionClient | PrismaClient;
 const dec = (v: Prisma.Decimal | number | null | undefined): number =>
   v == null ? 0 : Number(v);
 const round2 = (n: number): number => Math.round(n * 100) / 100;
+const round3 = (n: number): number => Math.round(n * 1000) / 1000;
 
 const include = {
   supplier: { select: { id: true, name: true } },
+  serviceOrder: { select: { number: true } },
   items: { include: { part: { select: { name: true, unit: true } } } },
 } satisfies Prisma.PurchaseOrderInclude;
 
@@ -43,6 +46,8 @@ export class PurchasesService {
       status: r.status,
       supplierId: r.supplierId,
       supplierName: r.supplier?.name ?? null,
+      serviceOrderId: r.serviceOrderId,
+      serviceOrderNumber: r.serviceOrder?.number ?? null,
       itemsCount: r.items.length,
       total: dec(r.total),
       dueDate: r.dueDate ? r.dueDate.toISOString() : null,
@@ -181,26 +186,49 @@ export class PurchasesService {
     return this.toDto(created);
   }
 
-  /** Cria um pedido com as peças abaixo do estoque mínimo. */
-  async createFromShortages(actor: AuthenticatedUser): Promise<PurchaseOrderDto> {
+  /**
+   * Gera pedidos com as peças abaixo do estoque mínimo, agrupados por fornecedor
+   * (um pedido por fornecedor) e ignorando peças que já têm pedido em aberto.
+   */
+  async createFromShortages(
+    actor: AuthenticatedUser,
+  ): Promise<{ created: number }> {
     const parts = await this.prisma.part.findMany({
       where: {
         tenantId: actor.tenantId,
         active: true,
         currentStock: { lt: this.prisma.part.fields.minStock },
       },
-      select: { id: true, currentStock: true, minStock: true, costPrice: true },
+      select: { id: true },
     });
     if (parts.length === 0) {
       throw new BadRequestException('Nenhuma peça abaixo do estoque mínimo');
     }
-    return this.create(actor, {
-      items: parts.map((p) => ({
-        partId: p.id,
-        quantity: Math.max(1, dec(p.minStock) - dec(p.currentStock)),
-        unitCost: dec(p.costPrice),
-      })),
+
+    const created = await this.prisma.$transaction((tx) =>
+      this.replenishBelowMin(
+        tx,
+        actor.tenantId,
+        parts.map((p) => p.id),
+        actor.id,
+      ),
+    );
+    if (created === 0) {
+      throw new BadRequestException(
+        'As peças em falta já possuem pedido de compra em aberto.',
+      );
+    }
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'CREATE',
+      module: 'purchases',
+      entity: 'PurchaseOrder',
+      after: { fromShortages: true, created },
     });
+
+    return { created };
   }
 
   async setStatus(
@@ -276,6 +304,34 @@ export class PurchasesService {
               : order.status,
         },
       });
+
+      // Compra vinculada a uma OS "aguardando peça": ao receber tudo e havendo
+      // estoque suficiente, a OS avança automaticamente para "orçamento aprovado".
+      if (order.serviceOrderId && allReceived) {
+        const os = await tx.serviceOrder.findUnique({
+          where: { id: order.serviceOrderId },
+          select: { id: true, status: true },
+        });
+        if (
+          os?.status === 'AGUARDANDO_PECA' &&
+          canTransition(os.status, 'ORCAMENTO_APROVADO') &&
+          (await this.isOrderStockCovered(tx, os.id))
+        ) {
+          await tx.serviceOrder.update({
+            where: { id: os.id },
+            data: {
+              status: 'ORCAMENTO_APROVADO',
+              history: {
+                create: {
+                  status: 'ORCAMENTO_APROVADO',
+                  userId: actor.id,
+                  note: `Peças recebidas (pedido #${order.number}) — orçamento aprovado`,
+                },
+              },
+            },
+          });
+        }
+      }
     });
 
     await this.audit.record({
@@ -288,5 +344,293 @@ export class PurchasesService {
     });
 
     return this.findOne(actor.tenantId, id);
+  }
+
+  // ─── Integração OS ↔ estoque (reserva + backorder) ───
+  /**
+   * Demanda de peças da OS (itens do catálogo), agregada por peça, com estoque,
+   * reserva, custo e fornecedor atuais. Itens livres (sem `sourcePartId`) não
+   * controlam estoque.
+   */
+  private async orderPartNeeds(
+    tx: Tx,
+    orderId: string,
+  ): Promise<
+    {
+      part: {
+        id: string;
+        currentStock: Prisma.Decimal;
+        reservedStock: Prisma.Decimal;
+        costPrice: Prisma.Decimal;
+        supplierId: string | null;
+      };
+      needed: number;
+    }[]
+  > {
+    const items = await tx.serviceOrderItem.findMany({
+      where: { serviceOrderId: orderId, kind: 'PART', sourcePartId: { not: null } },
+      select: { sourcePartId: true, quantity: true },
+    });
+    const byPart = new Map<string, number>();
+    for (const it of items) {
+      const id = it.sourcePartId as string;
+      byPart.set(id, round3((byPart.get(id) ?? 0) + dec(it.quantity)));
+    }
+    if (byPart.size === 0) return [];
+    const parts = await tx.part.findMany({
+      where: { id: { in: [...byPart.keys()] } },
+      select: {
+        id: true,
+        currentStock: true,
+        reservedStock: true,
+        costPrice: true,
+        supplierId: true,
+      },
+    });
+    return parts.map((part) => ({ part, needed: byPart.get(part.id) ?? 0 }));
+  }
+
+  /** Cancela pedidos de compra em aberto (não recebidos) gerados pela OS. */
+  private async cancelOpenOrderPurchases(tx: Tx, orderId: string): Promise<void> {
+    await tx.purchaseOrder.updateMany({
+      where: { serviceOrderId: orderId, status: { in: ['ABERTO', 'ENVIADO'] } },
+      data: { status: 'CANCELADO' },
+    });
+  }
+
+  /** Cria pedidos de compra agrupados por fornecedor (um pedido por fornecedor). */
+  private async createGroupedPurchases(
+    tx: Tx,
+    tenantId: string,
+    lines: { partId: string; supplierId: string | null; qty: number; costPrice: number }[],
+    opts: { serviceOrderId?: string | null; notes: string },
+  ): Promise<number> {
+    const valid = lines.filter((l) => l.qty > 0);
+    if (valid.length === 0) return 0;
+    const groups = new Map<string, typeof valid>();
+    for (const l of valid) {
+      const key = l.supplierId ?? '__none__';
+      const arr = groups.get(key) ?? [];
+      arr.push(l);
+      groups.set(key, arr);
+    }
+    let created = 0;
+    for (const [key, group] of groups) {
+      const number = await this.nextNumber(tx, tenantId);
+      const total = round2(group.reduce((acc, l) => acc + l.qty * l.costPrice, 0));
+      await tx.purchaseOrder.create({
+        data: {
+          tenantId,
+          number,
+          supplierId: key === '__none__' ? null : key,
+          serviceOrderId: opts.serviceOrderId ?? null,
+          status: 'ABERTO',
+          total,
+          notes: opts.notes,
+          items: {
+            create: group.map((l) => ({
+              partId: l.partId,
+              quantity: l.qty,
+              unitCost: round2(l.costPrice),
+              total: round2(l.qty * l.costPrice),
+            })),
+          },
+        },
+      });
+      created++;
+    }
+    return created;
+  }
+
+  /**
+   * Aprovação da OS: reserva o estoque das peças (hard allocation) e gera o(s)
+   * pedido(s) de compra do que falta (disponível = estoque − reservado),
+   * agrupado(s) por fornecedor. Idempotente: cancela pedidos antigos da OS antes.
+   */
+  async commitApprovalReservation(
+    tx: Tx,
+    tenantId: string,
+    orderId: string,
+  ): Promise<{ shortfall: boolean }> {
+    const order = await tx.serviceOrder.findUniqueOrThrow({
+      where: { id: orderId },
+      select: { partsReserved: true },
+    });
+    const needs = await this.orderPartNeeds(tx, orderId);
+    if (needs.length === 0) return { shortfall: false };
+
+    await this.cancelOpenOrderPurchases(tx, orderId);
+
+    const shortfallLines: {
+      partId: string;
+      supplierId: string | null;
+      qty: number;
+      costPrice: number;
+    }[] = [];
+    let anyShortfall = false;
+
+    for (const n of needs) {
+      const available = dec(n.part.currentStock) - dec(n.part.reservedStock);
+      const shortfall = round3(Math.max(0, n.needed - available));
+      if (shortfall > 0) {
+        anyShortfall = true;
+        shortfallLines.push({
+          partId: n.part.id,
+          supplierId: n.part.supplierId,
+          qty: shortfall,
+          costPrice: dec(n.part.costPrice),
+        });
+      }
+      // Reserva a demanda completa (só uma vez por OS).
+      if (!order.partsReserved) {
+        await tx.part.update({
+          where: { id: n.part.id },
+          data: { reservedStock: { increment: n.needed } },
+        });
+      }
+    }
+
+    if (!order.partsReserved) {
+      await tx.serviceOrder.update({
+        where: { id: orderId },
+        data: { partsReserved: true },
+      });
+    }
+
+    if (shortfallLines.length > 0) {
+      await this.createGroupedPurchases(tx, tenantId, shortfallLines, {
+        serviceOrderId: orderId,
+        notes: 'Gerado automaticamente por falta de peça na OS',
+      });
+    }
+
+    return { shortfall: anyShortfall };
+  }
+
+  /** Libera a reserva de estoque das peças da OS (reabertura/cancelamento). */
+  async releaseOrderReservations(tx: Tx, orderId: string): Promise<void> {
+    const order = await tx.serviceOrder.findUniqueOrThrow({
+      where: { id: orderId },
+      select: { partsReserved: true },
+    });
+    if (!order.partsReserved) return;
+    const needs = await this.orderPartNeeds(tx, orderId);
+    for (const n of needs) {
+      if (n.needed <= 0) continue;
+      const newReserved = round3(
+        Math.max(0, dec(n.part.reservedStock) - n.needed),
+      );
+      await tx.part.update({
+        where: { id: n.part.id },
+        data: { reservedStock: newReserved },
+      });
+    }
+    await tx.serviceOrder.update({
+      where: { id: orderId },
+      data: { partsReserved: false },
+    });
+  }
+
+  /** Reabertura/cancelamento da OS: cancela compras em aberto e libera reservas. */
+  async unwindOrderBackorder(tx: Tx, orderId: string): Promise<void> {
+    await this.cancelOpenOrderPurchases(tx, orderId);
+    await this.releaseOrderReservations(tx, orderId);
+  }
+
+  /** O estoque já cobre todas as reservas das peças da OS (disponível ≥ 0)? */
+  async isOrderStockCovered(tx: Tx, orderId: string): Promise<boolean> {
+    const needs = await this.orderPartNeeds(tx, orderId);
+    return needs.every(
+      (n) => dec(n.part.currentStock) - dec(n.part.reservedStock) >= 0,
+    );
+  }
+
+  /**
+   * Baixa do estoque (CONSUMO_OS) das peças da OS — chamada na execução. Também
+   * libera a reserva e dispara a reposição automática de itens abaixo do mínimo.
+   */
+  async consumeOrderParts(
+    tx: Tx,
+    tenantId: string,
+    orderId: string,
+    userId: string | null,
+  ): Promise<void> {
+    const needs = await this.orderPartNeeds(tx, orderId);
+    for (const n of needs) {
+      if (n.needed <= 0) continue;
+      await applyStockMovement(tx, {
+        tenantId,
+        partId: n.part.id,
+        type: 'CONSUMO_OS',
+        quantity: n.needed,
+        unitCost: dec(n.part.costPrice),
+        note: 'Consumo em OS (execução)',
+        serviceOrderId: orderId,
+        userId,
+      });
+    }
+    // A baixa libera a reserva (a peça saiu do estoque para a OS).
+    await this.releaseOrderReservations(tx, orderId);
+    await this.replenishBelowMin(
+      tx,
+      tenantId,
+      needs.map((n) => n.part.id),
+      userId,
+    );
+  }
+
+  /**
+   * Reposição automática (ponto de pedido): para as peças abaixo do estoque
+   * mínimo e sem pedido em aberto, gera pedido(s) de compra agrupados por
+   * fornecedor para repor até o mínimo.
+   */
+  async replenishBelowMin(
+    tx: Tx,
+    tenantId: string,
+    partIds: string[],
+    _userId: string | null,
+  ): Promise<number> {
+    if (partIds.length === 0) return 0;
+    const parts = await tx.part.findMany({
+      where: { id: { in: partIds }, tenantId, active: true },
+      select: {
+        id: true,
+        currentStock: true,
+        minStock: true,
+        costPrice: true,
+        supplierId: true,
+      },
+    });
+    const lines: {
+      partId: string;
+      supplierId: string | null;
+      qty: number;
+      costPrice: number;
+    }[] = [];
+    for (const p of parts) {
+      const deficit = round3(dec(p.minStock) - dec(p.currentStock));
+      if (deficit <= 0) continue;
+      // Já há pedido em aberto cobrindo a peça? Então não duplica.
+      const pending = await tx.purchaseOrderItem.findFirst({
+        where: {
+          partId: p.id,
+          purchaseOrder: {
+            tenantId,
+            status: { in: ['ABERTO', 'ENVIADO', 'PARCIALMENTE_RECEBIDO'] },
+          },
+        },
+        select: { id: true },
+      });
+      if (pending) continue;
+      lines.push({
+        partId: p.id,
+        supplierId: p.supplierId,
+        qty: deficit,
+        costPrice: dec(p.costPrice),
+      });
+    }
+    return this.createGroupedPurchases(tx, tenantId, lines, {
+      notes: 'Reposição automática (estoque mínimo)',
+    });
   }
 }

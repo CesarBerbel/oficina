@@ -9,6 +9,8 @@ const VARIANT: Record<ServiceOrderStatus, BadgeProps['variant']> = {
   DIAGNOSTICO_PRONTO: 'default',
   ORCAMENTO: 'warning',
   ORCAMENTO_APROVADO: 'default',
+  ORCAMENTO_RECUSADO: 'destructive',
+  AGUARDANDO_PECA: 'warning',
   EM_EXECUCAO: 'default',
   EM_TESTE: 'warning',
   PRONTA: 'success',

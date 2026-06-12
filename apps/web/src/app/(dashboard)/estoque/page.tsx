@@ -125,6 +125,11 @@ export default function InventoryPage() {
                       {p.currentStock} {p.unit}
                     </span>
                     {p.lowStock && <AlertTriangle className="ml-1 inline size-3.5 text-destructive" />}
+                    {p.reservedStock > 0 && (
+                      <span className="block text-xs text-amber-600 dark:text-amber-400">
+                        {p.reservedStock} reservado · {p.availableStock} livre
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(p.salePrice)}</TableCell>
                   <TableCell>

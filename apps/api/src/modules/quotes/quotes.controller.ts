@@ -38,4 +38,22 @@ export class QuotesController {
   ) {
     return this.quotes.generate(actor, orderId, body);
   }
+
+  @Post('send-email')
+  @RequirePermission(Permission.QUOTES_WRITE)
+  sendEmail(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.quotes.sendEmail(actor, orderId);
+  }
+
+  @Post('reopen')
+  @RequirePermission(Permission.QUOTES_WRITE)
+  reopen(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.quotes.reopen(actor, orderId);
+  }
 }

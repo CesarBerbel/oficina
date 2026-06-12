@@ -28,6 +28,8 @@ const TIMELINE_STEPS: TimelineStep[] = [
 
 const STATUS_DISPLAY_LABELS: Partial<Record<ServiceOrderStatus, string>> = {
   ORCAMENTO: 'Aguardando aprovação',
+  ORCAMENTO_RECUSADO: 'Orçamento recusado',
+  AGUARDANDO_PECA: 'Aguardando peça',
   EM_TESTE: 'Testado',
   PRONTA: 'Finalizado',
   PRONTO_RETIRAR: 'Cliente avisado',
@@ -36,6 +38,8 @@ const STATUS_DISPLAY_LABELS: Partial<Record<ServiceOrderStatus, string>> = {
 
 const STATUS_PILL_CLASS: Partial<Record<ServiceOrderStatus, string>> = {
   CANCELADA: 'bg-red-100 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-900',
+  ORCAMENTO_RECUSADO: 'bg-red-100 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-900',
+  AGUARDANDO_PECA: 'bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900',
   ENTREGUE: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900',
   PRONTA: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900',
   PRONTO_RETIRAR: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900',

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { Wrench, Phone, Mail, MapPin, Clock } from 'lucide-react';
+import { Wrench, Phone, Mail, MapPin, Clock, Lock } from 'lucide-react';
 import { getPublicSite } from '@/lib/public-api';
 import { maskCnpj, maskPhone } from '@/lib/masks';
 
@@ -18,6 +18,7 @@ const NAV = [
   { href: '/site/servicos', label: 'Serviços' },
   { href: '/site/sobre', label: 'Sobre' },
   { href: '/site/blog', label: 'Blog' },
+  { href: '/site/consulta', label: 'Consultar OS' },
   { href: '/site/contato', label: 'Contato' },
 ];
 
@@ -47,16 +48,24 @@ export default async function SiteLayout({
               </Link>
             ))}
           </nav>
-          {s?.whatsapp && (
-            <a
-              href={`https://wa.me/${s.whatsapp.replace(/\D/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
             >
-              WhatsApp
-            </a>
-          )}
+              <Lock className="size-4" /> Área restrita
+            </Link>
+            {s?.whatsapp && (
+              <a
+                href={`https://wa.me/${s.whatsapp.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+              >
+                WhatsApp
+              </a>
+            )}
+          </div>
         </div>
       </header>
 

@@ -20,11 +20,17 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 const dec = (v: Prisma.Decimal | number | null | undefined): number =>
   v == null ? 0 : Number(v);
+const round3 = (n: number): number => Math.round(n * 1000) / 1000;
 
-type PartRow = Prisma.PartGetPayload<object>;
+const partInclude = {
+  supplierRef: { select: { name: true } },
+} satisfies Prisma.PartInclude;
+
+type PartRow = Prisma.PartGetPayload<{ include: typeof partInclude }>;
 
 function toDto(p: PartRow): PartDto {
   const currentStock = dec(p.currentStock);
+  const reservedStock = dec(p.reservedStock);
   const minStock = dec(p.minStock);
   return {
     id: p.id,
@@ -36,10 +42,14 @@ function toDto(p: PartRow): PartDto {
     brand: p.brand,
     unit: p.unit,
     currentStock,
+    reservedStock,
+    availableStock: round3(currentStock - reservedStock),
     minStock,
     costPrice: dec(p.costPrice),
     salePrice: dec(p.salePrice),
     supplier: p.supplier,
+    supplierId: p.supplierId,
+    supplierName: p.supplierRef?.name ?? null,
     description: p.description,
     active: p.active,
     lowStock: currentStock <= minStock,
@@ -85,6 +95,7 @@ export class InventoryService {
       this.prisma.part.count({ where }),
       this.prisma.part.findMany({
         where,
+        include: partInclude,
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -103,9 +114,25 @@ export class InventoryService {
   }
 
   async findOne(tenantId: string, id: string): Promise<PartDto> {
-    const part = await this.prisma.part.findFirst({ where: { id, tenantId } });
+    const part = await this.prisma.part.findFirst({
+      where: { id, tenantId },
+      include: partInclude,
+    });
     if (!part) throw new NotFoundException('Peça não encontrada');
     return toDto(part);
+  }
+
+  /** Garante que o fornecedor informado existe no tenant. */
+  private async assertSupplier(
+    tenantId: string,
+    supplierId: string | undefined,
+  ): Promise<void> {
+    if (!supplierId) return;
+    const s = await this.prisma.supplier.findFirst({
+      where: { id: supplierId, tenantId },
+      select: { id: true },
+    });
+    if (!s) throw new NotFoundException('Fornecedor inválido');
   }
 
   async create(
@@ -118,6 +145,7 @@ export class InventoryService {
       });
       if (clash) throw new ConflictException('Já existe uma peça com este SKU');
     }
+    await this.assertSupplier(actor.tenantId, input.supplierId);
 
     const { initialStock, ...data } = input;
 
@@ -140,7 +168,10 @@ export class InventoryService {
           userId: actor.id,
         });
       }
-      return tx.part.findUniqueOrThrow({ where: { id: created.id } });
+      return tx.part.findUniqueOrThrow({
+        where: { id: created.id },
+        include: partInclude,
+      });
     });
 
     await this.audit.record({
@@ -172,10 +203,12 @@ export class InventoryService {
       });
       if (clash) throw new ConflictException('SKU já usado por outra peça');
     }
+    await this.assertSupplier(actor.tenantId, input.supplierId);
 
     const updated = await this.prisma.part.update({
       where: { id },
       data: input,
+      include: partInclude,
     });
 
     await this.audit.record({

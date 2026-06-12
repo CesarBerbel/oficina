@@ -7,6 +7,7 @@ import {
 import { randomBytes } from 'node:crypto';
 import { Prisma, type PrismaClient, type MessageEvent } from '@prisma/client';
 import {
+  isOrderEditable,
   isTerminalStatus,
   type AddItemInput,
   type ChangeStatusInput,
@@ -24,7 +25,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MessagingService } from '../messaging/messaging.service';
-import { applyStockMovement } from '../inventory/stock.helper';
+import { PurchasesService } from '../purchases/purchases.service';
 import { quoteInclude, toQuoteDto } from '../quotes/quote.mapper';
 import { ServiceOrderStateMachine } from './domain/service-order.state-machine';
 import { ServiceOrderDomainError } from './domain/service-order.errors';
@@ -66,6 +67,7 @@ export class ServiceOrdersService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly messaging: MessagingService,
+    private readonly purchases: PurchasesService,
   ) {}
 
   // ─── Mapping ───
@@ -113,7 +115,7 @@ export class ServiceOrdersService {
       totalServices: dec(row.totalServices),
       totalParts: dec(row.totalParts),
       discount: dec(row.discount),
-      editable: !isTerminalStatus(row.status),
+      editable: isOrderEditable(row.status),
       items: (() => {
         const byId = new Map(row.items.map((it) => [it.id, it.description]));
         return row.items.map((it) => ({
@@ -345,25 +347,71 @@ export class ServiceOrdersService {
   ): Promise<ServiceOrderDetailDto> {
     const row = await this.prisma.serviceOrder.findFirst({
       where: { id, tenantId: actor.tenantId },
-      select: { id: true, number: true, status: true },
+      select: { id: true, number: true, status: true, diagnosis: true },
     });
     if (!row) throw new NotFoundException('OS não encontrada');
 
     ServiceOrderStateMachine.assertTransition(row.status, input.status);
 
-    await this.prisma.serviceOrder.update({
-      where: { id },
-      data: {
-        status: input.status,
-        ...(isTerminalStatus(input.status) ? { closedAt: new Date() } : {}),
-        history: {
-          create: {
-            status: input.status,
-            userId: actor.id,
-            note: input.note ?? null,
+    // Diagnóstico pronto exige um diagnóstico técnico preenchido.
+    if (
+      input.status === 'DIAGNOSTICO_PRONTO' &&
+      (row.diagnosis ?? '').trim() === ''
+    ) {
+      throw new ServiceOrderDomainError(
+        'Preencha o diagnóstico técnico antes de concluir o diagnóstico.',
+      );
+    }
+
+    // Aprovação manual (ORCAMENTO → ORCAMENTO_APROVADO): gera pedido de compra do
+    // que falta; se faltar peça, a OS vai para "aguardando peça".
+    const approving =
+      input.status === 'ORCAMENTO_APROVADO' && row.status === 'ORCAMENTO';
+    // Entrar em execução baixa o estoque das peças (uma única vez, vindo de
+    // aprovado/aguardando peça — não no retrabalho EM_TESTE → EM_EXECUCAO).
+    const executing =
+      input.status === 'EM_EXECUCAO' &&
+      (row.status === 'ORCAMENTO_APROVADO' || row.status === 'AGUARDANDO_PECA');
+    // Cancelar uma OS aprovada/aguardando libera reserva e cancela compras abertas.
+    const cancelling =
+      input.status === 'CANCELADA' &&
+      (row.status === 'ORCAMENTO_APROVADO' || row.status === 'AGUARDANDO_PECA');
+
+    const effectiveStatus = await this.prisma.$transaction(async (tx) => {
+      let target: ServiceOrderStatus = input.status;
+      if (approving) {
+        const { shortfall } = await this.purchases.commitApprovalReservation(
+          tx,
+          actor.tenantId,
+          id,
+        );
+        if (shortfall) target = 'AGUARDANDO_PECA';
+      }
+      if (executing) {
+        await this.purchases.consumeOrderParts(tx, actor.tenantId, id, actor.id);
+      }
+      if (cancelling) {
+        await this.purchases.unwindOrderBackorder(tx, id);
+      }
+      await tx.serviceOrder.update({
+        where: { id },
+        data: {
+          status: target,
+          ...(isTerminalStatus(target) ? { closedAt: new Date() } : {}),
+          history: {
+            create: {
+              status: target,
+              userId: actor.id,
+              note:
+                input.note ??
+                (target === 'AGUARDANDO_PECA'
+                  ? 'Orçamento aprovado — aguardando peça (pedido de compra gerado)'
+                  : null),
+            },
           },
         },
-      },
+      });
+      return target;
     });
 
     await this.audit.record({
@@ -374,10 +422,10 @@ export class ServiceOrdersService {
       entity: 'ServiceOrder',
       entityId: id,
       before: { status: row.status },
-      after: { status: input.status },
+      after: { status: effectiveStatus },
     });
 
-    if (input.status === 'PRONTA' || input.status === 'PRONTO_RETIRAR') {
+    if (effectiveStatus === 'PRONTA' || effectiveStatus === 'PRONTO_RETIRAR') {
       await this.notifications.notifyRoles(actor.tenantId, ['ADMIN', 'ATENDENTE'], {
         type: 'OS_READY',
         title: `OS #${row.number} pronta`,
@@ -395,7 +443,7 @@ export class ServiceOrdersService {
       PRONTA: 'OS_READY',
       ENTREGUE: 'VEHICLE_DELIVERED',
     };
-    const evt = statusEvent[input.status];
+    const evt = statusEvent[effectiveStatus];
     if (evt) {
       await this.messaging.dispatchOrderEvent(actor.tenantId, evt, id);
     }
@@ -531,24 +579,14 @@ export class ServiceOrdersService {
     await this.loadEditable(actor.tenantId, orderId);
     const item = await this.prisma.serviceOrderItem.findFirst({
       where: { id: itemId, serviceOrderId: orderId },
-      select: { id: true, sourcePartId: true, quantity: true, description: true },
+      select: { id: true, description: true },
     });
     if (!item) throw new NotFoundException('Item não encontrado');
 
+    // Itens só são editáveis antes da aprovação/execução, quando ainda não houve
+    // baixa de estoque — então remover não precisa estornar nada.
     await this.prisma.$transaction(async (tx) => {
       await tx.serviceOrderItem.delete({ where: { id: itemId } });
-      // Item vindo do catálogo (peça): estorna o estoque consumido.
-      if (item.sourcePartId) {
-        await applyStockMovement(tx, {
-          tenantId: actor.tenantId,
-          partId: item.sourcePartId,
-          type: 'ESTORNO',
-          quantity: dec(item.quantity),
-          note: `Estorno de item removido da OS`,
-          serviceOrderId: orderId,
-          userId: actor.id,
-        });
-      }
       await this.recomputeTotals(tx, orderId);
     });
 
@@ -566,6 +604,8 @@ export class ServiceOrdersService {
     parentItemId?: string,
   ): Promise<void> {
     const unitPrice = round2(dec(part.salePrice));
+    // Peça entra na OS apenas como planejamento — sem baixar estoque. A baixa
+    // ocorre quando a OS vai para execução (após aprovação e chegada das peças).
     await tx.serviceOrderItem.create({
       data: {
         serviceOrderId: orderId,
@@ -577,16 +617,6 @@ export class ServiceOrdersService {
         sourcePartId: part.id,
         parentItemId: parentItemId ?? null,
       },
-    });
-    await applyStockMovement(tx, {
-      tenantId: actor.tenantId,
-      partId: part.id,
-      type: 'CONSUMO_OS',
-      quantity,
-      unitCost: dec(part.costPrice),
-      note: 'Consumo em OS',
-      serviceOrderId: orderId,
-      userId: actor.id,
     });
   }
 

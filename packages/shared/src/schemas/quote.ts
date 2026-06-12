@@ -5,6 +5,7 @@ import {
   QuoteItemDecision,
   QuoteStatus,
 } from '../enums/quote.js';
+import { cpfCnpjSchema } from './common.js';
 
 /** Observações públicas exibidas ao cliente no orçamento. */
 export const generateQuoteSchema = z.object({
@@ -33,13 +34,16 @@ export const quoteDecisionSchema = z.object({
     .default([]),
   /** Recusa total do orçamento. */
   reject: z.boolean().default(false),
-  /** Assinatura digital simples (nome digitado pelo cliente). */
+  /** Assinatura digital simples — nome do responsável (obrigatório). */
   signatureName: z
     .string()
     .trim()
-    .max(160)
-    .optional()
-    .transform((v) => (v === '' ? undefined : v)),
+    .min(1, 'Informe seu nome completo')
+    .max(160),
+  /** Documento do responsável — CPF ou CNPJ válido (obrigatório). */
+  signatureDoc: cpfCnpjSchema.refine((v): v is string => v !== null, {
+    message: 'Informe um CPF ou CNPJ válido',
+  }),
 });
 export type QuoteDecisionInput = z.infer<typeof quoteDecisionSchema>;
 
@@ -69,5 +73,6 @@ export interface QuoteDto {
   decidedAt: string | null;
   decisionIp: string | null;
   signatureName: string | null;
+  signatureDoc: string | null;
   createdAt: string;
 }

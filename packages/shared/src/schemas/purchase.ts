@@ -63,6 +63,9 @@ export interface PurchaseOrderSummaryDto {
   status: PurchaseOrderStatus;
   supplierId: string | null;
   supplierName: string | null;
+  /** OS que originou o pedido (compra automática por falta de peça), se houver. */
+  serviceOrderId: string | null;
+  serviceOrderNumber: number | null;
   itemsCount: number;
   total: number;
   dueDate: string | null;

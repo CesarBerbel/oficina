@@ -136,6 +136,21 @@ export function useGenerateQuote(id: string) {
   });
 }
 
+export function useSendQuoteEmail(id: string) {
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ to: string }>(`${BASE}/${id}/quote/send-email`, {}),
+  });
+}
+
+export function useReopenQuote(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<unknown>(`${BASE}/${id}/quote/reopen`, {}),
+    onSuccess: () => invalidate(qc, id),
+  });
+}
+
 export function useAddFromCatalog(id: string) {
   const qc = useQueryClient();
   const onSuccess = () => {

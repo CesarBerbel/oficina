@@ -12,6 +12,7 @@ import {
 } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useCreatePart, useUpdatePart } from './use-inventory';
+import { useSuppliers } from '@/features/purchases/use-purchases';
 import {
   Dialog,
   DialogContent,
@@ -43,7 +44,7 @@ const empty = {
   minStock: '0',
   costPrice: '0',
   salePrice: '0',
-  supplier: '',
+  supplierId: '',
   description: '',
   initialStock: '0',
 };
@@ -59,7 +60,7 @@ const FIELD_LABELS = {
   minStock: 'Estoque mínimo',
   costPrice: 'Preço de custo',
   salePrice: 'Preço de venda',
-  supplier: 'Fornecedor',
+  supplierId: 'Fornecedor',
   description: 'Descrição',
   initialStock: 'Estoque inicial',
 };
@@ -71,6 +72,8 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
   const create = useCreatePart();
   const update = useUpdatePart(part?.id ?? '');
   const pending = create.isPending || update.isPending;
+  const { data: suppliersData } = useSuppliers({ page: 1, pageSize: 100 });
+  const suppliers = suppliersData?.data ?? [];
 
   useEffect(() => {
     if (!open) return;
@@ -86,7 +89,7 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
         minStock: String(part.minStock),
         costPrice: String(part.costPrice),
         salePrice: String(part.salePrice),
-        supplier: part.supplier ?? '',
+        supplierId: part.supplierId ?? '',
         description: part.description ?? '',
         initialStock: '0',
       });
@@ -164,7 +167,14 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
             </F>
           )}
 
-          <F label="Fornecedor"><Input value={form.supplier} onChange={(e) => set('supplier', e.target.value)} /></F>
+          <F label="Fornecedor" error={errors.supplierId}>
+            <Select value={form.supplierId} onChange={(e) => set('supplierId', e.target.value)}>
+              <option value="">Sem fornecedor</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </Select>
+          </F>
           <F label="Descrição"><Textarea value={form.description} onChange={(e) => set('description', e.target.value)} /></F>
 
           <DialogFooter>

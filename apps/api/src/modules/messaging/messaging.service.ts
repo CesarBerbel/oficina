@@ -1,16 +1,29 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, type MessageChannel, type MessageEvent } from '@prisma/client';
+import {
+  Prisma,
+  type MessageChannel,
+  type MessageEvent,
+  type MessageStatus,
+} from '@prisma/client';
 import type {
   CreateTemplateInput,
   ListMessagesQuery,
   MessageLogDto,
   MessageTemplateDto,
+  MailStatusDto,
   Paginated,
   SendMessageInput,
+  SendTestEmailResult,
   UpdateTemplateInput,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { MailService } from '../../infra/mail/mail.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 const dec = (v: Prisma.Decimal | number | null | undefined): number =>
@@ -25,6 +38,7 @@ export class MessagingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   // ─── Templates ───
@@ -120,10 +134,37 @@ export class MessagingService {
     };
   }
 
-  // ─── Canal (adapter mock — registra/loga; provider real no futuro) ───
-  private async deliver(channel: MessageChannel, to: string, body: string) {
+  // ─── Canal ───
+  // E-mail é entregue via SMTP (MailService) quando configurado; WhatsApp/SMS
+  // seguem simulados (adapter mock/log) até integrarmos um provider.
+  private async deliver(
+    channel: MessageChannel,
+    to: string,
+    body: string,
+    subject?: string,
+    html?: string,
+  ): Promise<{ status: MessageStatus; error: string | null }> {
+    if (channel === 'EMAIL' && this.mail.enabled) {
+      if (!to) {
+        return { status: 'FALHA', error: 'Destinatário de e-mail ausente' };
+      }
+      const res = await this.mail.send({
+        to,
+        subject: subject ?? this.config.get<string>('APP_NAME') ?? 'Oficina',
+        text: body,
+        html,
+      });
+      if (res.skipped) {
+        this.logger.log(`[EMAIL:simulado] -> ${to}: ${body.slice(0, 80)}`);
+        return { status: 'SIMULADO', error: null };
+      }
+      return {
+        status: res.ok ? 'ENVIADO' : 'FALHA',
+        error: res.error,
+      };
+    }
     this.logger.log(`[${channel}] -> ${to}: ${body.slice(0, 80)}`);
-    return { status: 'SIMULADO' as const, error: null as string | null };
+    return { status: 'SIMULADO', error: null };
   }
 
   /** Dispara mensagens automáticas configuradas para um evento de uma OS. */
@@ -146,7 +187,8 @@ export class MessagingService {
         t.channel === 'EMAIL'
           ? (built.order.customer.email ?? '')
           : (built.order.customer.phone ?? built.order.customer.whatsapp ?? '');
-      const res = await this.deliver(t.channel, to, body);
+      const subject = `${built.ctx.oficina.nome} — OS #${built.ctx.os.numero}`;
+      const res = await this.deliver(t.channel, to, body, subject);
       await this.prisma.messageLog.create({
         data: {
           tenantId,
@@ -162,6 +204,180 @@ export class MessagingService {
         },
       });
     }
+  }
+
+  /**
+   * Envia o link do orçamento para o e-mail do cliente da OS. Usa um template
+   * de e-mail ativo para QUOTE_SENT, se houver; caso contrário, um corpo padrão.
+   */
+  async sendQuoteEmail(
+    tenantId: string,
+    orderId: string,
+  ): Promise<{ to: string }> {
+    const built = await this.contextForOrder(tenantId, orderId);
+    if (!built) throw new NotFoundException('OS não encontrada');
+
+    const to = built.order.customer.email?.trim() ?? '';
+    if (!to) {
+      throw new BadRequestException('Cliente não possui e-mail cadastrado');
+    }
+
+    const template = await this.prisma.messageTemplate.findFirst({
+      where: { tenantId, event: 'QUOTE_SENT', channel: 'EMAIL', active: true },
+    });
+    const body = template
+      ? this.render(template.body, built.ctx)
+      : `Olá ${built.ctx.cliente.nome}, o orçamento da OS #${built.ctx.os.numero} ` +
+        `(${built.ctx.veiculo.modelo} · ${built.ctx.veiculo.placa}) está pronto. ` +
+        `Acesse o link para aprovar online: ${built.ctx.os.link}`;
+
+    const res = await this.deliver(
+      'EMAIL',
+      to,
+      body,
+      `Orçamento da OS #${built.ctx.os.numero} — ${built.ctx.oficina.nome}`,
+    );
+    await this.prisma.messageLog.create({
+      data: {
+        tenantId,
+        templateId: template?.id ?? null,
+        customerId: built.order.customerId,
+        serviceOrderId: orderId,
+        channel: 'EMAIL',
+        event: 'QUOTE_SENT',
+        status: res.status,
+        to,
+        body,
+        error: res.error,
+      },
+    });
+    return { to };
+  }
+
+  /**
+   * Envia o código de acesso da área do cliente (consulta de histórico) por
+   * e-mail e registra no log de mensagens.
+   */
+  async sendGarageAccessCode(
+    tenantId: string,
+    params: {
+      to: string;
+      code: string;
+      customerName: string;
+      plate: string;
+      vehicleLabel: string;
+      customerId: string;
+    },
+  ): Promise<void> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true },
+    });
+    const shop = tenant?.name ?? 'Oficina';
+    const webOrigin =
+      this.config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000';
+    const link = `${webOrigin}/site/consulta?placa=${encodeURIComponent(params.plate)}`;
+    const veiculo = `${params.plate} - ${params.vehicleLabel}`;
+
+    const body =
+      `Olá, ${params.customerName}.\n\n` +
+      `Recebemos uma solicitação para acessar a área privada do veículo ${veiculo}.\n\n` +
+      `Use o código abaixo para confirmar o acesso:\n\n` +
+      `${params.code}\n\n` +
+      `O código é válido por 5 horas.\n\n` +
+      `Para informar o código, acesse:\n${link}\n\n` +
+      `Se você não solicitou esse acesso, ignore este e-mail.`;
+
+    const html = this.garageCodeHtml({
+      customerName: params.customerName,
+      veiculo,
+      code: params.code,
+      link,
+    });
+
+    const res = await this.deliver(
+      'EMAIL',
+      params.to,
+      body,
+      `${shop} — código de acesso ${params.code}`,
+      html,
+    );
+    await this.prisma.messageLog.create({
+      data: {
+        tenantId,
+        customerId: params.customerId,
+        channel: 'EMAIL',
+        event: 'MANUAL',
+        status: res.status,
+        to: params.to,
+        body,
+        error: res.error,
+      },
+    });
+  }
+
+  /** Escapa texto para inserção segura em HTML de e-mail. */
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /** Monta o corpo HTML do e-mail de código de acesso da área do cliente. */
+  private garageCodeHtml(params: {
+    customerName: string;
+    veiculo: string;
+    code: string;
+    link: string;
+  }): string {
+    const name = this.escapeHtml(params.customerName);
+    const veiculo = this.escapeHtml(params.veiculo);
+    const link = this.escapeHtml(params.link);
+    return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:560px;">
+  <p>Olá, ${name}.</p>
+  <p>Recebemos uma solicitação para acessar a área privada do veículo <strong>${veiculo}</strong>.</p>
+  <p>Use o código abaixo para confirmar o acesso:</p>
+  <p style="font-size:30px;font-weight:bold;letter-spacing:10px;margin:18px 0;color:#111827;">${params.code}</p>
+  <p>O código é válido por <strong>5 horas</strong>.</p>
+  <p>Para informar o código, acesse:</p>
+  <p><a href="${link}" style="color:#2563eb;word-break:break-all;">${link}</a></p>
+  <p style="color:#6b7280;">Se você não solicitou esse acesso, ignore este e-mail.</p>
+</div>`;
+  }
+
+  /** Estado atual do canal de e-mail (modo SMTP/log e remetente). */
+  mailStatus(): MailStatusDto {
+    return { mode: this.mail.mode, from: this.mail.fromAddress };
+  }
+
+  /** Envia um e-mail de teste para validar a configuração de envio (SMTP/log). */
+  async sendTestEmail(
+    actor: AuthenticatedUser,
+    to: string,
+  ): Promise<SendTestEmailResult> {
+    const body =
+      'Este é um e-mail de teste do sistema da oficina. ' +
+      'Se você recebeu esta mensagem, o envio por e-mail está funcionando.';
+    const res = await this.deliver(
+      'EMAIL',
+      to,
+      body,
+      'Teste de e-mail — Oficina',
+    );
+    await this.prisma.messageLog.create({
+      data: {
+        tenantId: actor.tenantId,
+        channel: 'EMAIL',
+        event: 'MANUAL',
+        status: res.status,
+        to,
+        body,
+        error: res.error,
+      },
+    });
+    return { status: res.status, mode: this.mail.mode, error: res.error };
   }
 
   /** Envio manual a partir do painel. */

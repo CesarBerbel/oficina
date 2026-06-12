@@ -6,6 +6,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { validateEnv } from './infra/config/env';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { SecurityModule } from './infra/security/security.module';
+import { MailModule } from './infra/mail/mail.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -18,6 +19,7 @@ import { CombosModule } from './modules/combos/combos.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { QuotesModule } from './modules/quotes/quotes.module';
 import { PublicModule } from './modules/public/public.module';
+import { GarageModule } from './modules/garage/garage.module';
 import { PdfModule } from './modules/pdf/pdf.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
@@ -68,6 +70,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     }),
     PrismaModule,
     SecurityModule,
+    MailModule,
     AuditModule,
     NotificationsModule,
     MessagingModule,
@@ -89,6 +92,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     InventoryModule,
     QuotesModule,
     PublicModule,
+    GarageModule,
     PdfModule,
     SuppliersModule,
     PurchasesModule,
