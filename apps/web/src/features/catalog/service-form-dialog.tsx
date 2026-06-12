@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { createServiceSchema, updateServiceSchema, type ServiceDto } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useParts } from '@/features/inventory/use-inventory';
+import { useCategories } from '@/features/categories/use-categories';
 import { useCreateService, useUpdateService } from './use-catalog';
 import {
   Dialog,
@@ -19,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 
 interface DefaultPartRow {
@@ -53,13 +55,23 @@ export function ServiceFormDialog({
   const [salePrice, setSalePrice] = useState('0');
   const [cost, setCost] = useState('0');
   const [estimatedMinutes, setEstimatedMinutes] = useState('');
+  const [showOnSite, setShowOnSite] = useState(true);
   const [defaultParts, setDefaultParts] = useState<DefaultPartRow[]>([]);
   const [partToAdd, setPartToAdd] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: partsData } = useParts({ page: 1, pageSize: 100 });
+  const { data: categoryData } = useCategories('SERVICE');
   const create = useCreateService();
   const update = useUpdateService(service?.id ?? '');
+
+  // Categorias ativas + a categoria atual do serviço (caso esteja inativa/legada).
+  const categoryOptions = Array.from(
+    new Set([
+      ...(categoryData ?? []).filter((c) => c.active).map((c) => c.name),
+      ...(category ? [category] : []),
+    ]),
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const pending = create.isPending || update.isPending;
 
   useEffect(() => {
@@ -71,6 +83,7 @@ export function ServiceFormDialog({
       setSalePrice(String(service.salePrice));
       setCost(String(service.cost));
       setEstimatedMinutes(service.estimatedMinutes?.toString() ?? '');
+      setShowOnSite(service.showOnSite);
       setDefaultParts(
         service.defaultParts.map((dp) => ({
           partId: dp.partId,
@@ -80,7 +93,7 @@ export function ServiceFormDialog({
       );
     } else {
       setName(''); setCategory(''); setDescription(''); setSalePrice('0');
-      setCost('0'); setEstimatedMinutes(''); setDefaultParts([]);
+      setCost('0'); setEstimatedMinutes(''); setShowOnSite(true); setDefaultParts([]);
     }
     setPartToAdd('');
     setErrors({});
@@ -100,6 +113,7 @@ export function ServiceFormDialog({
     const payload = {
       name, category, description, salePrice, cost,
       estimatedMinutes: estimatedMinutes || undefined,
+      showOnSite,
       defaultParts: defaultParts.map((p) => ({ partId: p.partId, quantity: p.quantity })),
     };
     const schema = isEdit ? updateServiceSchema : createServiceSchema;
@@ -158,7 +172,12 @@ export function ServiceFormDialog({
             </div>
             <div className="space-y-1.5">
               <Label>Categoria</Label>
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} />
+              <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">Sem categoria</option>
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </Select>
             </div>
           </div>
 
@@ -181,6 +200,16 @@ export function ServiceFormDialog({
             <Label>Descrição</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="size-4"
+              checked={showOnSite}
+              onChange={(e) => setShowOnSite(e.target.checked)}
+            />
+            Exibir este serviço na página pública (site)
+          </label>
 
           {/* Peças padrão */}
           <div className="space-y-2 rounded-lg border p-3">

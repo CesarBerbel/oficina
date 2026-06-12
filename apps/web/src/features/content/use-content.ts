@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import type {
   BlogPostDto,
+  BlogStatus,
   CreateBlogPostInput,
   LeadDto,
   LeadStatus,
@@ -69,6 +70,16 @@ export function useDeleteBlogPost() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete<void>(`/blog/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['blog'] }),
+  });
+}
+
+/** Publica ou volta um artigo para rascunho. */
+export function useSetBlogPostStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: BlogStatus }) =>
+      api.put<BlogPostDto>(`/blog/${id}`, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['blog'] }),
   });
 }

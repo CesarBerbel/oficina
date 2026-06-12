@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -135,6 +136,15 @@ export class CheckinsService {
     if (!os) throw new BadRequestException('OS inválida');
     if (os.vehicleId !== vehicle.id) {
       throw new BadRequestException('A OS informada é de outro veículo');
+    }
+
+    // Apenas um check-in por OS.
+    const existing = await this.prisma.vehicleCheckin.findFirst({
+      where: { serviceOrderId: input.serviceOrderId, tenantId: actor.tenantId },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ConflictException('Esta OS já possui um check-in.');
     }
 
     const created = await this.prisma.$transaction(async (tx) => {

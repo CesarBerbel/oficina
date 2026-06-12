@@ -36,6 +36,7 @@ function toDto(s: ServiceRow): ServiceDto {
     cost: dec(s.cost),
     estimatedMinutes: s.estimatedMinutes,
     active: s.active,
+    showOnSite: s.showOnSite,
     defaultParts: s.defaultParts.map((dp) => ({
       partId: dp.partId,
       partName: dp.part.name,
@@ -130,6 +131,7 @@ export class ServicesService {
         cost: input.cost,
         estimatedMinutes: input.estimatedMinutes ?? null,
         active: input.active,
+        showOnSite: input.showOnSite,
         defaultParts: {
           create: input.defaultParts.map((p) => ({
             partId: p.partId,
@@ -186,6 +188,9 @@ export class ServicesService {
             ? { estimatedMinutes: input.estimatedMinutes ?? null }
             : {}),
           ...(input.active !== undefined ? { active: input.active } : {}),
+          ...(input.showOnSite !== undefined
+            ? { showOnSite: input.showOnSite }
+            : {}),
         },
       });
 

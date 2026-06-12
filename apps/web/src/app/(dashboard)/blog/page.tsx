@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Loader2, MoreHorizontal, Pencil, Trash2, ExternalLink } from 'lucide-react';
+import { Plus, Loader2, MoreHorizontal, Pencil, Trash2, ExternalLink, Send, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { BLOG_STATUS_LABELS, type BlogPostDto, type BlogStatus } from '@oficina/shared';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { useBlogPosts, useDeleteBlogPost } from '@/features/content/use-content';
+import { useBlogPosts, useDeleteBlogPost, useSetBlogPostStatus } from '@/features/content/use-content';
 import { BlogFormDialog } from '@/features/content/blog-form-dialog';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ export default function BlogAdminPage() {
   const [editing, setEditing] = useState<BlogPostDto | null>(null);
   const { data, isLoading } = useBlogPosts({ page, pageSize: 10 });
   const del = useDeleteBlogPost();
+  const setStatus = useSetBlogPostStatus();
   const posts = data?.data ?? [];
   const meta = data?.meta;
 
@@ -39,6 +40,18 @@ export default function BlogAdminPage() {
     if (!confirm(`Excluir "${p.title}"?`)) return;
     try { await del.mutateAsync(p.id); toast.success('Artigo excluído'); }
     catch (err) { toast.error(err instanceof ApiError ? err.message : 'Erro'); }
+  }
+
+  async function handlePublish(p: BlogPostDto, publish: boolean) {
+    try {
+      await setStatus.mutateAsync({
+        id: p.id,
+        status: publish ? 'PUBLICADO' : 'RASCUNHO',
+      });
+      toast.success(publish ? 'Artigo publicado' : 'Artigo voltou a rascunho');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro');
+    }
   }
 
   return (
@@ -85,6 +98,11 @@ export default function BlogAdminPage() {
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="size-4" /> Editar</DropdownMenuItem>
+                          {p.status === 'RASCUNHO' ? (
+                            <DropdownMenuItem onClick={() => handlePublish(p, true)}><Send className="size-4" /> Publicar</DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => handlePublish(p, false)}><Undo2 className="size-4" /> Voltar a rascunho</DropdownMenuItem>
+                          )}
                           {p.status === 'PUBLICADO' && (
                             <DropdownMenuItem asChild>
                               <Link href={`/site/blog/${p.slug}`} target="_blank"><ExternalLink className="size-4" /> Ver no site</Link>

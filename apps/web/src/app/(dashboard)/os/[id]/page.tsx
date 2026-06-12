@@ -140,12 +140,20 @@ export default function ServiceOrderDetailPage({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canCheckin && (
+          {os.checkinId ? (
             <Button variant="outline" asChild>
-              <Link href={`/check-in/novo?vehicleId=${os.vehicleId}&osId=${os.id}&returnTo=${encodeURIComponent(`/os/${os.id}`)}`}>
-                <ClipboardCheck className="size-4" /> Fazer check-in
+              <Link href={`/check-in/${os.checkinId}?returnTo=${encodeURIComponent(`/os/${os.id}`)}`}>
+                <ClipboardCheck className="size-4" /> Ver check-in
               </Link>
             </Button>
+          ) : (
+            canCheckin && (
+              <Button variant="outline" asChild>
+                <Link href={`/check-in/novo?vehicleId=${os.vehicleId}&osId=${os.id}&returnTo=${encodeURIComponent(`/os/${os.id}`)}`}>
+                  <ClipboardCheck className="size-4" /> Fazer check-in
+                </Link>
+              </Button>
+            )
           )}
           <Button
             variant="outline"

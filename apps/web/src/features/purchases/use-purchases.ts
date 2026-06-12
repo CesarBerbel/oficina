@@ -103,6 +103,35 @@ export function useReceivePurchase(id: string) {
   });
 }
 
+export function useReceivePurchaseNfe(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      const token = getAccessToken();
+      const res = await fetch(`${API_URL}/purchase-orders/${id}/receive-nfe`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) {
+        let msg = 'Falha ao receber pela NF-e';
+        try {
+          const d = await res.json();
+          msg = d.message ?? msg;
+        } catch {
+          /* */
+        }
+        throw new Error(msg);
+      }
+      return res.json() as Promise<PurchaseOrderDto>;
+    },
+    onSuccess: () => invalidatePurchases(qc),
+  });
+}
+
 export function useSetPurchaseStatus(id: string) {
   const qc = useQueryClient();
   return useMutation({

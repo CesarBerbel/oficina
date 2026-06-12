@@ -1,11 +1,15 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   createPurchaseSchema,
   listPurchasesQuerySchema,
@@ -77,5 +81,19 @@ export class PurchasesController {
     @Body(new ZodValidationPipe(receivePurchaseSchema)) body: ReceivePurchaseInput,
   ) {
     return this.purchases.receive(actor, id, body);
+  }
+
+  @Post(':id/receive-nfe')
+  @RequirePermission(Permission.PURCHASES_WRITE)
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }),
+  )
+  receiveNfe(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Envie o XML (ou ZIP) da NF-e');
+    return this.purchases.receiveFromNfe(actor, id, file.buffer, file.originalname);
   }
 }

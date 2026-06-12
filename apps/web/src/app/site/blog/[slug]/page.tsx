@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getPublicPost } from '@/lib/public-api';
+import { getPublicPost, getPublicSite } from '@/lib/public-api';
+import { BLOG_FALLBACK_IMAGE } from '@/lib/blog';
 import { BackButton } from '@/components/back-button';
 
 export async function generateMetadata({
@@ -23,8 +24,9 @@ export default async function BlogPost({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = await getPublicPost(slug);
+  const [post, site] = await Promise.all([getPublicPost(slug), getPublicSite()]);
   if (!post) notFound();
+  const fallback = site?.settings.blogFallbackImageUrl || BLOG_FALLBACK_IMAGE;
 
   return (
     <article className="container max-w-3xl py-16">
@@ -39,10 +41,12 @@ export default async function BlogPost({
         {post.author ? `${post.author} · ` : ''}
         {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('pt-BR') : ''}
       </p>
-      {post.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={post.imageUrl} alt={post.title} className="mt-6 w-full rounded-xl object-cover" />
-      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={post.imageUrl || fallback}
+        alt={post.title}
+        className="mt-6 w-full rounded-xl object-cover"
+      />
       <div className="mt-6 whitespace-pre-wrap text-pretty leading-relaxed">
         {post.content}
       </div>

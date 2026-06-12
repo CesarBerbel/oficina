@@ -155,4 +155,6 @@ export interface ServiceOrderDetailDto extends ServiceOrderSummaryDto {
   editable: boolean;
   publicToken: string;
   quote: QuoteDto | null;
+  /** Check-in vinculado à OS (há no máximo um), se já existir. */
+  checkinId: string | null;
 }

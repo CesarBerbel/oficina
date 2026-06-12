@@ -22,6 +22,8 @@ export const createServiceSchema = z.object({
   cost: z.coerce.number().min(0).max(9_999_999).default(0),
   estimatedMinutes: z.coerce.number().int().min(0).max(100_000).optional(),
   active: z.boolean().default(true),
+  /** Exibir na página pública (site). */
+  showOnSite: z.boolean().default(true),
   defaultParts: z.array(serviceDefaultPartSchema).max(50).default([]),
 });
 
@@ -54,5 +56,6 @@ export interface ServiceDto {
   cost: number;
   estimatedMinutes: number | null;
   active: boolean;
+  showOnSite: boolean;
   defaultParts: ServiceDefaultPartDto[];
 }

@@ -13,6 +13,7 @@ import {
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useCreatePart, useUpdatePart } from './use-inventory';
 import { useSuppliers } from '@/features/purchases/use-purchases';
+import { useCategories } from '@/features/categories/use-categories';
 import {
   Dialog,
   DialogContent,
@@ -74,6 +75,13 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
   const pending = create.isPending || update.isPending;
   const { data: suppliersData } = useSuppliers({ page: 1, pageSize: 100 });
   const suppliers = suppliersData?.data ?? [];
+  const { data: categoryData } = useCategories('PART');
+  const categoryOptions = Array.from(
+    new Set([
+      ...(categoryData ?? []).filter((c) => c.active).map((c) => c.name),
+      ...(form.category ? [form.category] : []),
+    ]),
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
   useEffect(() => {
     if (!open) return;
@@ -151,7 +159,14 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
             <F label="SKU" error={errors.sku}><Input value={form.sku} onChange={(e) => set('sku', e.target.value)} /></F>
             <F label="Código de barras"><Input value={form.ean} onChange={(e) => set('ean', e.target.value)} /></F>
             <F label="Marca"><Input value={form.brand} onChange={(e) => set('brand', e.target.value)} /></F>
-            <F label="Categoria"><Input value={form.category} onChange={(e) => set('category', e.target.value)} /></F>
+            <F label="Categoria">
+              <Select value={form.category} onChange={(e) => set('category', e.target.value)}>
+                <option value="">Sem categoria</option>
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </Select>
+            </F>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-4">

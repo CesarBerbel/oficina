@@ -38,7 +38,7 @@ export class SiteService {
       logoUrl: s.logoUrl,
       logoPdfUrl: s.logoPdfUrl,
       pdfFooterText: s.pdfFooterText,
-      customerCategories: s.customerCategories,
+      blogFallbackImageUrl: s.blogFallbackImageUrl,
       capacity: s.capacity,
       published: s.published,
     };
@@ -103,7 +103,7 @@ export class SiteService {
     });
     if (!settings) return null;
     const services = await this.prisma.service.findMany({
-      where: { tenantId: settings.tenantId, active: true },
+      where: { tenantId: settings.tenantId, active: true, showOnSite: true },
       orderBy: { name: 'asc' },
       take: 60,
       select: { id: true, name: true, description: true, category: true, salePrice: true },

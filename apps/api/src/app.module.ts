@@ -28,6 +28,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
 import { SiteModule } from './modules/site/site.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 import { BlogModule } from './modules/blog/blog.module';
 import { LeadsModule } from './modules/leads/leads.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -76,6 +77,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     MessagingModule,
     DashboardModule,
     SiteModule,
+    CategoriesModule,
     BlogModule,
     LeadsModule,
     AiModule,

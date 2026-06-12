@@ -2,7 +2,8 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileDown } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   CHECKLIST_STATUS_LABELS,
   ChecklistStatus,
@@ -11,6 +12,7 @@ import {
   FUEL_LEVEL_LABELS,
   type FuelLevel,
 } from '@oficina/shared';
+import { openAuthedResource } from '@/lib/api';
 import { useCheckin } from '@/features/checkins/use-checkins';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/back-button';
@@ -88,6 +90,16 @@ export default function CheckinDetailPage({
             {c.createdByName ? ` · por ${c.createdByName}` : ''}
           </p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() =>
+            openAuthedResource(`/checkins/${c.id}/pdf`).catch(() =>
+              toast.error('Erro ao gerar o PDF'),
+            )
+          }
+        >
+          <FileDown className="size-4" /> Gerar PDF
+        </Button>
         {c.serviceOrderNumber && (
           <Button variant="outline" asChild>
             <Link href={`/os/${c.serviceOrderId}?returnTo=${encodeURIComponent(`/check-in/${c.id}`)}`}>OS #{c.serviceOrderNumber}</Link>

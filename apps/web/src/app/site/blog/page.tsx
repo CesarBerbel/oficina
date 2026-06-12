@@ -1,11 +1,16 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { getPublicBlog } from '@/lib/public-api';
+import { getPublicBlog, getPublicSite } from '@/lib/public-api';
+import { BLOG_FALLBACK_IMAGE } from '@/lib/blog';
 
 export const metadata: Metadata = { title: 'Blog' };
 
 export default async function SiteBlog() {
-  const posts = (await getPublicBlog()) ?? [];
+  const [posts, site] = await Promise.all([
+    getPublicBlog().then((p) => p ?? []),
+    getPublicSite(),
+  ]);
+  const fallback = site?.settings.blogFallbackImageUrl || BLOG_FALLBACK_IMAGE;
 
   return (
     <div className="container max-w-4xl py-16">
@@ -18,10 +23,12 @@ export default async function SiteBlog() {
         <div className="mt-8 grid gap-6 sm:grid-cols-2">
           {posts.map((p) => (
             <Link key={p.slug} href={`/site/blog/${p.slug}`} className="group rounded-xl border bg-card p-5 transition-colors hover:border-primary">
-              {p.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.imageUrl} alt={p.title} className="mb-3 h-40 w-full rounded-lg object-cover" />
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={p.imageUrl || fallback}
+                alt={p.title}
+                className="mb-3 h-40 w-full rounded-lg object-cover"
+              />
               <h2 className="font-semibold group-hover:text-primary">{p.title}</h2>
               {p.excerpt && <p className="mt-1 text-sm text-muted-foreground">{p.excerpt}</p>}
               <p className="mt-3 text-xs text-muted-foreground">

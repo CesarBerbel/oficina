@@ -12,6 +12,7 @@ export * from './enums/message.js';
 export * from './enums/lead.js';
 export * from './enums/ai.js';
 export * from './enums/checkin.js';
+export * from './enums/category.js';
 
 // RBAC
 export * from './rbac/permissions.js';
@@ -36,6 +37,7 @@ export * from './schemas/dashboard.js';
 export * from './schemas/notification.js';
 export * from './schemas/site.js';
 export * from './schemas/blog.js';
+export * from './schemas/category.js';
 export * from './schemas/lead.js';
 export * from './schemas/message.js';
 export * from './schemas/ai.js';

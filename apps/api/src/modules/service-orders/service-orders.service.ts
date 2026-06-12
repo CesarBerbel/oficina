@@ -56,6 +56,11 @@ const detailInclude = {
     include: { user: { select: { name: true } } },
   },
   quote: { include: quoteInclude },
+  checkins: {
+    select: { id: true },
+    orderBy: { createdAt: 'desc' },
+    take: 1,
+  },
 } satisfies Prisma.ServiceOrderInclude;
 
 type DetailRow = Prisma.ServiceOrderGetPayload<{ include: typeof detailInclude }>;
@@ -141,6 +146,7 @@ export class ServiceOrdersService {
       })),
       publicToken: row.publicToken,
       quote: row.quote ? toQuoteDto(row.quote, row.publicToken) : null,
+      checkinId: row.checkins[0]?.id ?? null,
     };
   }
 
@@ -405,7 +411,7 @@ export class ServiceOrdersService {
               note:
                 input.note ??
                 (target === 'AGUARDANDO_PECA'
-                  ? 'Orçamento aprovado — aguardando peça (pedido de compra gerado)'
+                  ? 'Orçamento aprovado — aguardando peça (gere o pedido de compra)'
                   : null),
             },
           },
@@ -588,9 +594,47 @@ export class ServiceOrdersService {
     await this.prisma.$transaction(async (tx) => {
       await tx.serviceOrderItem.delete({ where: { id: itemId } });
       await this.recomputeTotals(tx, orderId);
+      // Se já existe um orçamento, remove a linha correspondente e recalcula
+      // o total do orçamento para refletir a remoção do item.
+      await this.recomputeQuoteAfterItemRemoval(tx, orderId, itemId);
     });
 
     return this.findOne(actor.tenantId, orderId);
+  }
+
+  /** Remove o item do orçamento (se houver) e recalcula seus totais. */
+  private async recomputeQuoteAfterItemRemoval(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+    serviceOrderItemId: string,
+  ): Promise<void> {
+    const quote = await tx.quote.findUnique({
+      where: { serviceOrderId: orderId },
+      select: { id: true, discount: true },
+    });
+    if (!quote) return;
+    await tx.quoteItem.deleteMany({
+      where: { quoteId: quote.id, serviceOrderItemId },
+    });
+    const items = await tx.quoteItem.findMany({
+      where: { quoteId: quote.id },
+      select: { kind: true, total: true },
+    });
+    let services = 0;
+    let parts = 0;
+    for (const it of items) {
+      if (it.kind === 'SERVICE') services += dec(it.total);
+      else parts += dec(it.total);
+    }
+    const total = round2(services + parts - dec(quote.discount));
+    await tx.quote.update({
+      where: { id: quote.id },
+      data: {
+        totalServices: round2(services),
+        totalParts: round2(parts),
+        total: total < 0 ? 0 : total,
+      },
+    });
   }
 
   // ─── Catálogo → OS ───

@@ -56,4 +56,13 @@ export class QuotesController {
   ) {
     return this.quotes.reopen(actor, orderId);
   }
+
+  @Post('generate-purchase')
+  @RequirePermission(Permission.QUOTES_WRITE)
+  generatePurchase(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.quotes.generatePurchase(actor, orderId);
+  }
 }

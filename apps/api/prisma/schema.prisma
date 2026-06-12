@@ -183,6 +183,7 @@ model Tenant {
   aiConfig       AiConfig?
   checkins       VehicleCheckin[]
   garageCodes    GarageAccessCode[]
+  categories     Category[]
 
   @@map("tenants")
 }
@@ -456,6 +457,8 @@ model Service {
   cost             Decimal   @default(0) @db.Decimal(12, 2)
   estimatedMinutes Int?
   active           Boolean   @default(true)
+  // Exibir este serviço na página pública (site).
+  showOnSite       Boolean   @default(true)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -672,7 +675,8 @@ model SiteSettings {
   logoUrl       String?
   logoPdfUrl    String?
   pdfFooterText String?
-  customerCategories String[] @default([])
+  // Imagem padrão dos artigos do blog (quando o artigo não tem imagem própria).
+  blogFallbackImageUrl String?
   capacity      Int?
   published     Boolean  @default(false)
   createdAt    DateTime @default(now())
@@ -681,6 +685,30 @@ model SiteSettings {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("site_settings")
+}
+
+/// Tipo de categoria: cliente, serviço ou peça.
+enum CategoryKind {
+  CUSTOMER
+  SERVICE
+  PART
+}
+
+/// Categoria cadastrável (por tipo) — vinculada a clientes, serviços e peças.
+model Category {
+  id        String       @id @default(cuid())
+  tenantId  String
+  kind      CategoryKind
+  name      String
+  active    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, kind, name])
+  @@index([tenantId, kind])
+  @@map("categories")
 }
 
 /// Configuração do assistente de IA (singleton por oficina). Chave criptografada.

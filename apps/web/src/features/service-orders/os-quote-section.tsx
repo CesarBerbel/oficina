@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, FileText, Copy, CheckCircle2, XCircle, ExternalLink, Mail, RotateCcw } from 'lucide-react';
+import { Loader2, FileText, Copy, CheckCircle2, XCircle, ExternalLink, Mail, RotateCcw, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   QUOTE_STATUS_LABELS,
@@ -11,6 +11,7 @@ import {
 import { ApiError } from '@/lib/api';
 import {
   useGenerateQuote,
+  useGeneratePurchase,
   useReopenQuote,
   useSendQuoteEmail,
 } from './use-service-orders';
@@ -54,10 +55,12 @@ export function OsQuoteSection({
   const generate = useGenerateQuote(osId);
   const sendEmail = useSendQuoteEmail(osId);
   const reopen = useReopenQuote(osId);
+  const generatePurchase = useGeneratePurchase(osId);
   const [notes, setNotes] = useState(quote?.publicNotes ?? '');
 
   const canGenerate = GENERATE_STATUSES.includes(osStatus);
   const isRejected = osStatus === 'ORCAMENTO_RECUSADO';
+  const isWaitingPart = osStatus === 'AGUARDANDO_PECA';
   const isApproved = osStatus === 'ORCAMENTO_APROVADO';
 
   const trackUrl =
@@ -86,6 +89,17 @@ export function OsQuoteSection({
     } catch (err) {
       toast.error(
         err instanceof ApiError ? err.message : 'Erro ao enviar o orçamento',
+      );
+    }
+  }
+
+  async function onGeneratePurchase() {
+    try {
+      const { created } = await generatePurchase.mutateAsync();
+      toast.success(`${created} pedido(s) de compra gerado(s)`);
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : 'Erro ao gerar pedido de compra',
       );
     }
   }
@@ -183,6 +197,22 @@ export function OsQuoteSection({
                       <Mail className="size-4" />
                     )}
                     Enviar por e-mail
+                  </Button>
+                )}
+
+                {isWaitingPart && canQuote && (
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={onGeneratePurchase}
+                    disabled={generatePurchase.isPending}
+                  >
+                    {generatePurchase.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <ShoppingCart className="size-4" />
+                    )}
+                    Gerar pedido de compra
                   </Button>
                 )}
               </>

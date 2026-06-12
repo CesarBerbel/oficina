@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import {
-  Plus, Loader2, MoreHorizontal, PackageCheck, Send, XCircle, Sparkles, Pencil,
+  Plus, Loader2, MoreHorizontal, PackageCheck, Send, XCircle, Sparkles, Pencil, Package2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -19,6 +19,7 @@ import {
 } from '@/features/purchases/use-purchases';
 import { PurchaseFormDialog } from '@/features/purchases/purchase-form-dialog';
 import { PurchaseReceiveDialog } from '@/features/purchases/purchase-receive-dialog';
+import { PurchaseItemsDialog } from '@/features/purchases/purchase-items-dialog';
 import { SupplierFormDialog } from '@/features/purchases/supplier-form-dialog';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -74,9 +75,11 @@ function PedidosTab({ canWrite }: { canWrite: boolean }) {
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [receiveId, setReceiveId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
 
   const { data, isLoading } = usePurchases({ page, pageSize: 10 });
   const { data: receivePurchase } = usePurchase(receiveId ?? undefined);
+  const { data: viewPurchase, isLoading: viewLoading } = usePurchase(viewId ?? undefined);
   const fromShortages = useCreateFromShortages();
 
   const orders = data?.data ?? [];
@@ -140,7 +143,14 @@ function PedidosTab({ canWrite }: { canWrite: boolean }) {
                   <TableCell className="text-muted-foreground">{o.itemsCount}</TableCell>
                   <TableCell><Badge variant={STATUS_VARIANT[o.status]}>{PURCHASE_ORDER_STATUS_LABELS[o.status]}</Badge></TableCell>
                   <TableCell className="text-right font-medium">{formatCurrency(o.total)}</TableCell>
-                  <TableCell>{canWrite && <RowActions o={o} onReceive={() => setReceiveId(o.id)} />}</TableCell>
+                  <TableCell>
+                    <RowActions
+                      o={o}
+                      canWrite={canWrite}
+                      onReceive={() => setReceiveId(o.id)}
+                      onView={() => setViewId(o.id)}
+                    />
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -164,11 +174,19 @@ function PedidosTab({ canWrite }: { canWrite: boolean }) {
         onOpenChange={(o) => !o && setReceiveId(null)}
         purchase={receivePurchase ?? null}
       />
+      <PurchaseItemsDialog
+        open={!!viewId}
+        onOpenChange={(o) => !o && setViewId(null)}
+        purchase={viewPurchase ?? null}
+        loading={viewLoading}
+      />
     </div>
   );
 }
 
-function RowActions({ o, onReceive }: { o: PurchaseOrderSummaryDto; onReceive: () => void }) {
+function RowActions({ o, canWrite, onReceive, onView }: {
+  o: PurchaseOrderSummaryDto; canWrite: boolean; onReceive: () => void; onView: () => void;
+}) {
   const setStatus = useSetPurchaseStatus(o.id);
   const finalized = o.status === 'RECEBIDO' || o.status === 'CANCELADO';
   async function change(status: 'ENVIADO' | 'CANCELADO') {
@@ -179,9 +197,10 @@ function RowActions({ o, onReceive }: { o: PurchaseOrderSummaryDto; onReceive: (
     <DropdownMenu>
       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {!finalized && <DropdownMenuItem onClick={onReceive}><PackageCheck className="size-4" /> Receber</DropdownMenuItem>}
-        {o.status === 'ABERTO' && <DropdownMenuItem onClick={() => change('ENVIADO')}><Send className="size-4" /> Marcar enviado</DropdownMenuItem>}
-        {!finalized && <DropdownMenuItem onClick={() => change('CANCELADO')}><XCircle className="size-4" /> Cancelar</DropdownMenuItem>}
+        <DropdownMenuItem onClick={onView}><Package2 className="size-4" /> Ver produtos</DropdownMenuItem>
+        {canWrite && !finalized && <DropdownMenuItem onClick={onReceive}><PackageCheck className="size-4" /> Receber</DropdownMenuItem>}
+        {canWrite && o.status === 'ABERTO' && <DropdownMenuItem onClick={() => change('ENVIADO')}><Send className="size-4" /> Marcar enviado</DropdownMenuItem>}
+        {canWrite && !finalized && <DropdownMenuItem onClick={() => change('CANCELADO')}><XCircle className="size-4" /> Cancelar</DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
   );

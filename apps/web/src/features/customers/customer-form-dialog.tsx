@@ -13,7 +13,7 @@ import {
 } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useCreateCustomer, useUpdateCustomer } from './use-customers';
-import { useSiteSettings } from '@/features/content/use-content';
+import { useCategories } from '@/features/categories/use-categories';
 import {
   Dialog,
   DialogContent,
@@ -111,10 +111,14 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [cepLoading, setCepLoading] = useState(false);
 
-  const { data: siteSettings } = useSiteSettings();
+  const { data: categoryData } = useCategories('CUSTOMER');
   const configuredCategories = useMemo(
-    () => [...(siteSettings?.customerCategories ?? [])].sort((a, b) => a.localeCompare(b, 'pt-BR')),
-    [siteSettings?.customerCategories],
+    () =>
+      (categoryData ?? [])
+        .filter((c) => c.active)
+        .map((c) => c.name)
+        .sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [categoryData],
   );
   const availableCategories = configuredCategories.filter(
     (category) => !form.categories.some((selected) => selected.toLowerCase() === category.toLowerCase()),
@@ -382,7 +386,7 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: Props) {
             >
               <option value="">
                 {configuredCategories.length === 0
-                  ? 'Cadastre categorias em Configurações'
+                  ? 'Cadastre categorias em Configurações › Categorias'
                   : availableCategories.length === 0
                     ? 'Todas as categorias já foram selecionadas'
                     : 'Selecione uma categoria'}
@@ -395,8 +399,8 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: Props) {
             </Select>
             <p className="text-xs text-muted-foreground">
               As opções são cadastradas em{' '}
-              <Link href="/site-config" className="font-medium text-primary underline-offset-4 hover:underline">
-                Configurações
+              <Link href="/categorias" className="font-medium text-primary underline-offset-4 hover:underline">
+                Configurações › Categorias
               </Link>.
             </p>
             {form.categories.length > 0 && (

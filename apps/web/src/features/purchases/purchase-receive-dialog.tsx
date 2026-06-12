@@ -1,14 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Loader2, FileInput } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   PURCHASE_ORDER_STATUS_LABELS,
   type PurchaseOrderDto,
 } from '@oficina/shared';
 import { apiErrorMessage } from '@/lib/form-errors';
-import { useReceivePurchase } from './use-purchases';
+import { useReceivePurchase, useReceivePurchaseNfe } from './use-purchases';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -22,6 +22,8 @@ export function PurchaseReceiveDialog({
   open: boolean; onOpenChange: (o: boolean) => void; purchase: PurchaseOrderDto | null;
 }) {
   const receive = useReceivePurchase(purchase?.id ?? '');
+  const receiveNfe = useReceivePurchaseNfe(purchase?.id ?? '');
+  const fileRef = useRef<HTMLInputElement>(null);
   const [qty, setQty] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -51,6 +53,19 @@ export function PurchaseReceiveDialog({
     } catch (err) { toast.error(apiErrorMessage(err, {}, 'Erro ao receber')); }
   }
 
+  async function onNfeFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      await receiveNfe.mutateAsync(file);
+      toast.success('Recebido pela NF-e (estoque atualizado)');
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao receber pela NF-e');
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -60,7 +75,39 @@ export function PurchaseReceiveDialog({
             Status atual: <Badge>{PURCHASE_ORDER_STATUS_LABELS[purchase.status]}</Badge>
           </DialogDescription>
         </DialogHeader>
+        <div className="mb-3 rounded-lg border bg-muted/40 p-3">
+          <p className="text-sm font-medium">Receber pela NF-e</p>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Envie o XML (ou ZIP) da nota; os itens são casados por SKU/EAN e a
+            entrada é dada automaticamente.
+          </p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xml,.zip"
+            className="hidden"
+            onChange={onNfeFile}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={receiveNfe.isPending}
+            onClick={() => fileRef.current?.click()}
+          >
+            {receiveNfe.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <FileInput className="size-4" />
+            )}
+            Enviar XML da NF-e
+          </Button>
+        </div>
+
         <form onSubmit={onSubmit} className="space-y-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            Ou informe as quantidades manualmente:
+          </p>
           <div className="space-y-2">
             {purchase.items.map((it) => (
               <div key={it.id} className="flex items-center gap-2 text-sm">

@@ -151,6 +151,18 @@ export function useReopenQuote(id: string) {
   });
 }
 
+export function useGeneratePurchase(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ created: number }>(`${BASE}/${id}/quote/generate-purchase`, {}),
+    onSuccess: () => {
+      invalidate(qc, id);
+      qc.invalidateQueries({ queryKey: ['purchases'] });
+    },
+  });
+}
+
 export function useAddFromCatalog(id: string) {
   const qc = useQueryClient();
   const onSuccess = () => {

@@ -228,6 +228,17 @@ export class QuotesService {
     return this.getByOrder(actor.tenantId, orderId);
   }
 
+  /**
+   * Gera o pedido de compra das peças aprovadas que estão em falta (sob demanda,
+   * via botão). Disponível após a aprovação do orçamento.
+   */
+  async generatePurchase(
+    actor: AuthenticatedUser,
+    orderId: string,
+  ): Promise<{ created: number }> {
+    return this.purchases.generatePurchaseForOrder(actor, orderId);
+  }
+
   /** Envia o link do orçamento para o e-mail do cliente. */
   async sendEmail(
     actor: AuthenticatedUser,
@@ -401,8 +412,9 @@ export class QuotesService {
           await this.recomputeOrderTotals(tx, order.id);
         }
 
-        // Reserva o estoque e gera o pedido de compra do que falta (peças
-        // aprovadas). Com falta → "aguardando peça"; tudo coberto → "aprovado".
+        // Reserva o estoque das peças aprovadas e verifica se faltou estoque.
+        // Com falta → "aguardando peça" (o pedido de compra é gerado pelo botão);
+        // tudo coberto → "aprovado".
         const { shortfall } = await this.purchases.commitApprovalReservation(
           tx,
           order.tenantId,
@@ -411,7 +423,7 @@ export class QuotesService {
         const target = shortfall ? 'AGUARDANDO_PECA' : 'ORCAMENTO_APROVADO';
         if (canTransition(order.status, target)) {
           const note = shortfall
-            ? 'Orçamento aprovado — aguardando peça (pedido de compra gerado)'
+            ? 'Orçamento aprovado — aguardando peça (gere o pedido de compra)'
             : decisionType === 'TOTAL'
               ? 'Orçamento aprovado pelo cliente'
               : 'Orçamento aprovado parcialmente pelo cliente';

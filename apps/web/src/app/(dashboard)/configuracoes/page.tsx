@@ -4,12 +4,12 @@ import Link from 'next/link';
 import {
   Globe,
   MessageSquare,
-  Newspaper,
   Users,
   Sparkles,
   ShieldCheck,
   BarChart3,
   Bell,
+  Tags,
   ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -25,9 +25,9 @@ interface Item {
 }
 
 const ITEMS: Item[] = [
-  { title: 'Site público', description: 'Dados da oficina, categorias de clientes, capacidade, logo e textos.', href: '/site-config', icon: Globe, permission: 'site:manage' },
+  { title: 'Site público', description: 'Dados da oficina, capacidade, logo e textos.', href: '/site-config', icon: Globe, permission: 'site:manage' },
+  { title: 'Categorias', description: 'Categorias de clientes, serviços e peças.', href: '/categorias', icon: Tags, permission: 'settings:manage' },
   { title: 'Mensagens', description: 'Templates, variáveis e eventos automáticos.', href: '/mensagens', icon: MessageSquare, permission: 'messages:read' },
-  { title: 'Blog', description: 'Artigos do site público.', href: '/blog', icon: Newspaper, permission: 'blog:write' },
   { title: 'Usuários e permissões', description: 'Funcionários, perfis e acessos.', href: '/usuarios', icon: Users, permission: 'users:read' },
   { title: 'Assistente de IA', description: 'Provedor, chave de API e instruções.', href: '/ia', icon: Sparkles, permission: 'ai:manage' },
   { title: 'Relatórios', description: 'Faturamento, OS por status e rankings.', href: '/relatorios', icon: BarChart3, permission: 'dashboard:read' },

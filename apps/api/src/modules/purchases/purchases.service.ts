@@ -16,6 +16,7 @@ import {
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { applyStockMovement } from '../inventory/stock.helper';
+import { parseNfeBuffer } from '../nfe-import/nfe-parser';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 type Tx = Prisma.TransactionClient | PrismaClient;
@@ -346,6 +347,95 @@ export class PurchasesService {
     return this.findOne(actor.tenantId, id);
   }
 
+  /**
+   * Recebe o pedido a partir do XML da NF-e: casa os itens da nota com os itens
+   * do pedido por SKU (cProd) ou EAN e dá entrada da quantidade correspondente
+   * (limitada ao saldo pendente de cada item). Reusa o fluxo de recebimento.
+   */
+  async receiveFromNfe(
+    actor: AuthenticatedUser,
+    id: string,
+    buffer: Buffer,
+    filename: string,
+  ): Promise<PurchaseOrderDto> {
+    const order = await this.prisma.purchaseOrder.findFirst({
+      where: { id, tenantId: actor.tenantId },
+      include: { items: { include: { part: { select: { sku: true, ean: true } } } } },
+    });
+    if (!order) throw new NotFoundException('Pedido não encontrado');
+    if (['RECEBIDO', 'CANCELADO'].includes(order.status)) {
+      throw new BadRequestException('Pedido já finalizado');
+    }
+
+    let raw;
+    try {
+      raw = parseNfeBuffer(buffer, filename);
+    } catch (err) {
+      throw new BadRequestException(
+        err instanceof Error ? err.message : 'Falha ao ler o XML da NF-e',
+      );
+    }
+
+    // Quantidades e custo unitário da nota agregados por SKU e por EAN.
+    const qtyBySku = new Map<string, number>();
+    const qtyByEan = new Map<string, number>();
+    const costBySku = new Map<string, number>();
+    const costByEan = new Map<string, number>();
+    for (const it of raw.items) {
+      if (it.cProd) {
+        qtyBySku.set(it.cProd, round3((qtyBySku.get(it.cProd) ?? 0) + it.quantity));
+        if (it.unitCost > 0) costBySku.set(it.cProd, it.unitCost);
+      }
+      if (it.ean) {
+        qtyByEan.set(it.ean, round3((qtyByEan.get(it.ean) ?? 0) + it.quantity));
+        if (it.unitCost > 0) costByEan.set(it.ean, it.unitCost);
+      }
+    }
+
+    const received: { itemId: string; quantity: number }[] = [];
+    const costUpdates: { partId: string; costPrice: number }[] = [];
+    for (const item of order.items) {
+      const remaining = round3(dec(item.quantity) - dec(item.receivedQuantity));
+      if (remaining <= 0) continue;
+      const fromNfe =
+        (item.part.sku ? qtyBySku.get(item.part.sku) : undefined) ??
+        (item.part.ean ? qtyByEan.get(item.part.ean) : undefined) ??
+        0;
+      if (fromNfe > 0) {
+        received.push({ itemId: item.id, quantity: Math.min(fromNfe, remaining) });
+        // Atualiza o custo da peça com o valor unitário da nota.
+        const nfeCost =
+          (item.part.sku ? costBySku.get(item.part.sku) : undefined) ??
+          (item.part.ean ? costByEan.get(item.part.ean) : undefined);
+        if (nfeCost != null && nfeCost > 0) {
+          costUpdates.push({ partId: item.partId, costPrice: round2(nfeCost) });
+        }
+      }
+    }
+
+    if (received.length === 0) {
+      throw new BadRequestException(
+        'Nenhum item da NF-e corresponde às peças do pedido (confira SKU/EAN das peças).',
+      );
+    }
+
+    const result = await this.receive(actor, id, { received });
+
+    // Atualiza o custo das peças com o valor da nota só após o recebimento.
+    if (costUpdates.length > 0) {
+      await this.prisma.$transaction(
+        costUpdates.map((u) =>
+          this.prisma.part.update({
+            where: { id: u.partId },
+            data: { costPrice: u.costPrice },
+          }),
+        ),
+      );
+    }
+
+    return result;
+  }
+
   // ─── Integração OS ↔ estoque (reserva + backorder) ───
   /**
    * Demanda de peças da OS (itens do catálogo), agregada por peça, com estoque,
@@ -443,13 +533,13 @@ export class PurchasesService {
   }
 
   /**
-   * Aprovação da OS: reserva o estoque das peças (hard allocation) e gera o(s)
-   * pedido(s) de compra do que falta (disponível = estoque − reservado),
-   * agrupado(s) por fornecedor. Idempotente: cancela pedidos antigos da OS antes.
+   * Aprovação da OS: reserva o estoque das peças (hard allocation) e indica se
+   * faltou estoque para alguma peça aprovada. NÃO gera pedido de compra — isso é
+   * feito manualmente via `generatePurchaseForOrder`.
    */
   async commitApprovalReservation(
     tx: Tx,
-    tenantId: string,
+    _tenantId: string,
     orderId: string,
   ): Promise<{ shortfall: boolean }> {
     const order = await tx.serviceOrder.findUniqueOrThrow({
@@ -459,28 +549,10 @@ export class PurchasesService {
     const needs = await this.orderPartNeeds(tx, orderId);
     if (needs.length === 0) return { shortfall: false };
 
-    await this.cancelOpenOrderPurchases(tx, orderId);
-
-    const shortfallLines: {
-      partId: string;
-      supplierId: string | null;
-      qty: number;
-      costPrice: number;
-    }[] = [];
     let anyShortfall = false;
-
     for (const n of needs) {
       const available = dec(n.part.currentStock) - dec(n.part.reservedStock);
-      const shortfall = round3(Math.max(0, n.needed - available));
-      if (shortfall > 0) {
-        anyShortfall = true;
-        shortfallLines.push({
-          partId: n.part.id,
-          supplierId: n.part.supplierId,
-          qty: shortfall,
-          costPrice: dec(n.part.costPrice),
-        });
-      }
+      if (round3(Math.max(0, n.needed - available)) > 0) anyShortfall = true;
       // Reserva a demanda completa (só uma vez por OS).
       if (!order.partsReserved) {
         await tx.part.update({
@@ -497,14 +569,68 @@ export class PurchasesService {
       });
     }
 
-    if (shortfallLines.length > 0) {
-      await this.createGroupedPurchases(tx, tenantId, shortfallLines, {
-        serviceOrderId: orderId,
-        notes: 'Gerado automaticamente por falta de peça na OS',
-      });
+    return { shortfall: anyShortfall };
+  }
+
+  /**
+   * Gera o pedido de compra (sob demanda) apenas com as peças aprovadas da OS
+   * que estão em falta — quantidade = o que falta para cobrir a reserva da OS,
+   * agrupado por fornecedor. Idempotente: cancela pedidos em aberto da OS antes.
+   */
+  async generatePurchaseForOrder(
+    actor: AuthenticatedUser,
+    orderId: string,
+  ): Promise<{ created: number }> {
+    const order = await this.prisma.serviceOrder.findFirst({
+      where: { id: orderId, tenantId: actor.tenantId },
+      select: { id: true, status: true },
+    });
+    if (!order) throw new NotFoundException('OS não encontrada');
+    if (!['ORCAMENTO_APROVADO', 'AGUARDANDO_PECA'].includes(order.status)) {
+      throw new BadRequestException(
+        'Gere o pedido de compra após a aprovação do orçamento.',
+      );
     }
 
-    return { shortfall: anyShortfall };
+    const needs = await this.orderPartNeeds(this.prisma, orderId);
+    const lines = needs
+      .map((n) => {
+        const uncovered = round3(
+          Math.max(0, dec(n.part.reservedStock) - dec(n.part.currentStock)),
+        );
+        return {
+          partId: n.part.id,
+          supplierId: n.part.supplierId,
+          qty: round3(Math.min(n.needed, uncovered)),
+          costPrice: dec(n.part.costPrice),
+        };
+      })
+      .filter((l) => l.qty > 0);
+
+    if (lines.length === 0) {
+      throw new BadRequestException(
+        'Todas as peças aprovadas já estão em estoque — não é necessário comprar.',
+      );
+    }
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      await this.cancelOpenOrderPurchases(tx, orderId);
+      return this.createGroupedPurchases(tx, actor.tenantId, lines, {
+        serviceOrderId: orderId,
+        notes: 'Peças aprovadas em falta na OS',
+      });
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'CREATE',
+      module: 'purchases',
+      entity: 'PurchaseOrder',
+      after: { fromOrder: orderId, created },
+    });
+
+    return { created };
   }
 
   /** Libera a reserva de estoque das peças da OS (reabertura/cancelamento). */

@@ -22,20 +22,6 @@ const optionalCnpj = z
   }, cnpjSchema.nullable().optional())
   .transform((value) => (value === undefined ? undefined : value ?? null));
 
-
-const optionalCategoryList = z.preprocess((value) => {
-  if (value === undefined) return undefined;
-  if (value === null) return [];
-  if (Array.isArray(value)) return value;
-  if (typeof value === 'string') {
-    return value
-      .split(/[\n,;]/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-  return value;
-}, z.array(z.string().trim().min(1, 'Categoria: informe o nome da categoria').max(40, 'Categoria: use no máximo 40 caracteres')).max(50, 'Categorias de clientes: cadastre no máximo 50 categorias').optional());
-
 const optionalCapacity = z.preprocess((value) => {
   if (value === undefined) return undefined;
   if (value === null) return null;
@@ -65,8 +51,8 @@ export const updateSiteSettingsSchema = z.object({
   logoUrl: optionalText(500),
   logoPdfUrl: optionalText(500),
   pdfFooterText: optionalText(2000),
+  blogFallbackImageUrl: optionalText(500),
   capacity: optionalCapacity,
-  customerCategories: optionalCategoryList,
   published: z.boolean().optional(),
 });
 export type UpdateSiteSettingsInput = z.infer<typeof updateSiteSettingsSchema>;
@@ -89,8 +75,8 @@ export interface SiteSettingsDto {
   logoUrl: string | null;
   logoPdfUrl: string | null;
   pdfFooterText: string | null;
+  blogFallbackImageUrl: string | null;
   capacity: number | null;
-  customerCategories: string[];
   published: boolean;
 }
 
