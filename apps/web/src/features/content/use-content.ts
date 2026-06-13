@@ -92,6 +92,7 @@ export {
   useLinkLeadCustomer,
   useLinkLeadVehicle,
   useNoShowLead,
+  useReceptionAlerts,
   useRegisterLeadContact,
   useScheduleLead,
   useUpdateLeadStatus,

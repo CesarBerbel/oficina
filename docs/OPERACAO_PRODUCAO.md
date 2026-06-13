@@ -1,0 +1,213 @@
+# Operação de Produção — Oficina
+
+Este guia cobre a rotina mínima para tratar o sistema como produto interno estável: validar build, subir nova versão, verificar saúde, fazer backup e restaurar quando necessário.
+
+## 1. Validação antes de publicar
+
+No Windows PowerShell, antes de enviar para o servidor:
+
+```powershell
+Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force apps\web\.next -ErrorAction SilentlyContinue
+
+pnpm install
+pnpm ci:check
+```
+
+Com E2E:
+
+```powershell
+docker compose -f docker-compose.test.yml up -d
+
+$env:DATABASE_URL="postgresql://oficina:oficina_test_pwd@localhost:5434/oficina_test?schema=public"
+
+pnpm ci:e2e
+
+Remove-Item Env:DATABASE_URL
+echo $env:DATABASE_URL
+```
+
+Também pode usar:
+
+```powershell
+.\scripts\validate-build.ps1 -E2E
+```
+
+## 2. Atualização no servidor via Git
+
+```bash
+cd /caminho/do/projeto
+
+git pull origin main
+
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml run --rm api pnpm prisma:deploy
+docker compose -f docker-compose.prod.yml up -d
+
+docker compose -f docker-compose.prod.yml ps
+sh scripts/monitor-prod.sh
+```
+
+Se sua branch for `master`, troque `main` por `master`.
+
+## 3. Healthchecks
+
+A API expõe:
+
+```text
+GET /api/health/live
+GET /api/health/ready
+GET /api/health/version
+```
+
+O Nginx expõe:
+
+```text
+GET /healthz
+```
+
+Diferença:
+
+- `/api/health/live`: indica que o processo da API está vivo.
+- `/api/health/ready`: indica que a API consegue consultar o banco.
+- `/healthz`: indica que o Nginx está respondendo.
+
+No servidor:
+
+```bash
+curl -fsS http://127.0.0.1/healthz
+curl -fsS http://127.0.0.1/api/health/ready
+curl -fsS http://127.0.0.1/api/health/version
+```
+
+## 4. Monitoramento básico manual
+
+```bash
+sh scripts/monitor-prod.sh
+```
+
+O script verifica:
+
+- containers do compose;
+- health da API;
+- resposta do frontend via Nginx;
+- espaço livre em disco.
+
+Variáveis opcionais:
+
+```bash
+API_HEALTH_URL=http://127.0.0.1/api/health/ready \
+WEB_URL=http://127.0.0.1/ \
+MIN_FREE_DISK_PERCENT=10 \
+sh scripts/monitor-prod.sh
+```
+
+## 5. Backup manual
+
+O backup salva:
+
+- banco PostgreSQL em `backups/oficina_db_*.sql.gz`;
+- uploads em `backups/oficina_uploads_*.tar.gz`, quando o volume existir;
+- manifesto em `backups/oficina_backup_*.txt`.
+
+```bash
+sh scripts/backup.sh
+```
+
+Variáveis úteis:
+
+```bash
+BACKUP_DIR=backups
+BACKUP_RETENTION=14
+BACKUP_INCLUDE_UPLOADS=true
+POSTGRES_SERVICE=postgres
+UPLOADS_VOLUME=oficina_uploads
+COMPOSE_PROJECT_NAME=oficina
+```
+
+Exemplo:
+
+```bash
+BACKUP_RETENTION=30 sh scripts/backup.sh
+```
+
+## 6. Backup automático diário
+
+Instala cron diário, por padrão às 02:17:
+
+```bash
+sh scripts/install-backup-cron.sh
+```
+
+Para escolher outro horário:
+
+```bash
+CRON_TIME="30 3 * * *" sh scripts/install-backup-cron.sh
+```
+
+Ver crontab:
+
+```bash
+crontab -l
+```
+
+Ver log:
+
+```bash
+tail -f backups/backup.log
+```
+
+## 7. Restore
+
+O restore é destrutivo. Exige confirmação explícita:
+
+```bash
+CONFIRM_RESTORE=SIM sh scripts/restore.sh backups/oficina_db_AAAAMMDD_HHMMSS.sql.gz
+```
+
+Para restaurar uploads junto:
+
+```bash
+CONFIRM_RESTORE=SIM RESTORE_UPLOADS=true \
+sh scripts/restore.sh \
+  backups/oficina_db_AAAAMMDD_HHMMSS.sql.gz \
+  backups/oficina_uploads_AAAAMMDD_HHMMSS.tar.gz
+```
+
+Depois do restore:
+
+```bash
+docker compose -f docker-compose.prod.yml restart api web nginx
+sh scripts/monitor-prod.sh
+```
+
+## 8. Logs úteis
+
+```bash
+docker compose -f docker-compose.prod.yml logs -f api
+docker compose -f docker-compose.prod.yml logs -f web
+docker compose -f docker-compose.prod.yml logs -f nginx
+```
+
+Últimas linhas:
+
+```bash
+docker compose -f docker-compose.prod.yml logs --tail=100 api
+```
+
+## 9. Checklist diário rápido
+
+```bash
+cd /caminho/do/projeto
+sh scripts/monitor-prod.sh
+ls -lh backups | tail
+```
+
+## 10. Checklist antes de migration
+
+```bash
+sh scripts/backup.sh
+docker compose -f docker-compose.prod.yml run --rm api pnpm prisma:deploy
+docker compose -f docker-compose.prod.yml up -d
+sh scripts/monitor-prod.sh
+```

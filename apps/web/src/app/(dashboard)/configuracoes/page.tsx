@@ -26,7 +26,7 @@ interface Item {
 
 const ITEMS: Item[] = [
   { title: 'Site público', description: 'Dados da oficina, capacidade, logo e textos.', href: '/site-config', icon: Globe, permission: 'site:manage' },
-  { title: 'Categorias', description: 'Categorias de clientes, serviços e peças.', href: '/categorias', icon: Tags, permission: 'settings:manage' },
+  { title: 'Categorias e marcas', description: 'Categorias e marcas usadas nos cadastros.', href: '/categorias', icon: Tags, permission: 'settings:manage' },
   { title: 'Mensagens', description: 'Templates, variáveis e eventos automáticos.', href: '/mensagens', icon: MessageSquare, permission: 'messages:read' },
   { title: 'Usuários e permissões', description: 'Funcionários, perfis e acessos.', href: '/usuarios', icon: Users, permission: 'users:read' },
   { title: 'Assistente de IA', description: 'Provedor, chave de API e instruções.', href: '/ia', icon: Sparkles, permission: 'ai:manage' },

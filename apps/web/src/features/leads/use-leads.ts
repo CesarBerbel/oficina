@@ -12,6 +12,7 @@ import type {
   LinkLeadVehicleInput,
   ListLeadsQuery,
   Paginated,
+  ReceptionAlertsDto,
   RegisterLeadContactInput,
   ScheduleLeadInput,
 } from '@oficina/shared';
@@ -28,6 +29,7 @@ function qs(params: Record<string, unknown>): string {
 
 function refreshLeadQueries(qc: ReturnType<typeof useQueryClient>, data: LeadDetailDto) {
   qc.invalidateQueries({ queryKey: ['leads'] });
+  qc.invalidateQueries({ queryKey: ['reception-alerts'] });
   qc.setQueryData(['lead', data.id], data);
 }
 
@@ -36,6 +38,15 @@ export function useLeads(params: Partial<ListLeadsQuery>) {
     queryKey: ['leads', params],
     queryFn: () => api.get<Paginated<LeadDto>>(`/leads${qs(params)}`),
     placeholderData: keepPreviousData,
+  });
+}
+
+
+export function useReceptionAlerts() {
+  return useQuery({
+    queryKey: ['reception-alerts'],
+    queryFn: () => api.get<ReceptionAlertsDto>('/leads/reception-alerts'),
+    refetchInterval: 60_000,
   });
 }
 

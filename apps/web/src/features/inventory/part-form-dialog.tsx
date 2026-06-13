@@ -9,6 +9,8 @@ import {
   updatePartSchema,
   PART_TYPES,
   PART_TYPE_LABELS,
+  PART_UNITS,
+  PART_UNIT_LABELS,
   type PartDto,
 } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
@@ -28,6 +30,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  MoneyInput,
+  formatMoneyInputFromNumber,
+  moneyInputToNumber,
+} from '@/components/ui/money-input';
 
 interface Props {
   open: boolean;
@@ -38,14 +45,15 @@ interface Props {
 const empty = {
   name: '',
   sku: '',
+  ncm: '',
   ean: '',
   type: 'PECA',
   category: '',
   brand: '',
   unit: 'UN',
   minStock: '0',
-  costPrice: '0',
-  salePrice: '0',
+  costPrice: '',
+  salePrice: '',
   supplierId: '',
   description: '',
   initialStock: '0',
@@ -53,7 +61,8 @@ const empty = {
 
 const FIELD_LABELS = {
   name: 'Nome',
-  sku: 'SKU',
+  sku: 'Código da peça',
+  ncm: 'NCM',
   ean: 'Código de barras',
   type: 'Tipo',
   category: 'Categoria',
@@ -77,10 +86,17 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
   const { data: suppliersData } = useSuppliers({ page: 1, pageSize: 100 });
   const suppliers = suppliersData?.data ?? [];
   const { data: categoryData } = useCategories('PART');
+  const { data: brandData } = useCategories('BRAND');
   const categoryOptions = Array.from(
     new Set([
       ...(categoryData ?? []).filter((c) => c.active).map((c) => c.name),
       ...(form.category ? [form.category] : []),
+    ]),
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const brandOptions = Array.from(
+    new Set([
+      ...(brandData ?? []).filter((c) => c.active).map((c) => c.name),
+      ...(form.brand ? [form.brand] : []),
     ]),
   ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
@@ -90,14 +106,15 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
       setForm({
         name: part.name,
         sku: part.sku ?? '',
+        ncm: part.ncm ?? '',
         ean: part.ean ?? '',
         type: part.type,
         category: part.category ?? '',
         brand: part.brand ?? '',
-        unit: part.unit,
+        unit: PART_UNITS.includes(part.unit as (typeof PART_UNITS)[number]) ? part.unit : 'UN',
         minStock: String(part.minStock),
-        costPrice: String(part.costPrice),
-        salePrice: String(part.salePrice),
+        costPrice: formatMoneyInputFromNumber(part.costPrice),
+        salePrice: formatMoneyInputFromNumber(part.salePrice),
         supplierId: part.supplierId ?? '',
         description: part.description ?? '',
         initialStock: '0',
@@ -115,7 +132,12 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const schema = isEdit ? updatePartSchema : createPartSchema;
-    const parsed = schema.safeParse(form);
+    const payload = {
+      ...form,
+      costPrice: moneyInputToNumber(form.costPrice),
+      salePrice: moneyInputToNumber(form.salePrice),
+    };
+    const parsed = schema.safeParse(payload);
     if (!parsed.success) {
       setErrors(zodFieldErrors(parsed.error, FIELD_LABELS));
       return;
@@ -157,9 +179,32 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-4">
-            <F label="SKU" error={errors.sku}><Input value={form.sku} onChange={(e) => set('sku', e.target.value)} /></F>
-            <F label="Código de barras"><Input value={form.ean} onChange={(e) => set('ean', e.target.value)} /></F>
-            <F label="Marca"><Input value={form.brand} onChange={(e) => set('brand', e.target.value)} /></F>
+            <F label="Código da peça" error={errors.sku}>
+              <Input value={form.sku} onChange={(e) => set('sku', e.target.value)} />
+            </F>
+            <F label="NCM" error={errors.ncm}>
+              <Input
+                value={form.ncm}
+                onChange={(e) => set('ncm', e.target.value.replace(/\D/g, '').slice(0, 8))}
+                inputMode="numeric"
+                maxLength={8}
+                placeholder="00000000"
+              />
+            </F>
+            <F label="Código de barras">
+              <Input value={form.ean} onChange={(e) => set('ean', e.target.value)} />
+            </F>
+            <F label="Marca">
+              <Select value={form.brand} onChange={(e) => set('brand', e.target.value)}>
+                <option value="">Sem marca</option>
+                {brandOptions.map((brand) => (
+                  <option key={brand} value={brand}>{brand}</option>
+                ))}
+              </Select>
+            </F>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-4">
             <F label="Categoria">
               <Select value={form.category} onChange={(e) => set('category', e.target.value)}>
                 <option value="">Sem categoria</option>
@@ -168,20 +213,31 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
                 ))}
               </Select>
             </F>
+            <F label="Unidade" required>
+              <Select value={form.unit} onChange={(e) => set('unit', e.target.value)}>
+                {PART_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>{unit} — {PART_UNIT_LABELS[unit]}</option>
+                ))}
+              </Select>
+            </F>
+            <F label="Estoque mínimo" required>
+              <Input type="number" step="any" value={form.minStock} onChange={(e) => set('minStock', e.target.value)} />
+            </F>
+            <F label="Preço de custo" error={errors.costPrice} required>
+              <MoneyInput value={form.costPrice} onValueChange={(value) => set('costPrice', value)} />
+            </F>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-4">
-            <F label="Unidade" required><Input value={form.unit} onChange={(e) => set('unit', e.target.value)} /></F>
-            <F label="Estoque mínimo" required><Input type="number" step="any" value={form.minStock} onChange={(e) => set('minStock', e.target.value)} /></F>
-            <F label="Preço de custo" required><Input type="number" step="0.01" value={form.costPrice} onChange={(e) => set('costPrice', e.target.value)} /></F>
-            <F label="Preço de venda" required><Input type="number" step="0.01" value={form.salePrice} onChange={(e) => set('salePrice', e.target.value)} /></F>
-          </div>
-
-          {!isEdit && (
-            <F label="Estoque inicial (gera entrada)" required>
-              <Input type="number" step="any" value={form.initialStock} onChange={(e) => set('initialStock', e.target.value)} />
+            <F label="Preço de venda" error={errors.salePrice} required>
+              <MoneyInput value={form.salePrice} onValueChange={(value) => set('salePrice', value)} />
             </F>
-          )}
+            {!isEdit && (
+              <F label="Estoque inicial (gera entrada)" required className="sm:col-span-3">
+                <Input type="number" step="any" value={form.initialStock} onChange={(e) => set('initialStock', e.target.value)} />
+              </F>
+            )}
+          </div>
 
           <F label="Fornecedor" error={errors.supplierId}>
             <Select value={form.supplierId} onChange={(e) => set('supplierId', e.target.value)}>

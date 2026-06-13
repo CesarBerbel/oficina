@@ -27,7 +27,13 @@
     "prisma:generate": "prisma generate --schema apps/api/prisma/schema.prisma",
     "prepare": "husky || true",
     "dev:turbo": "pnpm --filter @oficina/shared build && turbo run dev",
-    "dev:no-migrate": "pnpm --filter @oficina/shared build && turbo run dev"
+    "dev:no-migrate": "pnpm --filter @oficina/shared build && turbo run dev",
+    "ci:check": "pnpm prisma:validate && pnpm prisma:generate && pnpm --filter @oficina/shared build && pnpm --filter @oficina/api typecheck && pnpm --filter @oficina/web typecheck && pnpm build && pnpm --filter @oficina/api test",
+    "ci:e2e": "pnpm prisma:deploy && pnpm --filter @oficina/api test:e2e",
+    "prod:backup": "sh scripts/backup.sh",
+    "prod:restore": "sh scripts/restore.sh",
+    "prod:monitor": "sh scripts/monitor-prod.sh",
+    "prod:install-backup-cron": "sh scripts/install-backup-cron.sh"
   },
   "devDependencies": {
     "husky": "^9.1.7",

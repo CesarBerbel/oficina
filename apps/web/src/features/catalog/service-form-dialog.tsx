@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { MoneyInput, formatMoneyInputFromNumber, moneyInputToNumber } from '@/components/ui/money-input';
 
 interface DefaultPartRow {
   partId: string;
@@ -53,8 +54,8 @@ export function ServiceFormDialog({
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
-  const [salePrice, setSalePrice] = useState('0');
-  const [cost, setCost] = useState('0');
+  const [salePrice, setSalePrice] = useState('');
+  const [cost, setCost] = useState('');
   const [estimatedMinutes, setEstimatedMinutes] = useState('');
   const [showOnSite, setShowOnSite] = useState(true);
   const [defaultParts, setDefaultParts] = useState<DefaultPartRow[]>([]);
@@ -81,8 +82,8 @@ export function ServiceFormDialog({
       setName(service.name);
       setCategory(service.category ?? '');
       setDescription(service.description ?? '');
-      setSalePrice(String(service.salePrice));
-      setCost(String(service.cost));
+      setSalePrice(formatMoneyInputFromNumber(service.salePrice));
+      setCost(formatMoneyInputFromNumber(service.cost));
       setEstimatedMinutes(service.estimatedMinutes?.toString() ?? '');
       setShowOnSite(service.showOnSite);
       setDefaultParts(
@@ -93,8 +94,8 @@ export function ServiceFormDialog({
         })),
       );
     } else {
-      setName(''); setCategory(''); setDescription(''); setSalePrice('0');
-      setCost('0'); setEstimatedMinutes(''); setShowOnSite(true); setDefaultParts([]);
+      setName(''); setCategory(''); setDescription(''); setSalePrice('');
+      setCost(''); setEstimatedMinutes(''); setShowOnSite(true); setDefaultParts([]);
     }
     setPartToAdd('');
     setErrors({});
@@ -112,7 +113,7 @@ export function ServiceFormDialog({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const payload = {
-      name, category, description, salePrice, cost,
+      name, category, description, salePrice: moneyInputToNumber(salePrice), cost: moneyInputToNumber(cost),
       estimatedMinutes: estimatedMinutes || undefined,
       showOnSite,
       defaultParts: defaultParts.map((p) => ({ partId: p.partId, quantity: p.quantity })),
@@ -185,11 +186,11 @@ export function ServiceFormDialog({
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label required>Preço de venda</Label>
-              <Input type="number" step="0.01" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} />
+              <MoneyInput value={salePrice} onValueChange={setSalePrice} />
             </div>
             <div className="space-y-1.5">
               <Label required>Custo</Label>
-              <Input type="number" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} />
+              <MoneyInput value={cost} onValueChange={setCost} />
             </div>
             <div className="space-y-1.5">
               <Label>Tempo (min)</Label>

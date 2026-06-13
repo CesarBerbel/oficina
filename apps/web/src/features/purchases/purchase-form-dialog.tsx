@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
+import { MoneyInput, formatMoneyInputFromNumber, moneyInputToNumber } from '@/components/ui/money-input';
 
 interface ItemRow { partId: string; partName: string; quantity: string; unitCost: string }
 
@@ -48,18 +49,18 @@ export function PurchaseFormDialog({
     if (!partToAdd || items.some((i) => i.partId === partToAdd)) return;
     const part = parts?.data.find((p) => p.id === partToAdd);
     if (!part) return;
-    setItems((rows) => [...rows, { partId: part.id, partName: part.name, quantity: '1', unitCost: String(part.costPrice) }]);
+    setItems((rows) => [...rows, { partId: part.id, partName: part.name, quantity: '1', unitCost: formatMoneyInputFromNumber(part.costPrice) }]);
     setPartToAdd('');
   }
 
-  const total = items.reduce((acc, i) => acc + (Number(i.quantity) || 0) * (Number(i.unitCost) || 0), 0);
+  const total = items.reduce((acc, i) => acc + (Number(i.quantity) || 0) * moneyInputToNumber(i.unitCost), 0);
   const available = (parts?.data ?? []).filter((p) => !items.some((i) => i.partId === p.id));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const payload = {
       supplierId: supplierId || undefined,
-      items: items.map((i) => ({ partId: i.partId, quantity: i.quantity, unitCost: i.unitCost })),
+      items: items.map((i) => ({ partId: i.partId, quantity: i.quantity, unitCost: moneyInputToNumber(i.unitCost) })),
     };
     const parsed = createPurchaseSchema.safeParse(payload);
     if (!parsed.success) { setError(Object.values(zodFieldErrors(parsed.error, FIELD_LABELS))[0] ?? 'Verifique os campos do formulário'); return; }
@@ -94,8 +95,8 @@ export function PurchaseFormDialog({
                 <span className="flex-1 truncate text-sm">{it.partName}</span>
                 <Input type="number" step="any" value={it.quantity} aria-label="Quantidade"
                   onChange={(e) => setItems((r) => r.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} className="w-20" />
-                <Input type="number" step="0.01" value={it.unitCost} aria-label="Custo unitário"
-                  onChange={(e) => setItems((r) => r.map((x, i) => i === idx ? { ...x, unitCost: e.target.value } : x))} className="w-24" />
+                <MoneyInput value={it.unitCost} aria-label="Custo unitário"
+                  onValueChange={(value) => setItems((r) => r.map((x, i) => i === idx ? { ...x, unitCost: value } : x))} className="w-28" />
                 <button type="button" onClick={() => setItems((r) => r.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-destructive">
                   <X className="size-4" />
                 </button>

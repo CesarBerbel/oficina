@@ -78,7 +78,7 @@ describe('Site público, leads e resolução de tenant (e2e)', () => {
 
     expect(updated.body.status).toBe('EM_ATENDIMENTO');
 
-    const start = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const start = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     const end = start;
     const scheduled = await request(app.getHttpServer())
       .post(`/api/leads/${leads.body.data[0].id}/schedule`)
@@ -93,6 +93,20 @@ describe('Site público, leads e resolução de tenant (e2e)', () => {
 
     expect(scheduled.body.status).toBe('AGENDADO');
     expect(scheduled.body.appointmentStartAt).toBe(start);
+
+    const receptionAlerts = await request(app.getHttpServer())
+      .get('/api/leads/reception-alerts')
+      .set(authHeader(admin.token))
+      .expect(200);
+
+    expect(receptionAlerts.body.upcomingArrivals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: leads.body.data[0].id, name: 'Lead Público' }),
+      ]),
+    );
+    expect(receptionAlerts.body.arrivalWindowMinutes).toBe(60);
+    expect(Array.isArray(receptionAlerts.body.overdueFollowUps)).toBe(true);
+    expect(Array.isArray(receptionAlerts.body.checkedInWithoutOs)).toBe(true);
 
     const confirmed = await request(app.getHttpServer())
       .post(`/api/leads/${leads.body.data[0].id}/confirm-appointment`)
@@ -111,6 +125,17 @@ describe('Site público, leads e resolução de tenant (e2e)', () => {
 
     expect(checkedIn.body.status).toBe('CLIENTE_CHEGOU');
     expect(checkedIn.body.checkedInAt).toBeTruthy();
+
+    const checkedInAlerts = await request(app.getHttpServer())
+      .get('/api/leads/reception-alerts')
+      .set(authHeader(admin.token))
+      .expect(200);
+
+    expect(checkedInAlerts.body.checkedInWithoutOs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: leads.body.data[0].id, name: 'Lead Público' }),
+      ]),
+    );
 
     const canceledCheckIn = await request(app.getHttpServer())
       .post(`/api/leads/${leads.body.data[0].id}/cancel-check-in`)
@@ -134,6 +159,46 @@ describe('Site público, leads e resolução de tenant (e2e)', () => {
 
     expect(noShow.body.status).toBe('NAO_COMPARECEU');
     expect(noShow.body.noShowAt).toBeTruthy();
+  });
+
+
+  it('retorna alertas da recepção para clientes atrasados', async () => {
+    await request(app.getHttpServer())
+      .post(`/api/public/lead?tenantSlug=${TENANT_SLUG}`)
+      .send({
+        name: 'Lead Atrasado',
+        phone: '11955554444',
+        vehicle: 'Toyota Corolla 2020',
+        message: 'Cliente marcou horário e ainda não chegou.',
+      })
+      .expect(201);
+
+    const admin = await loginAs(app);
+    const leads = await request(app.getHttpServer())
+      .get('/api/leads')
+      .set(authHeader(admin.token))
+      .expect(200);
+
+    const leadId = leads.body.data[0].id;
+    const start = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
+    await request(app.getHttpServer())
+      .post(`/api/leads/${leadId}/schedule`)
+      .set(authHeader(admin.token))
+      .send({ appointmentStartAt: start, appointmentEndAt: start })
+      .expect(201);
+
+    const alerts = await request(app.getHttpServer())
+      .get('/api/leads/reception-alerts')
+      .set(authHeader(admin.token))
+      .expect(200);
+
+    expect(alerts.body.noShowCandidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: leadId, name: 'Lead Atrasado' }),
+      ]),
+    );
+    expect(alerts.body.noShowToleranceMinutes).toBe(15);
   });
 
   it('recebe cliente direto na oficina já com chegada registrada', async () => {

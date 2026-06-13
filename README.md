@@ -225,3 +225,25 @@ Detalhes completos em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 ### Central de Pré-atendimento
 
 A tela `/leads` foi evoluída para Central de Pré-atendimento: busca cliente por nome/telefone/e-mail, procura veículo pela placa, alerta em amarelo quando a placa pertence a outro cliente, registra resultado de ligação/WhatsApp/e-mail e permite converter o contato em cliente, veículo e OS.
+
+
+## Operação de produção
+
+A rotina de produto interno estável está documentada em [`docs/OPERACAO_PRODUCAO.md`](docs/OPERACAO_PRODUCAO.md).
+
+Atalhos principais no servidor Linux:
+
+```bash
+sh scripts/backup.sh
+sh scripts/monitor-prod.sh
+sh scripts/install-backup-cron.sh
+```
+
+Healthchecks disponíveis atrás do Nginx:
+
+```text
+/healthz
+/api/health/live
+/api/health/ready
+/api/health/version
+```

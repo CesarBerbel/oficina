@@ -23,6 +23,7 @@ import type {
   LinkLeadVehicleInput,
   ListLeadsQuery,
   Paginated,
+  ReceptionAlertsDto,
   RegisterLeadContactInput,
   ScheduleLeadInput,
 } from '@oficina/shared';
@@ -32,6 +33,18 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 const UNIQUE_CONSTRAINT_RETRY_ATTEMPTS = 3;
+const RECEPTION_ALERT_ARRIVAL_WINDOW_MINUTES = 60;
+const RECEPTION_ALERT_NO_SHOW_TOLERANCE_MINUTES = 15;
+const OPEN_APPOINTMENT_STATUSES: LeadStatus[] = ['AGENDADO', 'CONFIRMADO'];
+const ACTIVE_RECEPTION_STATUSES: LeadStatus[] = [
+  'NOVO',
+  'EM_ATENDIMENTO',
+  'CONTATO_REALIZADO',
+  'RETORNAR_DEPOIS',
+  'AGENDADO',
+  'CONFIRMADO',
+  'CLIENTE_CHEGOU',
+];
 
 const leadDetailInclude = {
   contactAttempts: { orderBy: { createdAt: 'desc' } },
@@ -480,6 +493,119 @@ export class LeadsService {
     return {
       data: rows.map((l) => this.toDto(l)),
       meta: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+    };
+  }
+
+  async receptionAlerts(tenantId: string): Promise<ReceptionAlertsDto> {
+    const now = new Date();
+    const arrivalWindowEnd = new Date(
+      now.getTime() + RECEPTION_ALERT_ARRIVAL_WINDOW_MINUTES * 60_000,
+    );
+    const noShowCutoff = new Date(
+      now.getTime() - RECEPTION_ALERT_NO_SHOW_TOLERANCE_MINUTES * 60_000,
+    );
+
+    const commonWhere: Prisma.LeadWhereInput = {
+      tenantId,
+      status: { in: OPEN_APPOINTMENT_STATUSES },
+      appointmentStartAt: { not: null },
+      convertedServiceOrderId: null,
+      checkedInAt: null,
+      noShowAt: null,
+      appointmentCanceledAt: null,
+    };
+
+    const [upcomingRows, noShowRows, overdueFollowUpRows, checkedInRows] = await this.prisma.$transaction([
+      this.prisma.lead.findMany({
+        where: {
+          ...commonWhere,
+          appointmentStartAt: { gte: now, lte: arrivalWindowEnd },
+        },
+        orderBy: { appointmentStartAt: 'asc' },
+        take: 20,
+      }),
+      this.prisma.lead.findMany({
+        where: {
+          ...commonWhere,
+          appointmentStartAt: { lte: noShowCutoff },
+        },
+        orderBy: { appointmentStartAt: 'asc' },
+        take: 20,
+      }),
+      this.prisma.lead.findMany({
+        where: {
+          tenantId,
+          status: { in: ACTIVE_RECEPTION_STATUSES },
+          nextFollowUpAt: { lte: now },
+          convertedServiceOrderId: null,
+        },
+        orderBy: { nextFollowUpAt: 'asc' },
+        take: 20,
+      }),
+      this.prisma.lead.findMany({
+        where: {
+          tenantId,
+          status: 'CLIENTE_CHEGOU',
+          checkedInAt: { not: null },
+          convertedServiceOrderId: null,
+        },
+        orderBy: { checkedInAt: 'asc' },
+        take: 20,
+      }),
+    ]);
+
+    return {
+      generatedAt: now.toISOString(),
+      arrivalWindowMinutes: RECEPTION_ALERT_ARRIVAL_WINDOW_MINUTES,
+      noShowToleranceMinutes: RECEPTION_ALERT_NO_SHOW_TOLERANCE_MINUTES,
+      upcomingArrivals: upcomingRows.map((lead) => {
+        const appointmentTime = lead.appointmentStartAt?.getTime() ?? now.getTime();
+        return {
+          ...this.toDto(lead),
+          minutesUntilAppointment: Math.max(
+            0,
+            Math.round((appointmentTime - now.getTime()) / 60_000),
+          ),
+          minutesLate: null,
+          alertReason: 'Cliente perto do horário de chegada.',
+        };
+      }),
+      noShowCandidates: noShowRows.map((lead) => {
+        const appointmentTime = lead.appointmentStartAt?.getTime() ?? now.getTime();
+        return {
+          ...this.toDto(lead),
+          minutesUntilAppointment: null,
+          minutesLate: Math.max(
+            0,
+            Math.round((now.getTime() - appointmentTime) / 60_000),
+          ),
+          alertReason: 'Horário já passou. Registre chegada ou não comparecimento.',
+        };
+      }),
+      overdueFollowUps: overdueFollowUpRows.map((lead) => {
+        const followUpTime = lead.nextFollowUpAt?.getTime() ?? now.getTime();
+        return {
+          ...this.toDto(lead),
+          minutesUntilAppointment: null,
+          minutesLate: Math.max(
+            0,
+            Math.round((now.getTime() - followUpTime) / 60_000),
+          ),
+          alertReason: 'Retorno combinado vencido.',
+        };
+      }),
+      checkedInWithoutOs: checkedInRows.map((lead) => {
+        const checkedInTime = lead.checkedInAt?.getTime() ?? now.getTime();
+        return {
+          ...this.toDto(lead),
+          minutesUntilAppointment: null,
+          minutesLate: Math.max(
+            0,
+            Math.round((now.getTime() - checkedInTime) / 60_000),
+          ),
+          alertReason: 'Cliente chegou e ainda nao virou OS.',
+        };
+      }),
     };
   }
 

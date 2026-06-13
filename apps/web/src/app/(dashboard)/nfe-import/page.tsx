@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import {
   PART_TYPES,
   PART_TYPE_LABELS,
+  PART_UNITS,
+  PART_UNIT_LABELS,
   type NfeParseResult,
   type PartType,
 } from '@oficina/shared';
@@ -15,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { MoneyInput, formatMoneyInputFromNumber, moneyInputToNumber } from '@/components/ui/money-input';
 
 interface Row {
   include: boolean;
@@ -29,7 +32,7 @@ interface Row {
   costPrice: string;
   salePrice: string;
   minStock: string;
-  ncm: string | null;
+  ncm: string;
   cfop: string | null;
 }
 
@@ -54,12 +57,12 @@ export default function NfeImportPage() {
           ean: i.ean ?? '',
           name: i.name,
           type: 'PECA',
-          unit: i.unit,
+          unit: PART_UNITS.includes(i.unit as (typeof PART_UNITS)[number]) ? i.unit : 'UN',
           quantity: String(i.quantity),
-          costPrice: String(i.unitCost),
-          salePrice: String(Math.round(i.unitCost * 1.6 * 100) / 100),
+          costPrice: formatMoneyInputFromNumber(i.unitCost),
+          salePrice: formatMoneyInputFromNumber(Math.round(i.unitCost * 1.6 * 100) / 100),
           minStock: '0',
-          ncm: i.ncm,
+          ncm: i.ncm ?? '',
           cfop: i.cfop,
         })),
       );
@@ -81,13 +84,14 @@ export default function NfeImportPage() {
         include: true,
         partId: r.partId,
         sku: r.sku || undefined,
+        ncm: r.ncm || undefined,
         ean: r.ean || undefined,
         name: r.name,
         type: r.type,
         unit: r.unit,
         quantity: r.quantity,
-        costPrice: r.costPrice,
-        salePrice: r.salePrice,
+        costPrice: moneyInputToNumber(r.costPrice),
+        salePrice: moneyInputToNumber(r.salePrice),
         minStock: r.minStock,
       }));
     if (items.length === 0) {
@@ -168,9 +172,9 @@ export default function NfeImportPage() {
                 <tr>
                   <th className="p-2"></th>
                   <th className="p-2 text-left">Nome</th>
-                  <th className="p-2 text-left">SKU</th>
+                  <th className="p-2 text-left">Código</th>
                   <th className="p-2 text-left">Tipo</th>
-                  <th className="p-2 text-left">Un.</th>
+                  <th className="p-2 text-left">Unidade</th>
                   <th className="p-2 text-right">Qtd</th>
                   <th className="p-2 text-right">Custo</th>
                   <th className="p-2 text-right">Venda</th>
@@ -195,12 +199,26 @@ export default function NfeImportPage() {
                         {PART_TYPES.map((t) => <option key={t} value={t}>{PART_TYPE_LABELS[t]}</option>)}
                       </Select>
                     </td>
-                    <td className="p-2"><Input value={r.unit} onChange={(e) => setRow(idx, { unit: e.target.value })} className="h-8 w-16" /></td>
+                    <td className="p-2">
+                      <Select value={r.unit} onChange={(e) => setRow(idx, { unit: e.target.value })} className="h-8 w-32">
+                        {PART_UNITS.map((unit) => <option key={unit} value={unit}>{unit} — {PART_UNIT_LABELS[unit]}</option>)}
+                      </Select>
+                    </td>
                     <td className="p-2"><Input type="number" step="any" value={r.quantity} onChange={(e) => setRow(idx, { quantity: e.target.value })} className="h-8 w-20 text-right" /></td>
-                    <td className="p-2"><Input type="number" step="0.01" value={r.costPrice} onChange={(e) => setRow(idx, { costPrice: e.target.value })} className="h-8 w-24 text-right" /></td>
-                    <td className="p-2"><Input type="number" step="0.01" value={r.salePrice} onChange={(e) => setRow(idx, { salePrice: e.target.value })} className="h-8 w-24 text-right" /></td>
+                    <td className="p-2"><MoneyInput value={r.costPrice} onValueChange={(value) => setRow(idx, { costPrice: value })} className="h-8 w-28 text-right" /></td>
+                    <td className="p-2"><MoneyInput value={r.salePrice} onValueChange={(value) => setRow(idx, { salePrice: value })} className="h-8 w-28 text-right" /></td>
                     <td className="p-2"><Input type="number" step="any" value={r.minStock} onChange={(e) => setRow(idx, { minStock: e.target.value })} className="h-8 w-20 text-right" /></td>
-                    <td className="p-2 text-xs text-muted-foreground">{r.ncm ?? '—'}<br />{r.cfop ?? '—'}</td>
+                    <td className="p-2">
+                      <Input
+                        value={r.ncm}
+                        onChange={(e) => setRow(idx, { ncm: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                        inputMode="numeric"
+                        maxLength={8}
+                        placeholder="00000000"
+                        className="h-8 w-24"
+                      />
+                      <span className="mt-1 block text-xs text-muted-foreground">CFOP {r.cfop ?? '—'}</span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

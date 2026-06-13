@@ -432,7 +432,7 @@ export class PurchasesService {
 
   /**
    * Recebe o pedido a partir do XML da NF-e: casa os itens da nota com os itens
-   * do pedido por SKU (cProd) ou EAN e dá entrada da quantidade correspondente
+   * do pedido por código da peça (cProd) ou EAN e dá entrada da quantidade correspondente
    * (limitada ao saldo pendente de cada item). Reusa o fluxo de recebimento.
    */
   async receiveFromNfe(
@@ -459,7 +459,7 @@ export class PurchasesService {
       );
     }
 
-    // Quantidades e custo unitário da nota agregados por SKU e por EAN.
+    // Quantidades e custo unitário da nota agregados por código da peça e por EAN.
     const qtyBySku = new Map<string, number>();
     const qtyByEan = new Map<string, number>();
     const costBySku = new Map<string, number>();
@@ -498,7 +498,7 @@ export class PurchasesService {
 
     if (received.length === 0) {
       throw new BadRequestException(
-        'Nenhum item da NF-e corresponde às peças do pedido (confira SKU/EAN das peças).',
+        'Nenhum item da NF-e corresponde às peças do pedido (confira código da peça/EAN das peças).',
       );
     }
 

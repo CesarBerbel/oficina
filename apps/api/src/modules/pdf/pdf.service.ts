@@ -399,8 +399,9 @@ export class PdfService {
       }
       const footerText =
         shop.pdfFooterText ||
-        'Termos de garantia: serviços com garantia de 90 dias conforme o Código de Defesa do Consumidor. ' +
-          'Peças seguem a garantia do fabricante. A oficina não se responsabiliza por itens não relacionados nesta OS.';
+        'Termos de garantia: os serviços executados pela oficina possuem garantia de 90 dias, nos termos do Código de Defesa do Consumidor. ' +
+          'Peças fornecidas pela oficina seguem a garantia do fabricante. Peças fornecidas pelo cliente, serviços adicionais não autorizados e falhas não relacionadas a esta OS não são cobertos. ' +
+          'O cliente declara ciência das informações, valores, observações e condições registradas neste documento.';
 
       doc.fontSize(8).font('Helvetica').fillColor(gray).text(footerText, left, y, {
         width,
@@ -412,6 +413,10 @@ export class PdfService {
         .fontSize(9)
         .fillColor(gray)
         .text('Assinatura do cliente', left, y + 4, { width, align: 'center' });
+      doc
+        .fontSize(8)
+        .fillColor(gray)
+        .text('Data: ____/____/________', left, y + 18, { width, align: 'center' });
 
       doc.end();
     });

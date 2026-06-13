@@ -608,6 +608,7 @@ model Part {
   tenantId     String
   name         String
   sku          String?
+  ncm          String?
   ean          String?
   type         PartType @default(PECA)
   category     String?
@@ -784,6 +785,7 @@ enum CategoryKind {
   CUSTOMER
   SERVICE
   PART
+  BRAND
 }
 
 /// Categoria cadastrável (por tipo) — vinculada a clientes, serviços e peças.

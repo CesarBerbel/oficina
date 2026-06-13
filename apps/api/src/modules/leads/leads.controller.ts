@@ -49,6 +49,12 @@ export class LeadsController {
     return this.leads.createDirectReception(actor, body);
   }
 
+  @Get('reception-alerts')
+  @RequirePermission(Permission.CUSTOMERS_READ)
+  receptionAlerts(@CurrentUser() actor: AuthenticatedUser) {
+    return this.leads.receptionAlerts(actor.tenantId);
+  }
+
   @Get(':id')
   @RequirePermission(Permission.CUSTOMERS_READ)
   findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {

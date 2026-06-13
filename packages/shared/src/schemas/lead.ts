@@ -226,6 +226,23 @@ export interface LeadMatchSummaryDto {
   conflictReason: string | null;
 }
 
+
+export interface ReceptionAlertLeadDto extends LeadDto {
+  minutesUntilAppointment: number | null;
+  minutesLate: number | null;
+  alertReason?: string;
+}
+
+export interface ReceptionAlertsDto {
+  generatedAt: string;
+  arrivalWindowMinutes: number;
+  noShowToleranceMinutes: number;
+  upcomingArrivals: ReceptionAlertLeadDto[];
+  noShowCandidates: ReceptionAlertLeadDto[];
+  overdueFollowUps: ReceptionAlertLeadDto[];
+  checkedInWithoutOs: ReceptionAlertLeadDto[];
+}
+
 export interface LeadDetailDto extends LeadDto {
   match: LeadMatchSummaryDto;
   contactAttempts: LeadContactAttemptDto[];

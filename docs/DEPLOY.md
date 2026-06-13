@@ -89,3 +89,26 @@ docker compose -f docker-compose.prod.yml down        # parar (mantém volume)
   pnpm --filter @oficina/web exec playwright install --with-deps
   pnpm --filter @oficina/web test:e2e
   ```
+
+
+## Pós-deploy obrigatório
+
+Depois de atualizar containers em produção, rode:
+
+```bash
+sh scripts/monitor-prod.sh
+```
+
+Antes de qualquer migration em produção, rode:
+
+```bash
+sh scripts/backup.sh
+```
+
+Para instalar backup automático diário no servidor:
+
+```bash
+sh scripts/install-backup-cron.sh
+```
+
+O guia completo está em [`docs/OPERACAO_PRODUCAO.md`](OPERACAO_PRODUCAO.md).
