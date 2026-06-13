@@ -52,7 +52,6 @@ export async function applyStockMovement(
     throw new Error('Peça não encontrada para movimentação de estoque');
   }
 
-  const current = dec(part.currentStock);
   let newBalance: number;
 
   if (params.setAbsolute) {

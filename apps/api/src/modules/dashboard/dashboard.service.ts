@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { type ServiceOrderStatus } from '@prisma/client';
-import type { ActionItem, DashboardMetrics } from '@oficina/shared';
+import { SERVICE_ORDER_STATUS_LABELS } from '@oficina/shared';
+import type { ActionItem, DashboardMetrics, DashboardProductivityDto } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
 const HOUR = 1000 * 60 * 60;
@@ -77,6 +78,116 @@ export class DashboardService {
   private ageHours(date: Date | null | undefined): number | null {
     if (!date) return null;
     return Math.max(0, Math.round((Date.now() - date.getTime()) / HOUR));
+  }
+
+  async productivity(tenantId: string): Promise<DashboardProductivityDto> {
+    const periodDays = 30;
+    const since = new Date(Date.now() - periodDays * 24 * HOUR);
+
+    const delivered = await this.prisma.serviceOrder.findMany({
+      where: { tenantId, closedAt: { gte: since }, status: 'ENTREGUE' },
+      select: { openedAt: true, closedAt: true, technicianId: true, technician: { select: { name: true } } },
+    });
+
+    const average = (values: number[]): number | null => {
+      if (values.length === 0) return null;
+      return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
+    };
+
+    const cycleHours = delivered
+      .map((order) => order.closedAt ? (order.closedAt.getTime() - order.openedAt.getTime()) / HOUR : null)
+      .filter((value): value is number => value != null && value >= 0);
+
+    const activeByTechnician = await this.prisma.serviceOrder.groupBy({
+      by: ['technicianId'],
+      where: {
+        tenantId,
+        status: { notIn: ['ENTREGUE', 'CANCELADA', 'ORCAMENTO_RECUSADO'] },
+      },
+      _count: { _all: true },
+    });
+
+    const technicianIds = Array.from(new Set([
+      ...delivered.map((order) => order.technicianId).filter(Boolean),
+      ...activeByTechnician.map((row) => row.technicianId).filter(Boolean),
+    ])) as string[];
+    const users = await this.prisma.user.findMany({
+      where: { tenantId, id: { in: technicianIds } },
+      select: { id: true, name: true },
+    });
+    const names = new Map(users.map((user) => [user.id, user.name]));
+
+    const technicianMap = new Map<string, {
+      technicianId: string | null;
+      technicianName: string;
+      deliveredOrders: number;
+      activeOrders: number;
+      cycleHours: number[];
+    }>();
+    const ensureTech = (id: string | null, name?: string | null) => {
+      const key = id ?? 'unassigned';
+      const existing = technicianMap.get(key);
+      if (existing) return existing;
+      const technicianName = name ?? (id ? names.get(id) ?? 'Técnico' : 'Sem técnico');
+      const created = {
+        technicianId: id,
+        technicianName,
+        deliveredOrders: 0,
+        activeOrders: 0,
+        cycleHours: [] as number[],
+      };
+      technicianMap.set(key, created);
+      return created;
+    };
+
+    for (const order of delivered) {
+      const tech = ensureTech(order.technicianId, order.technician?.name);
+      tech.deliveredOrders += 1;
+      if (order.closedAt) {
+        tech.cycleHours.push((order.closedAt.getTime() - order.openedAt.getTime()) / HOUR);
+      }
+    }
+    for (const row of activeByTechnician) {
+      ensureTech(row.technicianId).activeOrders = row._count._all;
+    }
+
+    const history = await this.prisma.serviceOrderStatusHistory.findMany({
+      where: { serviceOrder: { tenantId }, createdAt: { gte: since } },
+      orderBy: [{ serviceOrderId: 'asc' }, { createdAt: 'asc' }],
+      select: { serviceOrderId: true, status: true, createdAt: true },
+    });
+    const durations = new Map<ServiceOrderStatus, number[]>();
+    for (let index = 0; index < history.length; index++) {
+      const current = history[index];
+      const next = history[index + 1];
+      if (!next || next.serviceOrderId !== current.serviceOrderId) continue;
+      const hours = (next.createdAt.getTime() - current.createdAt.getTime()) / HOUR;
+      if (hours < 0) continue;
+      const bucket = durations.get(current.status) ?? [];
+      bucket.push(hours);
+      durations.set(current.status, bucket);
+    }
+
+    return {
+      periodDays,
+      deliveredOrders: delivered.length,
+      averageCycleHours: average(cycleHours),
+      averageStatusHours: Array.from(durations.entries()).map(([status, values]) => ({
+        status,
+        label: SERVICE_ORDER_STATUS_LABELS[status],
+        averageHours: average(values),
+        sampleSize: values.length,
+      })),
+      technicians: Array.from(technicianMap.values())
+        .map((tech) => ({
+          technicianId: tech.technicianId,
+          technicianName: tech.technicianName,
+          deliveredOrders: tech.deliveredOrders,
+          activeOrders: tech.activeOrders,
+          averageCycleHours: average(tech.cycleHours),
+        }))
+        .sort((a, b) => b.deliveredOrders - a.deliveredOrders || b.activeOrders - a.activeOrders),
+    };
   }
 
   async actions(tenantId: string): Promise<ActionItem[]> {
@@ -213,8 +324,8 @@ export class DashboardService {
       actions.push({
         key: 'leads-novos',
         type: 'lead',
-        title: 'Novos leads do site',
-        description: 'Contatos recebidos pelo formulário do site público.',
+        title: 'Novos atendimentos do site',
+        description: 'Contatos aguardando primeira ação na Recepção.',
         priority: 'alta',
         count: newLeads,
         link: '/leads',

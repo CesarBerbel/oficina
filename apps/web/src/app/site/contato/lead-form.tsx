@@ -8,23 +8,25 @@ import { maskPhone } from '@/lib/masks';
 import { zodFieldErrors } from '@/lib/form-errors';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
+const SITE_TENANT_SLUG = process.env.NEXT_PUBLIC_SITE_TENANT_SLUG;
 
 const FIELD_LABELS = {
   name: 'Nome',
   phone: 'Telefone',
   email: 'E-mail',
+  plate: 'Placa',
   vehicle: 'Veículo',
   message: 'Mensagem',
 };
 
 export function LeadForm() {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', vehicle: '', message: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', plate: '', vehicle: '', message: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
 
   function set<K extends keyof typeof form>(k: K, v: string) {
-    setForm((f) => ({ ...f, [k]: k === 'phone' ? maskPhone(v) : v }));
+    setForm((f) => ({ ...f, [k]: k === 'phone' ? maskPhone(v) : k === 'plate' ? v.toUpperCase() : v }));
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -39,7 +41,13 @@ export function LeadForm() {
     try {
       const res = await fetch(`${API_URL}/public/lead`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Public-Host': window.location.host,
+          ...(SITE_TENANT_SLUG
+            ? { 'X-Public-Tenant-Slug': SITE_TENANT_SLUG }
+            : {}),
+        },
         body: JSON.stringify(parsed.data),
       });
       if (!res.ok) throw new Error();
@@ -79,7 +87,13 @@ export function LeadForm() {
           {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
         </div>
       </div>
-      <input className={inputCls} placeholder="Veículo (ex.: Gol 2018)" value={form.vehicle} onChange={(e) => set('vehicle', e.target.value)} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <input className={inputCls} maxLength={8} placeholder="Placa (ex.: ABC1D23)" value={form.plate} onChange={(e) => set('plate', e.target.value)} />
+          {errors.plate && <p className="mt-1 text-xs text-destructive">{errors.plate}</p>}
+        </div>
+        <input className={inputCls} placeholder="Veículo (ex.: Gol 2018)" value={form.vehicle} onChange={(e) => set('vehicle', e.target.value)} />
+      </div>
       <div>
         <textarea className={`${inputCls} min-h-[100px]`} placeholder="Como podemos ajudar? *" value={form.message} onChange={(e) => set('message', e.target.value)} />
         {errors.message && <p className="mt-1 text-xs text-destructive">{errors.message}</p>}

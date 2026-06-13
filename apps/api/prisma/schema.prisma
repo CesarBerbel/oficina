@@ -130,8 +130,49 @@ enum MessageStatus {
 enum LeadStatus {
   NOVO
   EM_ATENDIMENTO
+  CONTATO_REALIZADO
+  RETORNAR_DEPOIS
+  AGENDADO
+  CONFIRMADO
+  CLIENTE_CHEGOU
   CONVERTIDO
+  NAO_COMPARECEU
+  CANCELADO
+  PERDIDO
+  DUPLICADO
+  INVALIDO
   DESCARTADO
+}
+
+enum LeadContactChannel {
+  TELEFONE
+  WHATSAPP
+  EMAIL
+  PRESENCIAL
+}
+
+enum LeadContactOutcome {
+  ATENDEU
+  NAO_ATENDEU
+  TELEFONE_INCORRETO
+  CHAMAR_WHATSAPP
+  PEDIU_RETORNO
+  AGENDOU_VISITA
+  CONFIRMOU_AGENDAMENTO
+  CLIENTE_CHEGOU
+  NAO_COMPARECEU
+  CANCELOU_AGENDAMENTO
+  SEM_INTERESSE
+  JA_RESOLVEU
+  ORCAMENTO_ENVIADO
+  CONVERTIDO_OS
+}
+
+enum LeadConflictLevel {
+  OK
+  ATENCAO
+  CONFLITO
+  SEM_DADOS
 }
 
 enum BlogStatus {
@@ -142,6 +183,20 @@ enum BlogStatus {
 enum AiProvider {
   OPENAI
   GEMINI
+}
+
+enum ServiceOrderEventType {
+  STATUS_CHANGE
+  NOTE
+  CHECKLIST
+  PHOTOS
+  CUSTOMER_NOTIFICATION
+  SYSTEM
+}
+
+enum ServiceOrderEventVisibility {
+  INTERNAL
+  PUBLIC
 }
 
 /// Nível do tanque de combustível registrado no check-in.
@@ -184,6 +239,7 @@ model Tenant {
   checkins       VehicleCheckin[]
   garageCodes    GarageAccessCode[]
   categories     Category[]
+  serviceOrderEvents ServiceOrderEvent[]
 
   @@map("tenants")
 }
@@ -210,6 +266,7 @@ model User {
   notifications     Notification[]
   pushSubscriptions PushSubscription[]
   checkins          VehicleCheckin[]            @relation("CheckinCreator")
+  serviceOrderEvents ServiceOrderEvent[]        @relation("ServiceOrderEventCreator")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -375,6 +432,7 @@ model ServiceOrder {
   quote      Quote?
   checkins   VehicleCheckin[]
   purchaseOrders PurchaseOrder[]
+  events     ServiceOrderEvent[]
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
@@ -422,6 +480,34 @@ model ServiceOrderStatusHistory {
 
   @@index([serviceOrderId])
   @@map("service_order_status_history")
+}
+
+
+/// Timeline/auditoria operacional da OS. Registra status, notas técnicas, checklist, fotos e eventos sistêmicos.
+model ServiceOrderEvent {
+  id             String                      @id @default(cuid())
+  tenantId       String
+  serviceOrderId String
+  type           ServiceOrderEventType
+  title          String
+  description    String?
+  visibility     ServiceOrderEventVisibility @default(INTERNAL)
+  fromStatus     ServiceOrderStatus?
+  toStatus       ServiceOrderStatus?
+  checklist      Json?
+  photos         String[]                    @default([])
+  metadata       Json?
+  createdById    String?
+  createdAt      DateTime                    @default(now())
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  serviceOrder ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("ServiceOrderEventCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([serviceOrderId, createdAt])
+  @@index([tenantId, type])
+  @@map("service_order_events")
 }
 
 /// Código de acesso à área do cliente (consulta do histórico do veículo pela placa).
@@ -757,22 +843,90 @@ model BlogPost {
   @@map("blog_posts")
 }
 
-/// Lead recebido pelo formulário do site.
+/// Atendimento recebido pelo site/recepção e tratado na Central de Atendimento.
 model Lead {
-  id        String     @id @default(cuid())
-  tenantId  String
-  name      String
-  phone     String
-  email     String?
-  vehicle   String?
-  message   String
-  status    LeadStatus @default(NOVO)
-  createdAt DateTime   @default(now())
+  id                      String            @id @default(cuid())
+  tenantId                String
+  name                    String
+  phone                   String
+  email                   String?
+  plate                   String?
+  vehicle                 String?
+  message                 String
+  status                  LeadStatus        @default(NOVO)
+  assignedToId            String?
+  assignedToName          String?
+  matchedCustomerId       String?
+  matchedVehicleId        String?
+  convertedCustomerId     String?
+  convertedVehicleId      String?
+  convertedServiceOrderId String?
+  conflictLevel           LeadConflictLevel @default(SEM_DADOS)
+  conflictReason          String?
+  nextFollowUpAt          DateTime?
+  appointmentStartAt      DateTime?
+  appointmentEndAt        DateTime?
+  appointmentServiceType  String?
+  appointmentNotes        String?
+  appointmentConfirmedAt  DateTime?
+  checkedInAt             DateTime?
+  noShowAt                DateTime?
+  appointmentCanceledAt   DateTime?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  convertedAt             DateTime?
+  closedAt                DateTime?
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactAttempts LeadContactAttempt[]
+  events          LeadEvent[]
 
   @@index([tenantId, status])
+  @@index([tenantId, plate])
+  @@index([tenantId, nextFollowUpAt])
+  @@index([tenantId, appointmentStartAt])
+  @@index([tenantId, matchedCustomerId])
   @@map("leads")
+}
+
+/// Registro de contato feito pelo atendente durante a jornada do atendimento.
+model LeadContactAttempt {
+  id             String             @id @default(cuid())
+  tenantId       String
+  leadId         String
+  userId         String?
+  userName       String?
+  channel        LeadContactChannel
+  outcome        LeadContactOutcome
+  notes          String?
+  nextFollowUpAt DateTime?
+  createdAt      DateTime           @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, leadId, createdAt])
+  @@index([tenantId, nextFollowUpAt])
+  @@map("lead_contact_attempts")
+}
+
+/// Timeline operacional da Central de Atendimento/Recepção.
+model LeadEvent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  leadId      String
+  userId      String?
+  userName    String?
+  type        String
+  title       String
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, leadId, createdAt])
+  @@index([tenantId, type])
+  @@map("lead_events")
 }
 
 /// Template de mensagem (por evento + canal).

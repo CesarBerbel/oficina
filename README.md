@@ -12,8 +12,8 @@ cliente), desenhada para evoluir como **SaaS multi-oficina**.
 - **Deploy:** Docker + Docker Compose + Nginx
 
 > 📐 A arquitetura, o modelo de dados e o roadmap por fases estão em
-> [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md). **Status atual: Fase 0 (Fundação)
-> concluída.**
+> [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md). **Status atual: fases 0 a 10
+> concluídas, com hardening, CI e E2E da API ativos.**
 
 ---
 
@@ -119,6 +119,36 @@ pnpm --filter @oficina/api prisma:studio   # GUI do banco
 pnpm prisma:generate            # regenera o client
 ```
 
+### Banco de teste E2E
+
+O banco E2E local usa `docker-compose.test.yml` e, por padrão, expõe o PostgreSQL
+na porta **5434** para não disputar a porta **5433** usada pelo banco de
+desenvolvimento no `.env.example`.
+
+No Windows PowerShell:
+
+```powershell
+docker compose -f docker-compose.test.yml up -d
+$env:DATABASE_URL="postgresql://oficina:oficina_test_pwd@localhost:5434/oficina_test?schema=public"
+pnpm prisma:validate
+pnpm prisma:generate
+pnpm prisma:deploy
+pnpm --filter @oficina/api test:e2e
+Remove-Item Env:DATABASE_URL
+```
+
+---
+
+## Máquina de estados da OS
+
+A OS possui uma matriz explícita de estados em `packages/shared` e validação
+autoritativa no backend. O detalhe da OS retorna `availableTransitions`, e o
+endpoint `GET /api/service-orders/:id/transitions` expõe as próximas ações
+manuais já com label, descrição, confirmação, flag destrutiva e motivo de
+bloqueio (`disabledReason`). Transições sistêmicas, como geração de orçamento,
+aprovação pública, recebimento de compra e reabertura de orçamento, continuam
+acontecendo nos módulos próprios.
+
 ---
 
 ## Produção (Docker)
@@ -170,15 +200,28 @@ Agende via cron para backups automáticos.
 | 0 | Fundação (monorepo, Docker, Prisma, NestJS, Next.js, RBAC base) | ✅ |
 | 1 | Auth, usuários e permissões (JWT+refresh, RBAC, auditoria, login/usuários) | ✅ |
 | 2 | Clientes e veículos (CRUD, listas responsivas, detalhe do cliente) | ✅ |
-| 3 | **Ordens de Serviço (núcleo)**: máquina de estados, itens, totais, timeline, travas + Kanban | ✅ |
+| 3 | **Ordens de Serviço (núcleo)**: máquina de estados com ações disponíveis pela API, guardas de domínio, itens, totais, timeline, travas + Kanban técnico em tela cheia com rolagem somente nas colunas e ações rápidas sem cancelamento pelo quadro | ✅ |
 | 4 | Serviços (peças padrão), combos (expandem na OS), estoque + movimentações + baixa na OS | ✅ |
 | 5 | Orçamento (aprovação total/parcial), acompanhamento público por token e PDF da OS | ✅ |
 | 6 | Fornecedores, pedidos de compra (+ recebimento → estoque) e importador de NF-e XML/ZIP | ✅ |
 | 7 | Dashboard (métricas reais), central de ações e notificações internas + push PWA (VAPID) | ✅ |
-| 8 | Mensagens (templates+eventos automáticos), site público com SEO, blog e leads | ✅ |
+| 8 | Mensagens (templates+eventos automáticos), site público com SEO, menu mobile, endereço clicável para Google Maps/Waze, home responsiva, blog e Central de Pré-atendimento | ✅ |
 | 9 | Configurações (hub), auditoria, IA (chave criptografada) e relatórios | ✅ |
 | 10 | Hardening e produção: e2e, anti-XSS, PWA, Docker prod validado, deploy docs | ✅ |
 
 **Extras entregues:** upload de imagens (storage local persistido em volume Docker e servido em `/uploads`) nos campos de imagem (blog, logos do site), PDF da OS com cabeçalho e rodapé configuráveis · **IA generativa integrada** (OpenAI/Gemini com a chave criptografada): assistente para diagnóstico/observações da OS e corpo de mensagens, e geração de artigo de blog completo a partir do assunto.
 
 Detalhes completos em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+### Melhorias recentes — OS, Kanban e produtividade
+
+- **Timeline da OS**: a OS agora possui `ServiceOrderEvent`, registrando alterações de status, notas técnicas, checklist, fotos, eventos sistêmicos e visibilidade interna/pública. O endpoint `GET /api/service-orders/:id/timeline` retorna a linha do tempo operacional e o detalhe da OS também inclui `events`.
+- **Notificações automáticas**: eventos relevantes da OS disparam notificações internas para atendimento/administração e mensagens automáticas por templates (`OS_OPENED`, `DIAGNOSIS_READY`, `QUOTE_SENT`, `QUOTE_APPROVED`, `OS_IN_EXECUTION`, `OS_READY`, `CUSTOMER_NOTIFIED`, `VEHICLE_DELIVERED`). O seed cria templates WhatsApp simulados com `autoSend` ativo.
+- **Modo técnico mobile**: o detalhe da OS possui painel para o técnico registrar checklist, observações e fotos. Fotos usam o endpoint seguro `/uploads`; atualizações podem ser marcadas como públicas para aparecerem na consulta do cliente.
+- **Kanban com drag-and-drop**: além dos botões rápidos, o card pode ser arrastado para outra coluna quando existir transição rápida válida. Cancelamento continua oculto no Kanban.
+- **Dashboard de produtividade**: novo endpoint `GET /api/dashboard/productivity` calcula ciclo médio, tempo médio por etapa e produtividade por técnico nos últimos 30 dias.
+
+
+
+### Central de Pré-atendimento
+
+A tela `/leads` foi evoluída para Central de Pré-atendimento: busca cliente por nome/telefone/e-mail, procura veículo pela placa, alerta em amarelo quando a placa pertence a outro cliente, registra resultado de ligação/WhatsApp/e-mail e permite converter o contato em cliente, veículo e OS.

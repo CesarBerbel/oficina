@@ -12,6 +12,11 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 const dec = (v: Prisma.Decimal | number | null | undefined): number =>
   v == null ? 0 : Number(v);
 
+export interface PublicTenantLookup {
+  tenantSlug?: string | null;
+  host?: string | null;
+}
+
 @Injectable()
 export class SiteService {
   constructor(
@@ -99,10 +104,66 @@ export class SiteService {
     return this.toDto(updated);
   }
 
-  /** Dados públicos do site (primeira oficina publicada). */
-  async publicSite(): Promise<PublicSiteDto | null> {
+  private normalizeSlug(value: string | null | undefined): string | null {
+    const slug = value?.trim().toLowerCase();
+    return slug && /^[a-z0-9][a-z0-9-]{1,62}$/.test(slug) ? slug : null;
+  }
+
+  private slugFromHost(host: string | null | undefined): string | null {
+    const normalized = host?.split(',')[0]?.trim().toLowerCase().split(':')[0];
+    if (!normalized) return null;
+    if (
+      normalized === 'localhost' ||
+      normalized === '127.0.0.1' ||
+      normalized === '0.0.0.0' ||
+      /^\d+\.\d+\.\d+\.\d+$/.test(normalized)
+    ) {
+      return null;
+    }
+
+    const labels = normalized.split('.').filter(Boolean);
+    const first = labels[0] === 'www' ? labels[1] : labels[0];
+    return this.normalizeSlug(first);
+  }
+
+  private async resolvePublishedTenantId(
+    lookup?: PublicTenantLookup,
+  ): Promise<string | null> {
+    const explicitSlug = this.normalizeSlug(lookup?.tenantSlug);
+    const hostSlug = this.slugFromHost(lookup?.host);
+    const slug = explicitSlug ?? hostSlug;
+
+    if (slug) {
+      const tenant = await this.prisma.tenant.findFirst({
+        where: {
+          slug,
+          active: true,
+          siteSettings: { published: true },
+        },
+        select: { id: true },
+      });
+      return tenant?.id ?? null;
+    }
+
+    // Compatibilidade com instalações single-tenant: se houver exatamente um
+    // site publicado, usa esse tenant. Com múltiplos sites publicados, exige
+    // slug/header/host para evitar expor conteúdo da oficina errada.
+    const published = await this.prisma.siteSettings.findMany({
+      where: { published: true, tenant: { active: true } },
+      orderBy: { updatedAt: 'desc' },
+      select: { tenantId: true },
+      take: 2,
+    });
+    return published.length === 1 ? published[0].tenantId : null;
+  }
+
+  /** Dados públicos do site resolvendo a oficina por slug/header/host. */
+  async publicSite(lookup?: PublicTenantLookup): Promise<PublicSiteDto | null> {
+    const tenantId = await this.resolvePublishedTenantId(lookup);
+    if (!tenantId) return null;
+
     const settings = await this.prisma.siteSettings.findFirst({
-      where: { published: true },
+      where: { tenantId, published: true, tenant: { active: true } },
     });
     if (!settings) return null;
     const services = await this.prisma.service.findMany({
@@ -124,11 +185,7 @@ export class SiteService {
   }
 
   /** Tenant da oficina publicada (para leads/blog públicos). */
-  async publishedTenantId(): Promise<string | null> {
-    const s = await this.prisma.siteSettings.findFirst({
-      where: { published: true },
-      select: { tenantId: true },
-    });
-    return s?.tenantId ?? null;
+  async publishedTenantId(lookup?: PublicTenantLookup): Promise<string | null> {
+    return this.resolvePublishedTenantId(lookup);
   }
 }

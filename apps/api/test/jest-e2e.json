@@ -3,6 +3,9 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "testTimeout": 45000,
+  "maxWorkers": 1,
+  "detectOpenHandles": true,
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },

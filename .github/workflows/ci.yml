@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-test-build:
+    name: Validate, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: oficina
+          POSTGRES_PASSWORD: oficina_ci_pwd
+          POSTGRES_DB: oficina_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U oficina -d oficina_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://oficina:oficina_ci_pwd@localhost:5432/oficina_test?schema=public
+      APP_NAME: Oficina CI
+      API_PORT: 3333
+      API_GLOBAL_PREFIX: api
+      WEB_ORIGIN: http://localhost:3000
+      JWT_ACCESS_SECRET: oficina-ci-access-secret-with-more-than-16-chars
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_SECRET: oficina-ci-refresh-secret-with-more-than-16-chars
+      JWT_REFRESH_TTL: 7d
+      AUTH_COOKIE_NAME: oficina_ci_rt
+      AUTH_COOKIE_SECURE: 'false'
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      RATE_LIMIT_TTL: 60
+      RATE_LIMIT_MAX: 1000
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_DIR: /tmp/oficina-ci-uploads
+      MAIL_DRIVER: log
+      SMTP_HOST: ''
+      SMTP_PORT: 465
+      SMTP_SECURE: 'true'
+      SMTP_USER: ''
+      SMTP_PASS: ''
+      SMTP_FROM: ''
+      VAPID_PUBLIC_KEY: ''
+      VAPID_PRIVATE_KEY: ''
+      VAPID_SUBJECT: mailto:ci@oficina.local
+      NEXT_PUBLIC_API_URL: /api
+      NEXT_PUBLIC_SITE_TENANT_SLUG: oficina-modelo
+      API_INTERNAL_URL: http://localhost:3333/api
+      POSTGRES_USER: oficina
+      POSTGRES_PASSWORD: oficina_ci_pwd
+      POSTGRES_DB: oficina_test
+      WEB_ORIGIN_PROD: http://localhost
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate Prisma schema
+        run: pnpm prisma:validate
+
+      - name: Generate Prisma Client
+        run: pnpm prisma:generate
+
+      - name: Apply migrations to E2E database
+        run: pnpm prisma:deploy
+
+      - name: Build shared package
+        run: pnpm --filter @oficina/shared build
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: API E2E tests
+        run: pnpm --filter @oficina/api test:e2e
+
+      - name: Production build
+        env:
+          NODE_ENV: production
+        run: pnpm build
+
+      - name: Docker production build
+        env:
+          NODE_ENV: production
+          POSTGRES_USER: oficina
+          POSTGRES_PASSWORD: oficina_ci_pwd
+          POSTGRES_DB: oficina_test
+          WEB_ORIGIN: http://localhost
+          JWT_ACCESS_SECRET: oficina-ci-access-secret-with-more-than-16-chars
+          JWT_REFRESH_SECRET: oficina-ci-refresh-secret-with-more-than-16-chars
+          AUTH_COOKIE_SECURE: 'true'
+          ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          NEXT_PUBLIC_API_URL: /api
+          NEXT_PUBLIC_SITE_TENANT_SLUG: oficina-modelo
+        run: docker compose -f docker-compose.prod.yml build --no-cache

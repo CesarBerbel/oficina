@@ -12,11 +12,17 @@ import {
   Package,
   ShoppingCart,
   ArrowRight,
+  Timer,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import type { ActionItem, DashboardMetrics } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
-import { useDashboardMetrics, useDashboardActions } from '@/features/dashboard/use-dashboard';
+import {
+  useDashboardActions,
+  useDashboardMetrics,
+  useDashboardProductivity,
+} from '@/features/dashboard/use-dashboard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -59,6 +65,7 @@ export default function DashboardPage() {
   const firstName = user?.name?.split(' ')[0] ?? '';
   const { data: metrics } = useDashboardMetrics();
   const { data: actions } = useDashboardActions();
+  const { data: productivity } = useDashboardProductivity();
 
   return (
     <div className="space-y-6">
@@ -89,6 +96,86 @@ export default function DashboardPage() {
           );
         })}
       </div>
+
+
+      {/* Produtividade e tempo médio por etapa */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-1">
+          <CardContent className="space-y-3 p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Ciclo médio</p>
+                <p className="mt-1 text-3xl font-bold">
+                  {productivity?.averageCycleHours != null
+                    ? `${productivity.averageCycleHours}h`
+                    : '—'}
+                </p>
+              </div>
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Timer className="size-5" />
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              OS entregues nos últimos {productivity?.periodDays ?? 30} dias:{' '}
+              <strong>{productivity?.deliveredOrders ?? 0}</strong>
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardContent className="space-y-3 p-5">
+            <div className="flex items-center gap-2">
+              <Users className="size-4 text-primary" />
+              <h2 className="font-semibold">Produtividade por técnico</h2>
+            </div>
+            {!productivity || productivity.technicians.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Ainda não há entregas suficientes para calcular produtividade.
+              </p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {productivity.technicians.slice(0, 4).map((tech) => (
+                  <div key={tech.technicianId ?? 'unassigned'} className="rounded-lg border p-3">
+                    <p className="truncate text-sm font-medium">{tech.technicianName}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {tech.deliveredOrders} entregues · {tech.activeOrders} ativas
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Ciclo médio:{' '}
+                      {tech.averageCycleHours != null ? `${tech.averageCycleHours}h` : '—'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardContent className="space-y-3 p-5">
+          <h2 className="font-semibold">Tempo médio por etapa</h2>
+          {!productivity || productivity.averageStatusHours.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Os tempos serão calculados conforme a OS passar pelas etapas.
+            </p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {productivity.averageStatusHours.slice(0, 8).map((status) => (
+                <div key={status.status} className="rounded-lg border p-3">
+                  <p className="truncate text-sm font-medium">{status.label}</p>
+                  <p className="mt-1 text-2xl font-bold">
+                    {status.averageHours != null ? `${status.averageHours}h` : '—'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {status.sampleSize} amostra(s)
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Central de ações (resumo) */}
       <div>

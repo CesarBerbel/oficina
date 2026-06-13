@@ -7,6 +7,7 @@ import type {
 } from '@oficina/shared';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
+const SITE_TENANT_SLUG = process.env.NEXT_PUBLIC_SITE_TENANT_SLUG;
 const TOKEN_KEY = 'garage_token';
 
 export function getGarageToken(): string | null {
@@ -20,10 +21,17 @@ export function setGarageToken(token: string | null): void {
   else sessionStorage.removeItem(TOKEN_KEY);
 }
 
+function publicHeaders(): Record<string, string> {
+  return {
+    'X-Public-Host': window.location.host,
+    ...(SITE_TENANT_SLUG ? { 'X-Public-Tenant-Slug': SITE_TENANT_SLUG } : {}),
+  };
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...publicHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) {

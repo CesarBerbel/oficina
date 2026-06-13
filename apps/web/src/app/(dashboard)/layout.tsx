@@ -58,7 +58,7 @@ export default function DashboardLayout({
 
       <div className="flex min-h-dvh flex-col">
         <AppTopbar onMenu={() => setMobileOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6">{children}</main>
+        <main className="min-h-0 flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

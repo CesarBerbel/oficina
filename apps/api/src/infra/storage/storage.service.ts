@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
-import { extname, isAbsolute, join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 
 /**
  * Armazenamento de arquivos. Em dev usa disco local; a interface permite
@@ -21,9 +21,12 @@ export class StorageService implements OnModuleInit {
     await mkdir(this.dir, { recursive: true }).catch(() => undefined);
   }
 
-  /** Salva o buffer e retorna o nome do arquivo gerado. */
-  async save(buffer: Buffer, originalName: string): Promise<string> {
-    const ext = extname(originalName).toLowerCase().replace(/[^.a-z0-9]/g, '') || '.bin';
+  /** Salva o buffer com extensão já validada e retorna o nome gerado. */
+  async save(buffer: Buffer, extension: string): Promise<string> {
+    const ext = extension.toLowerCase();
+    if (!/^\.[a-z0-9]+$/.test(ext)) {
+      throw new Error('Extensão de arquivo inválida');
+    }
     const filename = `${randomBytes(16).toString('hex')}${ext}`;
     await writeFile(join(this.dir, filename), buffer);
     return filename;

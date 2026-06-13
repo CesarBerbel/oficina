@@ -11,7 +11,10 @@ export interface PublicTrackingItemDto {
 }
 
 export interface PublicTrackingTimelineDto {
-  status: ServiceOrderStatus;
+  status: ServiceOrderStatus | null;
+  title: string;
+  description: string | null;
+  photos: string[];
   createdAt: string;
 }
 

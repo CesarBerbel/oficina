@@ -131,6 +131,38 @@ export async function openAuthedResource(path: string): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+
+export async function uploadAuthedFile(file: File): Promise<{ url: string }> {
+  const form = new FormData();
+  form.append('file', file);
+
+  let res = await fetch(`${API_URL}/uploads`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    body: form,
+  });
+  if (res.status === 401 && (await tryRefresh())) {
+    res = await fetch(`${API_URL}/uploads`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      body: form,
+    });
+  }
+  if (!res.ok) {
+    let message = 'Falha ao enviar arquivo';
+    try {
+      const data = await res.json();
+      message = Array.isArray(data.message) ? data.message.join(', ') : data.message ?? message;
+    } catch {
+      /* resposta sem JSON */
+    }
+    throw new ApiError(res.status, message);
+  }
+  return res.json() as Promise<{ url: string }>;
+}
+
 export const api = {
   get: <T>(path: string, options?: RequestOptions) =>
     rawRequest<T>(path, { ...options, method: 'GET' }),

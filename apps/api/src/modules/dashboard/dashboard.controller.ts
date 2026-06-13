@@ -15,6 +15,12 @@ export class DashboardController {
     return this.dashboard.metrics(actor.tenantId);
   }
 
+  @Get('productivity')
+  @RequirePermission(Permission.DASHBOARD_READ)
+  productivity(@CurrentUser() actor: AuthenticatedUser) {
+    return this.dashboard.productivity(actor.tenantId);
+  }
+
   @Get('actions')
   @RequirePermission(Permission.DASHBOARD_READ)
   actions(@CurrentUser() actor: AuthenticatedUser) {

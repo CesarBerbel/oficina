@@ -15,7 +15,9 @@ import {
   addPartFromCatalogSchema,
   addComboToOrderSchema,
   changeStatusSchema,
+  createServiceOrderTechnicalUpdateSchema,
   createServiceOrderSchema,
+  diagnoseServiceOrderSchema,
   listServiceOrdersQuerySchema,
   updateItemSchema,
   updateServiceOrderSchema,
@@ -25,7 +27,9 @@ import {
   type AddPartFromCatalogInput,
   type AddComboToOrderInput,
   type ChangeStatusInput,
+  type CreateServiceOrderTechnicalUpdateInput,
   type CreateServiceOrderInput,
+  type DiagnoseServiceOrderInput,
   type ListServiceOrdersQuery,
   type UpdateItemInput,
   type UpdateServiceOrderInput,
@@ -64,6 +68,30 @@ export class ServiceOrdersController {
     return this.orders.technicians(actor.tenantId);
   }
 
+  @Get(':id/transitions')
+  @RequirePermission(Permission.OS_READ)
+  transitions(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.orders.transitions(actor.tenantId, id);
+  }
+
+
+  @Get(':id/timeline')
+  @RequirePermission(Permission.OS_READ)
+  timeline(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.orders.timeline(actor.tenantId, id);
+  }
+
+  @Post(':id/technical-update')
+  @RequirePermission(Permission.OS_DIAGNOSE)
+  technicalUpdate(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(createServiceOrderTechnicalUpdateSchema))
+    body: CreateServiceOrderTechnicalUpdateInput,
+  ) {
+    return this.orders.technicalUpdate(actor, id, body);
+  }
+
   @Get(':id')
   @RequirePermission(Permission.OS_READ)
   findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
@@ -89,6 +117,17 @@ export class ServiceOrdersController {
     body: UpdateServiceOrderInput,
   ) {
     return this.orders.update(actor, id, body);
+  }
+
+  @Patch(':id/diagnosis')
+  @RequirePermission(Permission.OS_DIAGNOSE)
+  diagnose(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(diagnoseServiceOrderSchema))
+    body: DiagnoseServiceOrderInput,
+  ) {
+    return this.orders.diagnose(actor, id, body);
   }
 
   @Post(':id/status')

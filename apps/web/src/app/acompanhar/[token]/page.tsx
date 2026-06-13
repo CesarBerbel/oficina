@@ -1,10 +1,10 @@
 'use client';
 
 import { use, useState } from 'react';
-import { Wrench, Car, CheckCircle2, FileText } from 'lucide-react';
+import { Wrench, Car, CheckCircle2, FileText, Clock } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import { cpfCnpjSchema, type QuoteItemDto } from '@oficina/shared';
+import { SERVICE_ORDER_STATUS_LABELS, cpfCnpjSchema, type QuoteItemDto } from '@oficina/shared';
 import { usePublicTracking, useQuoteDecision } from '@/features/public/use-tracking';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -149,6 +149,63 @@ export default function PublicTrackingPage({
                 <p className="font-semibold text-muted-foreground">Observações</p>
                 <p>{data.publicNotes}</p>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Clock className="size-4" /> Linha do tempo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.timeline.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Ainda não há atualizações públicas.
+              </p>
+            ) : (
+              <ol className="relative space-y-4 border-l pl-4">
+                {data.timeline.map((event, index) => (
+                  <li key={`${event.createdAt}-${index}`} className="relative">
+                    <span className="absolute -left-[1.36rem] top-1 size-2.5 rounded-full bg-primary" />
+                    <p className="text-sm font-medium">
+                      {event.status
+                        ? SERVICE_ORDER_STATUS_LABELS[event.status]
+                        : event.title}
+                    </p>
+                    {event.description && (
+                      <p className="mt-0.5 whitespace-pre-wrap text-sm text-muted-foreground">
+                        {event.description}
+                      </p>
+                    )}
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {new Date(event.createdAt).toLocaleString('pt-BR')}
+                    </p>
+                    {event.photos.length > 0 && (
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        {event.photos.map((url) => (
+                          <a
+                            key={url}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="overflow-hidden rounded-md border bg-muted"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={url}
+                              alt="Foto da OS"
+                              className="aspect-square w-full object-cover"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ol>
             )}
           </CardContent>
         </Card>

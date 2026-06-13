@@ -133,6 +133,7 @@ export class QuotesService {
       // todos os orçamentos gerados.
       const movingToQuote = canTransition(order.status, 'ORCAMENTO');
       const historyStatus = movingToQuote ? 'ORCAMENTO' : order.status;
+      const note = `${movingToQuote ? 'Orçamento enviado' : 'Orçamento reenviado'} · ${brl(dec(order.total))}`;
       await tx.serviceOrder.update({
         where: { id: orderId },
         data: {
@@ -141,9 +142,22 @@ export class QuotesService {
             create: {
               status: historyStatus,
               userId: actor.id,
-              note: `${movingToQuote ? 'Orçamento enviado' : 'Orçamento reenviado'} · ${brl(dec(order.total))}`,
+              note,
             },
           },
+        },
+      });
+      await tx.serviceOrderEvent.create({
+        data: {
+          tenantId: actor.tenantId,
+          serviceOrderId: orderId,
+          type: 'STATUS_CHANGE',
+          title: movingToQuote ? 'Orçamento enviado' : 'Orçamento reenviado',
+          description: note,
+          visibility: 'PUBLIC',
+          fromStatus: order.status,
+          toStatus: historyStatus,
+          createdById: actor.id,
         },
       });
 
@@ -398,6 +412,18 @@ export class QuotesService {
               },
             },
           });
+          await tx.serviceOrderEvent.create({
+            data: {
+              tenantId: order.tenantId,
+              serviceOrderId: order.id,
+              type: 'STATUS_CHANGE',
+              title: 'Orçamento recusado',
+              description: 'Orçamento recusado pelo cliente',
+              visibility: 'PUBLIC',
+              fromStatus: order.status,
+              toStatus: 'ORCAMENTO_RECUSADO',
+            },
+          });
         }
       } else {
         // Aprovação parcial: remove da OS os itens recusados (nada foi baixado
@@ -432,6 +458,18 @@ export class QuotesService {
             data: {
               status: target,
               history: { create: { status: target, note } },
+            },
+          });
+          await tx.serviceOrderEvent.create({
+            data: {
+              tenantId: order.tenantId,
+              serviceOrderId: order.id,
+              type: 'STATUS_CHANGE',
+              title: shortfall ? 'Orçamento aprovado com falta de peça' : 'Orçamento aprovado',
+              description: note,
+              visibility: 'PUBLIC',
+              fromStatus: order.status,
+              toStatus: target,
             },
           });
         }

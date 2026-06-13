@@ -10,3 +10,6 @@ backups
 apps/api/uploads
 **/*.tsbuildinfo
 .env
+# Necessários para builds reproduzíveis e deploy de migrations no container.
+!pnpm-lock.yaml
+!apps/api/prisma/migrations/**

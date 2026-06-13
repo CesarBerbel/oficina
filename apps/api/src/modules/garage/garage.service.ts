@@ -13,6 +13,7 @@ import {
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
 import { MessagingService } from '../messaging/messaging.service';
+import { SiteService, type PublicTenantLookup } from '../site/site.service';
 
 const dec = (v: Prisma.Decimal | number | null | undefined): number =>
   v == null ? 0 : Number(v);
@@ -36,6 +37,7 @@ export class GarageService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly messaging: MessagingService,
+    private readonly site: SiteService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
   ) {}
@@ -53,12 +55,8 @@ export class GarageService {
   }
 
   /** Tenant da oficina publicada (mesma regra do site/blog/leads públicos). */
-  private async publishedTenantId(): Promise<string | null> {
-    const s = await this.prisma.siteSettings.findFirst({
-      where: { published: true },
-      select: { tenantId: true },
-    });
-    return s?.tenantId ?? null;
+  private publishedTenantId(lookup?: PublicTenantLookup): Promise<string | null> {
+    return this.site.publishedTenantId(lookup);
   }
 
   /**
@@ -66,8 +64,11 @@ export class GarageService {
    * existir na oficina publicada e o cliente tiver e-mail. A resposta é sempre
    * genérica para não revelar a existência da placa.
    */
-  async requestCode(plate: string): Promise<GarageRequestCodeResult> {
-    const tenantId = await this.publishedTenantId();
+  async requestCode(
+    plate: string,
+    lookup?: PublicTenantLookup,
+  ): Promise<GarageRequestCodeResult> {
+    const tenantId = await this.publishedTenantId(lookup);
     if (!tenantId) return { ok: true };
 
     const vehicle = await this.prisma.vehicle.findFirst({
@@ -124,10 +125,14 @@ export class GarageService {
    * Valida o código para a placa. Em caso de sucesso, emite um token de sessão
    * (JWT com escopo "garage") que dá acesso ao histórico do veículo.
    */
-  async verifyCode(plate: string, code: string): Promise<GarageSessionDto> {
+  async verifyCode(
+    plate: string,
+    code: string,
+    lookup?: PublicTenantLookup,
+  ): Promise<GarageSessionDto> {
     const invalid = new UnauthorizedException('Código inválido ou expirado.');
 
-    const tenantId = await this.publishedTenantId();
+    const tenantId = await this.publishedTenantId(lookup);
     if (!tenantId) throw invalid;
 
     const vehicle = await this.prisma.vehicle.findFirst({

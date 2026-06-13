@@ -2,19 +2,19 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Save, User, Car, Clock, AlertTriangle, XCircle, CheckCircle2, FileDown, ClipboardCheck } from 'lucide-react';
+import { Save, User, Car, AlertTriangle, XCircle, CheckCircle2, FileDown, ClipboardCheck } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
-  SERVICE_ORDER_TRANSITIONS,
   SERVICE_ORDER_STATUS_LABELS,
-  type ServiceOrderStatus,
+  type ServiceOrderTransitionDto,
 } from '@oficina/shared';
 import { ApiError, openAuthedResource } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import {
   useServiceOrder,
   useUpdateServiceOrder,
+  useDiagnoseServiceOrder,
   useChangeStatus,
 } from '@/features/service-orders/use-service-orders';
 import { StatusBadge } from '@/features/service-orders/status-badge';
@@ -22,6 +22,8 @@ import { OsItems } from '@/features/service-orders/os-items';
 import { OsCatalogPicker } from '@/features/service-orders/os-catalog-picker';
 import { OsQuoteSection } from '@/features/service-orders/os-quote-section';
 import { OsStatusTimeline } from '@/features/service-orders/os-status-timeline';
+import { OsEventTimeline } from '@/features/service-orders/os-event-timeline';
+import { OsTechnicalMobilePanel } from '@/features/service-orders/os-technical-mobile-panel';
 import { AiAssistButton } from '@/features/ai/ai-assist-button';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { maskPhone } from '@/lib/masks';
@@ -39,12 +41,14 @@ export default function ServiceOrderDetailPage({
   const { id } = use(params);
   const { hasPermission } = useAuth();
   const canWrite = hasPermission('os:write');
+  const canDiagnose = hasPermission('os:diagnose');
   const canStatus = hasPermission('os:status');
   const canQuote = hasPermission('quotes:write');
   const canCheckin = hasPermission('checkins:write');
 
   const { data: os, isLoading } = useServiceOrder(id);
   const update = useUpdateServiceOrder(id);
+  const diagnose = useDiagnoseServiceOrder(id);
   const changeStatus = useChangeStatus(id);
 
   const [diagnosis, setDiagnosis] = useState('');
@@ -68,40 +72,45 @@ export default function ServiceOrderDetailPage({
   }
   if (!os) return <p className="text-muted-foreground">OS não encontrada.</p>;
 
-  // Reabrir o orçamento (ORCAMENTO_APROVADO → DIAGNOSTICO_PRONTO) é uma ação
-  // dedicada na seção de orçamento, não um avanço de status — fica fora da barra.
-  const nextStatuses = (SERVICE_ORDER_TRANSITIONS[os.status] ?? []).filter(
-    (s) => !(os.status === 'ORCAMENTO_APROVADO' && s === 'DIAGNOSTICO_PRONTO'),
-  );
-  const dirty =
-    diagnosis !== (os.diagnosis ?? '') ||
-    notes !== (os.notes ?? '') ||
-    Number(discount) !== os.discount;
+  const nextTransitions = os.availableTransitions ?? [];
+  const canEditDiagnosis = os.editable && (canWrite || canDiagnose);
+  const dirtyText =
+    diagnosis !== (os.diagnosis ?? '') || notes !== (os.notes ?? '');
+  const dirtyFinancial = Number(discount) !== os.discount;
+  const dirty = dirtyText || (canWrite && dirtyFinancial);
 
   async function saveChanges() {
     try {
-      await update.mutateAsync({
-        diagnosis,
-        notes,
-        discount: Number(discount) || 0,
-      });
+      if (canWrite) {
+        await update.mutateAsync({
+          diagnosis,
+          notes,
+          discount: Number(discount) || 0,
+        });
+      } else if (canDiagnose) {
+        await diagnose.mutateAsync({ diagnosis, notes });
+      }
       toast.success('Alterações salvas');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Erro ao salvar');
     }
   }
 
-  async function moveTo(status: ServiceOrderStatus) {
-    if (status === 'CANCELADA' && !confirm('Cancelar esta OS? A ação trava a edição.'))
-      return;
-    // Diagnóstico pronto exige o diagnóstico salvo (o back valida o valor persistido).
-    if (status === 'DIAGNOSTICO_PRONTO' && (os?.diagnosis ?? '').trim() === '') {
-      toast.error('Preencha e salve o diagnóstico técnico antes de concluir o diagnóstico.');
+  async function moveTo(transition: ServiceOrderTransitionDto) {
+    if (transition.disabledReason) {
+      toast.error(transition.disabledReason);
       return;
     }
+    if (
+      transition.requiresConfirmation &&
+      !confirm(`${transition.label}? ${transition.description}`)
+    ) {
+      return;
+    }
+
     try {
-      await changeStatus.mutateAsync({ status });
-      toast.success(`Status: ${SERVICE_ORDER_STATUS_LABELS[status]}`);
+      await changeStatus.mutateAsync({ status: transition.status });
+      toast.success(`Status: ${SERVICE_ORDER_STATUS_LABELS[transition.status]}`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Transição inválida');
     }
@@ -159,28 +168,44 @@ export default function ServiceOrderDetailPage({
       </div>
 
       {/* Ações de status */}
-      {canStatus && nextStatuses.length > 0 && (
-        <div className="flex flex-wrap gap-2 rounded-xl border bg-card p-3">
-          <span className="self-center text-sm text-muted-foreground">Avançar para:</span>
-          {nextStatuses.map((s) => {
-            const negative = s === 'CANCELADA' || s === 'ORCAMENTO_RECUSADO';
-            return (
-              <Button
-                key={s}
-                size="sm"
-                variant={negative ? 'destructive' : 'default'}
-                disabled={changeStatus.isPending}
-                onClick={() => moveTo(s)}
-              >
-                {negative ? (
-                  <XCircle className="size-4" />
-                ) : (
-                  <CheckCircle2 className="size-4" />
-                )}
-                {SERVICE_ORDER_STATUS_LABELS[s]}
-              </Button>
-            );
-          })}
+      {canStatus && nextTransitions.length > 0 && (
+        <div className="space-y-2 rounded-xl border bg-card p-3">
+          <div className="flex flex-wrap gap-2">
+            <span className="self-center text-sm text-muted-foreground">
+              Próximas ações:
+            </span>
+            {nextTransitions.map((transition) => {
+              const disabled = changeStatus.isPending || !!transition.disabledReason;
+              return (
+                <Button
+                  key={transition.status}
+                  size="sm"
+                  variant={transition.destructive ? 'destructive' : 'default'}
+                  disabled={disabled}
+                  title={transition.disabledReason ?? transition.description}
+                  onClick={() => moveTo(transition)}
+                >
+                  {transition.destructive ? (
+                    <XCircle className="size-4" />
+                  ) : (
+                    <CheckCircle2 className="size-4" />
+                  )}
+                  {transition.label}
+                </Button>
+              );
+            })}
+          </div>
+          {nextTransitions.some((transition) => transition.disabledReason) && (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              {nextTransitions
+                .filter((transition) => transition.disabledReason)
+                .map((transition) => (
+                  <p key={`${transition.status}-reason`}>
+                    {transition.label}: {transition.disabledReason}
+                  </p>
+                ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -231,7 +256,7 @@ export default function ServiceOrderDetailPage({
               <Section
                 title="Diagnóstico técnico"
                 action={
-                  os.editable && canWrite ? (
+                  canEditDiagnosis ? (
                     <AiAssistButton
                       instruction="Elabore um diagnóstico técnico claro e profissional para uma ordem de serviço de oficina, a partir do problema relatado."
                       content={diagnosis || os.reportedProblem}
@@ -244,14 +269,14 @@ export default function ServiceOrderDetailPage({
                   value={diagnosis}
                   onChange={(e) => setDiagnosis(e.target.value)}
                   placeholder="Descreva o diagnóstico..."
-                  disabled={!os.editable || !canWrite}
+                  disabled={!canEditDiagnosis}
                   rows={3}
                 />
               </Section>
               <Section
                 title="Observações"
                 action={
-                  os.editable && canWrite ? (
+                  canEditDiagnosis ? (
                     <AiAssistButton
                       instruction="Escreva observações claras e cordiais para o cliente sobre o andamento desta ordem de serviço."
                       content={notes}
@@ -264,7 +289,7 @@ export default function ServiceOrderDetailPage({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Observações internas..."
-                  disabled={!os.editable || !canWrite}
+                  disabled={!canEditDiagnosis}
                   rows={2}
                 />
               </Section>
@@ -327,9 +352,13 @@ export default function ServiceOrderDetailPage({
             </CardContent>
           </Card>
 
-          {canWrite && os.editable && (
-            <Button className="w-full" onClick={saveChanges} disabled={!dirty || update.isPending}>
-              {update.isPending ? (
+          {(canWrite || canDiagnose) && os.editable && (
+            <Button
+              className="w-full"
+              onClick={saveChanges}
+              disabled={!dirty || update.isPending || diagnose.isPending}
+            >
+              {update.isPending || diagnose.isPending ? (
                 <CarLoader className="size-4 animate-spin" />
               ) : (
                 <Save className="size-4" />
@@ -347,30 +376,11 @@ export default function ServiceOrderDetailPage({
             canQuote={canQuote}
           />
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="size-4" /> Histórico detalhado
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ol className="relative space-y-4 border-l pl-4">
-                {os.history.map((h) => (
-                  <li key={h.id} className="relative">
-                    <span className="absolute -left-[1.36rem] top-1 size-2.5 rounded-full bg-primary" />
-                    <p className="text-sm font-medium">
-                      {SERVICE_ORDER_STATUS_LABELS[h.status]}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(h.createdAt).toLocaleString('pt-BR')}
-                      {h.userName ? ` · ${h.userName}` : ''}
-                    </p>
-                    {h.note && <p className="text-xs text-muted-foreground">{h.note}</p>}
-                  </li>
-                ))}
-              </ol>
-            </CardContent>
-          </Card>
+          {canDiagnose && (
+            <OsTechnicalMobilePanel osId={os.id} disabled={os.terminal} />
+          )}
+
+          <OsEventTimeline events={os.events ?? []} />
         </div>
       </div>
     </div>

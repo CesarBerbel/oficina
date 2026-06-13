@@ -5,10 +5,7 @@ import type {
   BlogPostDto,
   BlogStatus,
   CreateBlogPostInput,
-  LeadDto,
-  LeadStatus,
   ListBlogPostsQuery,
-  ListLeadsQuery,
   Paginated,
   SiteSettingsDto,
   UpdateBlogPostInput,
@@ -84,20 +81,18 @@ export function useSetBlogPostStatus() {
   });
 }
 
-// ─── Leads ───
-export function useLeads(params: Partial<ListLeadsQuery>) {
-  return useQuery({
-    queryKey: ['leads', params],
-    queryFn: () => api.get<Paginated<LeadDto>>(`/leads${qs(params)}`),
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useUpdateLeadStatus() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
-      api.post<LeadDto>(`/leads/${id}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
-  });
-}
+export {
+  useCancelLeadAppointment,
+  useCheckInLead,
+  useConfirmLeadAppointment,
+  useCreateDirectReceptionLead,
+  useConvertLeadToServiceOrder,
+  useLead,
+  useLeads,
+  useLinkLeadCustomer,
+  useLinkLeadVehicle,
+  useNoShowLead,
+  useRegisterLeadContact,
+  useScheduleLead,
+  useUpdateLeadStatus,
+} from '@/features/leads/use-leads';

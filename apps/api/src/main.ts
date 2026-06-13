@@ -24,7 +24,12 @@ async function bootstrap(): Promise<void> {
   const uploadsDir = config.get<string>('STORAGE_LOCAL_DIR') ?? './uploads';
   app.use(
     '/uploads',
-    express.static(isAbsolute(uploadsDir) ? uploadsDir : join(process.cwd(), uploadsDir)),
+    express.static(isAbsolute(uploadsDir) ? uploadsDir : join(process.cwd(), uploadsDir), {
+      setHeaders: (res) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'none'; script-src 'none'; sandbox");
+      },
+    }),
   );
 
   const prefix = config.get<string>('API_GLOBAL_PREFIX') ?? 'api';

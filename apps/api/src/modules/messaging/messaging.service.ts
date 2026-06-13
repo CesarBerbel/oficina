@@ -387,7 +387,7 @@ export class MessagingService {
   ): Promise<MessageLogDto> {
     let body = input.body;
     let to = input.to ?? '';
-    let event: MessageEvent = 'MANUAL';
+    const event: MessageEvent = 'MANUAL';
 
     if (input.serviceOrderId) {
       const built = await this.contextForOrder(actor.tenantId, input.serviceOrderId);

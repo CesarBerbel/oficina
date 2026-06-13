@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { ServiceOrderItemKind } from '../enums/service-order-item.js';
-import { ServiceOrderStatus } from '../enums/service-order-status.js';
+import {
+  ServiceOrderStatus,
+  type ServiceOrderTransitionDto,
+} from '../enums/service-order-status.js';
 import { paginationQuerySchema } from './common.js';
 import type { QuoteDto } from './quote.js';
 
@@ -37,12 +40,60 @@ export const updateServiceOrderSchema = z.object({
 
 export type UpdateServiceOrderInput = z.infer<typeof updateServiceOrderSchema>;
 
+/** Atualização permitida ao perfil técnico via permissão os:diagnose. */
+export const diagnoseServiceOrderSchema = z.object({
+  diagnosis: z.string().trim().min(1, 'Informe o diagnóstico técnico').max(4000),
+  notes: optionalString(4000),
+});
+
+export type DiagnoseServiceOrderInput = z.infer<
+  typeof diagnoseServiceOrderSchema
+>;
+
 export const changeStatusSchema = z.object({
   status: z.nativeEnum(ServiceOrderStatus),
   note: optionalString(500),
 });
 
 export type ChangeStatusInput = z.infer<typeof changeStatusSchema>;
+
+export const ServiceOrderEventType = {
+  STATUS_CHANGE: 'STATUS_CHANGE',
+  NOTE: 'NOTE',
+  CHECKLIST: 'CHECKLIST',
+  PHOTOS: 'PHOTOS',
+  CUSTOMER_NOTIFICATION: 'CUSTOMER_NOTIFICATION',
+  SYSTEM: 'SYSTEM',
+} as const;
+export type ServiceOrderEventType =
+  (typeof ServiceOrderEventType)[keyof typeof ServiceOrderEventType];
+
+export const ServiceOrderEventVisibility = {
+  INTERNAL: 'INTERNAL',
+  PUBLIC: 'PUBLIC',
+} as const;
+export type ServiceOrderEventVisibility =
+  (typeof ServiceOrderEventVisibility)[keyof typeof ServiceOrderEventVisibility];
+
+export const serviceOrderTechnicalChecklistItemSchema = z.object({
+  item: z.string().trim().min(1).max(120),
+  done: z.coerce.boolean().default(false),
+  note: optionalString(300),
+});
+export type ServiceOrderTechnicalChecklistItem = z.infer<
+  typeof serviceOrderTechnicalChecklistItemSchema
+>;
+
+export const createServiceOrderTechnicalUpdateSchema = z.object({
+  description: optionalString(2000),
+  public: z.coerce.boolean().default(false),
+  checklist: z.array(serviceOrderTechnicalChecklistItemSchema).max(60).default([]),
+  photos: z.array(z.string().url()).max(30).default([]),
+});
+export type CreateServiceOrderTechnicalUpdateInput = z.infer<
+  typeof createServiceOrderTechnicalUpdateSchema
+>;
+
 
 export const addItemSchema = z.object({
   kind: z.nativeEnum(ServiceOrderItemKind),
@@ -119,6 +170,21 @@ export interface ServiceOrderStatusHistoryDto {
   createdAt: string;
 }
 
+
+export interface ServiceOrderEventDto {
+  id: string;
+  type: ServiceOrderEventType;
+  title: string;
+  description: string | null;
+  visibility: ServiceOrderEventVisibility;
+  fromStatus: ServiceOrderStatus | null;
+  toStatus: ServiceOrderStatus | null;
+  checklist: ServiceOrderTechnicalChecklistItem[];
+  photos: string[];
+  createdByName: string | null;
+  createdAt: string;
+}
+
 /** Resumo para listagem e kanban. */
 export interface ServiceOrderSummaryDto {
   id: string;
@@ -137,6 +203,11 @@ export interface ServiceOrderSummaryDto {
   isOverdue: boolean;
 }
 
+/** Card do kanban técnico, já com ações de status calculadas pelo backend. */
+export interface ServiceOrderBoardItemDto extends ServiceOrderSummaryDto {
+  availableTransitions: ServiceOrderTransitionDto[];
+}
+
 /** Detalhe completo da OS. */
 export interface ServiceOrderDetailDto extends ServiceOrderSummaryDto {
   km: number | null;
@@ -152,7 +223,10 @@ export interface ServiceOrderDetailDto extends ServiceOrderSummaryDto {
   discount: number;
   items: ServiceOrderItemDto[];
   history: ServiceOrderStatusHistoryDto[];
+  events: ServiceOrderEventDto[];
   editable: boolean;
+  terminal: boolean;
+  availableTransitions: ServiceOrderTransitionDto[];
   publicToken: string;
   quote: QuoteDto | null;
   /** Check-in vinculado à OS (há no máximo um), se já existir. */

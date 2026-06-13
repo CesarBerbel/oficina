@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
 import {
   garageRequestCodeSchema,
   garageVerifyCodeSchema,
@@ -7,6 +8,7 @@ import {
   type GarageVerifyCodeInput,
 } from '@oficina/shared';
 import { GarageService } from './garage.service';
+import type { PublicTenantLookup } from '../site/site.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { Public } from '../../common/decorators/public.decorator';
 
@@ -20,22 +22,42 @@ import { Public } from '../../common/decorators/public.decorator';
 export class GarageController {
   constructor(private readonly garage: GarageService) {}
 
+  private firstHeader(value: string | string[] | undefined): string | null {
+    return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+  }
+
+  private lookup(req: Request): PublicTenantLookup {
+    const querySlug =
+      typeof req.query.tenantSlug === 'string' ? req.query.tenantSlug : null;
+    return {
+      tenantSlug:
+        querySlug ?? this.firstHeader(req.headers['x-public-tenant-slug']),
+      host:
+        this.firstHeader(req.headers['x-public-host']) ??
+        this.firstHeader(req.headers['x-forwarded-host']) ??
+        req.get('host') ??
+        null,
+    };
+  }
+
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('request-code')
   requestCode(
+    @Req() req: Request,
     @Body(new ZodValidationPipe(garageRequestCodeSchema))
     body: GarageRequestCodeInput,
   ) {
-    return this.garage.requestCode(body.plate);
+    return this.garage.requestCode(body.plate, this.lookup(req));
   }
 
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('verify')
   verify(
+    @Req() req: Request,
     @Body(new ZodValidationPipe(garageVerifyCodeSchema))
     body: GarageVerifyCodeInput,
   ) {
-    return this.garage.verifyCode(body.plate, body.code);
+    return this.garage.verifyCode(body.plate, body.code, this.lookup(req));
   }
 
   @Throttle({ default: { limit: 60, ttl: 60_000 } })

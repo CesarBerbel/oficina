@@ -9,12 +9,17 @@ import {
 import type {
   AddItemInput,
   ChangeStatusInput,
+  CreateServiceOrderTechnicalUpdateInput,
   CreateServiceOrderInput,
+  DiagnoseServiceOrderInput,
   ListServiceOrdersQuery,
   Paginated,
+  ServiceOrderBoardItemDto,
   ServiceOrderDetailDto,
+  ServiceOrderEventDto,
   ServiceOrderStatus,
   ServiceOrderSummaryDto,
+  ServiceOrderTransitionDto,
   UpdateItemInput,
   UpdateServiceOrderInput,
 } from '@oficina/shared';
@@ -44,7 +49,7 @@ export function useServiceOrderBoard() {
   return useQuery({
     queryKey: ['service-orders', 'board'],
     queryFn: () =>
-      api.get<Record<ServiceOrderStatus, ServiceOrderSummaryDto[]>>(
+      api.get<Record<ServiceOrderStatus, ServiceOrderBoardItemDto[]>>(
         `${BASE}/board`,
       ),
     refetchInterval: 30_000,
@@ -68,6 +73,36 @@ export function useServiceOrder(id: string | undefined) {
   });
 }
 
+export function useServiceOrderTransitions(id: string | undefined) {
+  return useQuery({
+    queryKey: ['service-orders', 'transitions', id],
+    queryFn: () =>
+      api.get<ServiceOrderTransitionDto[]>(`${BASE}/${id}/transitions`),
+    enabled: !!id,
+  });
+}
+
+
+export function useServiceOrderTimeline(id: string | undefined) {
+  return useQuery({
+    queryKey: ['service-orders', 'timeline', id],
+    queryFn: () => api.get<ServiceOrderEventDto[]>(`${BASE}/${id}/timeline`),
+    enabled: !!id,
+  });
+}
+
+export function useCreateTechnicalUpdate(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateServiceOrderTechnicalUpdateInput) =>
+      api.post<ServiceOrderEventDto[]>(`${BASE}/${id}/technical-update`, input),
+    onSuccess: () => {
+      invalidate(qc, id);
+      qc.invalidateQueries({ queryKey: ['service-orders', 'timeline', id] });
+    },
+  });
+}
+
 export function useCreateServiceOrder() {
   const qc = useQueryClient();
   return useMutation({
@@ -80,6 +115,7 @@ export function useCreateServiceOrder() {
 function invalidate(qc: ReturnType<typeof useQueryClient>, id: string) {
   qc.invalidateQueries({ queryKey: ['service-orders'] });
   qc.invalidateQueries({ queryKey: ['service-orders', 'detail', id] });
+  qc.invalidateQueries({ queryKey: ['service-orders', 'transitions', id] });
 }
 
 export function useUpdateServiceOrder(id: string) {
@@ -87,6 +123,15 @@ export function useUpdateServiceOrder(id: string) {
   return useMutation({
     mutationFn: (input: UpdateServiceOrderInput) =>
       api.patch<ServiceOrderDetailDto>(`${BASE}/${id}`, input),
+    onSuccess: () => invalidate(qc, id),
+  });
+}
+
+export function useDiagnoseServiceOrder(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: DiagnoseServiceOrderInput) =>
+      api.patch<ServiceOrderDetailDto>(`${BASE}/${id}/diagnosis`, input),
     onSuccess: () => invalidate(qc, id),
   });
 }

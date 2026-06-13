@@ -22,6 +22,10 @@ export class PublicService {
         },
         items: { orderBy: { createdAt: 'asc' } },
         history: { orderBy: { createdAt: 'asc' } },
+        events: {
+          where: { visibility: 'PUBLIC' },
+          orderBy: { createdAt: 'asc' },
+        },
         quote: { include: quoteInclude },
       },
     });
@@ -52,10 +56,22 @@ export class PublicService {
       totalParts: dec(order.totalParts),
       discount: dec(order.discount),
       total: dec(order.total),
-      timeline: order.history.map((h) => ({
-        status: h.status,
-        createdAt: h.createdAt.toISOString(),
-      })),
+      timeline:
+        order.events.length > 0
+          ? order.events.map((event) => ({
+              status: event.toStatus,
+              title: event.title,
+              description: event.description,
+              photos: event.photos,
+              createdAt: event.createdAt.toISOString(),
+            }))
+          : order.history.map((h) => ({
+              status: h.status,
+              title: h.status,
+              description: null,
+              photos: [],
+              createdAt: h.createdAt.toISOString(),
+            })),
       quote: order.quote ? toQuoteDto(order.quote, order.publicToken) : null,
     };
   }

@@ -5,19 +5,30 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import { Prisma, type PrismaClient, type MessageEvent } from '@prisma/client';
+import {
+  Prisma,
+  QuoteItemDecision,
+  type PrismaClient,
+  type MessageEvent,
+} from '@prisma/client';
 import {
   isOrderEditable,
   isTerminalStatus,
   type AddItemInput,
   type ChangeStatusInput,
+  type CreateServiceOrderTechnicalUpdateInput,
   type CreateServiceOrderInput,
+  type DiagnoseServiceOrderInput,
   type ListServiceOrdersQuery,
   type Paginated,
+  type ServiceOrderBoardItemDto,
   type ServiceOrderDetailDto,
+  type ServiceOrderEventDto,
+  type ServiceOrderTechnicalChecklistItem,
   type ServiceOrderItemKind,
   type ServiceOrderStatus,
   type ServiceOrderSummaryDto,
+  type ServiceOrderTransitionDto,
   type UpdateItemInput,
   type UpdateServiceOrderInput,
 } from '@oficina/shared';
@@ -37,8 +48,9 @@ const dec = (v: Prisma.Decimal | number | null | undefined): number =>
   v == null ? 0 : Number(v);
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
+const UNIQUE_CONSTRAINT_RETRY_ATTEMPTS = 5;
 
-const detailInclude = {
+const summaryInclude = {
   customer: { select: { id: true, name: true, phone: true } },
   vehicle: {
     select: {
@@ -50,10 +62,28 @@ const detailInclude = {
     },
   },
   technician: { select: { id: true, name: true } },
+} satisfies Prisma.ServiceOrderInclude;
+
+const boardInclude = {
+  ...summaryInclude,
+  items: { select: { id: true } },
+  quote: { select: { status: true } },
+} satisfies Prisma.ServiceOrderInclude;
+
+const eventInclude = {
+  createdBy: { select: { name: true } },
+} satisfies Prisma.ServiceOrderEventInclude;
+
+const detailInclude = {
+  ...summaryInclude,
   items: { orderBy: { createdAt: 'asc' } },
   history: {
     orderBy: { createdAt: 'asc' },
     include: { user: { select: { name: true } } },
+  },
+  events: {
+    orderBy: { createdAt: 'desc' },
+    include: eventInclude,
   },
   quote: { include: quoteInclude },
   checkins: {
@@ -63,6 +93,9 @@ const detailInclude = {
   },
 } satisfies Prisma.ServiceOrderInclude;
 
+type SummaryRow = Prisma.ServiceOrderGetPayload<{ include: typeof summaryInclude }>;
+type BoardRow = Prisma.ServiceOrderGetPayload<{ include: typeof boardInclude }>;
+type EventRow = Prisma.ServiceOrderEventGetPayload<{ include: typeof eventInclude }>;
 type DetailRow = Prisma.ServiceOrderGetPayload<{ include: typeof detailInclude }>;
 
 @Injectable()
@@ -86,7 +119,7 @@ export class ServiceOrdersService {
     return row.dueDate.getTime() < Date.now();
   }
 
-  private toSummary(row: DetailRow): ServiceOrderSummaryDto {
+  private toSummary(row: SummaryRow): ServiceOrderSummaryDto {
     const year = row.vehicle.modelYear ? ` ${row.vehicle.modelYear}` : '';
     return {
       id: row.id,
@@ -106,6 +139,98 @@ export class ServiceOrdersService {
     };
   }
 
+  private toBoardItem(row: BoardRow): ServiceOrderBoardItemDto {
+    return {
+      ...this.toSummary(row),
+      availableTransitions: this.availableTransitionsFor({
+        status: row.status,
+        diagnosis: row.diagnosis,
+        itemCount: row.items.length,
+        quoteStatus: row.quote?.status ?? null,
+      }),
+    };
+  }
+
+  private toEvent(row: EventRow): ServiceOrderEventDto {
+    return {
+      id: row.id,
+      type: row.type,
+      title: row.title,
+      description: row.description,
+      visibility: row.visibility,
+      fromStatus: row.fromStatus,
+      toStatus: row.toStatus,
+      checklist:
+        (row.checklist as unknown as ServiceOrderTechnicalChecklistItem[] | null) ??
+        [],
+      photos: row.photos,
+      createdByName: row.createdBy?.name ?? null,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  private statusEventTitle(status: ServiceOrderStatus): string {
+    const titles: Partial<Record<ServiceOrderStatus, string>> = {
+      ENTRADA: 'OS criada',
+      DIAGNOSTICO_PRONTO: 'Diagnóstico concluído',
+      ORCAMENTO: 'Orçamento gerado',
+      ORCAMENTO_APROVADO: 'Orçamento aprovado',
+      ORCAMENTO_RECUSADO: 'Orçamento recusado',
+      AGUARDANDO_PECA: 'Aguardando peça',
+      EM_EXECUCAO: 'Execução iniciada',
+      EM_TESTE: 'Enviada para teste',
+      PRONTA: 'Serviço finalizado',
+      PRONTO_RETIRAR: 'Cliente avisado para retirada',
+      ENTREGUE: 'Veículo entregue',
+      CANCELADA: 'OS cancelada',
+    };
+    return titles[status] ?? `Status alterado para ${status}`;
+  }
+
+  private async recordOrderEvent(
+    tx: Tx,
+    input: {
+      tenantId: string;
+      serviceOrderId: string;
+      type:
+        | 'STATUS_CHANGE'
+        | 'NOTE'
+        | 'CHECKLIST'
+        | 'PHOTOS'
+        | 'CUSTOMER_NOTIFICATION'
+        | 'SYSTEM';
+      title: string;
+      description?: string | null;
+      visibility?: 'INTERNAL' | 'PUBLIC';
+      fromStatus?: ServiceOrderStatus | null;
+      toStatus?: ServiceOrderStatus | null;
+      checklist?: ServiceOrderTechnicalChecklistItem[];
+      photos?: string[];
+      createdById?: string | null;
+      metadata?: Prisma.InputJsonValue;
+    },
+  ): Promise<void> {
+    await tx.serviceOrderEvent.create({
+      data: {
+        tenantId: input.tenantId,
+        serviceOrderId: input.serviceOrderId,
+        type: input.type,
+        title: input.title,
+        description: input.description ?? null,
+        visibility: input.visibility ?? 'INTERNAL',
+        fromStatus: input.fromStatus ?? null,
+        toStatus: input.toStatus ?? null,
+        checklist:
+          input.checklist && input.checklist.length > 0
+            ? (input.checklist as unknown as Prisma.InputJsonValue)
+            : undefined,
+        photos: input.photos ?? [],
+        createdById: input.createdById ?? null,
+        metadata: input.metadata ?? undefined,
+      },
+    });
+  }
+
   private toDetail(row: DetailRow): ServiceOrderDetailDto {
     return {
       ...this.toSummary(row),
@@ -121,6 +246,13 @@ export class ServiceOrdersService {
       totalParts: dec(row.totalParts),
       discount: dec(row.discount),
       editable: isOrderEditable(row.status),
+      terminal: isTerminalStatus(row.status),
+      availableTransitions: this.availableTransitionsFor({
+        status: row.status,
+        diagnosis: row.diagnosis,
+        itemCount: row.items.length,
+        quoteStatus: row.quote?.status ?? null,
+      }),
       items: (() => {
         const byId = new Map(row.items.map((it) => [it.id, it.description]));
         return row.items.map((it) => ({
@@ -144,10 +276,26 @@ export class ServiceOrdersService {
         userName: h.user?.name ?? null,
         createdAt: h.createdAt.toISOString(),
       })),
+      events: row.events.map((event) => this.toEvent(event)),
       publicToken: row.publicToken,
       quote: row.quote ? toQuoteDto(row.quote, row.publicToken) : null,
       checkinId: row.checkins[0]?.id ?? null,
     };
+  }
+
+  private availableTransitionsFor(context: {
+    status: ServiceOrderStatus;
+    diagnosis: string | null;
+    itemCount: number;
+    quoteStatus:
+      | 'RASCUNHO'
+      | 'ENVIADO'
+      | 'APROVADO'
+      | 'APROVADO_PARCIAL'
+      | 'RECUSADO'
+      | null;
+  }): ServiceOrderTransitionDto[] {
+    return ServiceOrderStateMachine.availableTransitions(context);
   }
 
   // ─── Queries ───
@@ -176,7 +324,7 @@ export class ServiceOrdersService {
       this.prisma.serviceOrder.count({ where }),
       this.prisma.serviceOrder.findMany({
         where,
-        include: detailInclude,
+        include: summaryInclude,
         orderBy: { number: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -194,16 +342,24 @@ export class ServiceOrdersService {
     };
   }
 
-  /** Agrupa OS ativas por status para o Kanban técnico. */
-  async board(tenantId: string): Promise<Record<string, ServiceOrderSummaryDto[]>> {
+  /**
+   * Agrupa OS em andamento por status para o Kanban técnico.
+   *
+   * O quadro técnico mostra somente OS operacionais. OS canceladas, entregues e
+   * recusadas ficam fora do kanban e continuam consultáveis pela listagem de OS.
+   */
+  async board(tenantId: string): Promise<Record<string, ServiceOrderBoardItemDto[]>> {
     const rows = await this.prisma.serviceOrder.findMany({
-      where: { tenantId, status: { notIn: ['ENTREGUE', 'CANCELADA'] } },
-      include: detailInclude,
+      where: {
+        tenantId,
+        status: { notIn: ['ENTREGUE', 'CANCELADA', 'ORCAMENTO_RECUSADO'] },
+      },
+      include: boardInclude,
       orderBy: { openedAt: 'asc' },
     });
-    const grouped: Record<string, ServiceOrderSummaryDto[]> = {};
+    const grouped: Record<string, ServiceOrderBoardItemDto[]> = {};
     for (const row of rows) {
-      (grouped[row.status] ??= []).push(this.toSummary(row));
+      (grouped[row.status] ??= []).push(this.toBoardItem(row));
     }
     return grouped;
   }
@@ -217,6 +373,29 @@ export class ServiceOrdersService {
     });
   }
 
+  async transitions(
+    tenantId: string,
+    id: string,
+  ): Promise<ServiceOrderTransitionDto[]> {
+    const row = await this.prisma.serviceOrder.findFirst({
+      where: { id, tenantId },
+      select: {
+        status: true,
+        diagnosis: true,
+        items: { select: { id: true } },
+        quote: { select: { status: true } },
+      },
+    });
+    if (!row) throw new NotFoundException('OS não encontrada');
+
+    return this.availableTransitionsFor({
+      status: row.status,
+      diagnosis: row.diagnosis,
+      itemCount: row.items.length,
+      quoteStatus: row.quote?.status ?? null,
+    });
+  }
+
   async findOne(tenantId: string, id: string): Promise<ServiceOrderDetailDto> {
     const row = await this.prisma.serviceOrder.findFirst({
       where: { id, tenantId },
@@ -227,6 +406,14 @@ export class ServiceOrdersService {
   }
 
   // ─── Commands ───
+  /**
+   * Gera o próximo número da OS dentro da transação atual.
+   *
+   * A constraint @@unique([tenantId, number]) continua sendo a proteção final
+   * contra concorrência. As operações com numeração sequencial fazem retry em
+   * P2002, evitando SQL específico como advisory lock e mantendo compatibilidade
+   * com PostgreSQL gerenciado e ambientes de teste.
+   */
   private async nextNumber(tx: Tx, tenantId: string): Promise<number> {
     const last = await tx.serviceOrder.findFirst({
       where: { tenantId },
@@ -234,6 +421,35 @@ export class ServiceOrdersService {
       select: { number: true },
     });
     return (last?.number ?? 0) + 1;
+  }
+
+  private isUniqueConstraintError(err: unknown): boolean {
+    return (
+      err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002'
+    );
+  }
+
+  /**
+   * Reexecuta transações que podem gerar numeração sequencial concorrente
+   * (ex.: reposição automática de compras durante a execução da OS).
+   */
+  private async withUniqueConstraintRetry<T>(
+    operation: () => Promise<T>,
+    failureMessage = 'Não foi possível concluir a operação concorrente',
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= UNIQUE_CONSTRAINT_RETRY_ATTEMPTS; attempt++) {
+      try {
+        return await operation();
+      } catch (err) {
+        if (this.isUniqueConstraintError(err)) {
+          if (attempt < UNIQUE_CONSTRAINT_RETRY_ATTEMPTS) continue;
+          throw new ConflictException(failureMessage);
+        }
+        throw err;
+      }
+    }
+
+    throw new ConflictException(failureMessage);
   }
 
   async create(
@@ -256,27 +472,42 @@ export class ServiceOrdersService {
       if (!tech) throw new BadRequestException('Técnico inválido');
     }
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const number = await this.nextNumber(tx, actor.tenantId);
-      return tx.serviceOrder.create({
-        data: {
-          tenantId: actor.tenantId,
-          number,
-          publicToken: randomBytes(24).toString('hex'),
-          customerId: input.customerId,
-          vehicleId: input.vehicleId,
-          km: input.km ?? null,
-          dueDate: input.dueDate ? new Date(input.dueDate) : null,
-          technicianId: input.technicianId ?? null,
-          reportedProblem: input.reportedProblem,
-          status: 'ENTRADA',
-          history: {
-            create: { status: 'ENTRADA', userId: actor.id, note: 'OS aberta' },
-          },
-        },
-        include: detailInclude,
-      });
-    });
+    const created = await this.withUniqueConstraintRetry(
+      () =>
+        this.prisma.$transaction(async (tx) => {
+          const number = await this.nextNumber(tx, actor.tenantId);
+          const order = await tx.serviceOrder.create({
+            data: {
+              tenantId: actor.tenantId,
+              number,
+              publicToken: randomBytes(24).toString('hex'),
+              customerId: input.customerId,
+              vehicleId: input.vehicleId,
+              km: input.km ?? null,
+              dueDate: input.dueDate ? new Date(input.dueDate) : null,
+              technicianId: input.technicianId ?? null,
+              reportedProblem: input.reportedProblem,
+              status: 'ENTRADA',
+              history: {
+                create: { status: 'ENTRADA', userId: actor.id, note: 'OS aberta' },
+              },
+            },
+            include: detailInclude,
+          });
+          await this.recordOrderEvent(tx, {
+            tenantId: actor.tenantId,
+            serviceOrderId: order.id,
+            type: 'STATUS_CHANGE',
+            title: this.statusEventTitle('ENTRADA'),
+            description: input.reportedProblem,
+            visibility: 'PUBLIC',
+            toStatus: 'ENTRADA',
+            createdById: actor.id,
+          });
+          return order;
+        }),
+      'Não foi possível gerar o número da OS',
+    );
 
     await this.audit.record({
       tenantId: actor.tenantId,
@@ -346,6 +577,44 @@ export class ServiceOrdersService {
     return this.findOne(actor.tenantId, id);
   }
 
+  async diagnose(
+    actor: AuthenticatedUser,
+    id: string,
+    input: DiagnoseServiceOrderInput,
+  ): Promise<ServiceOrderDetailDto> {
+    await this.loadEditable(actor.tenantId, id);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.serviceOrder.update({
+        where: { id },
+        data: {
+          diagnosis: input.diagnosis,
+          ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        },
+      });
+      await this.recordOrderEvent(tx, {
+        tenantId: actor.tenantId,
+        serviceOrderId: id,
+        type: 'NOTE',
+        title: 'Diagnóstico atualizado',
+        description: input.diagnosis,
+        visibility: 'PUBLIC',
+        createdById: actor.id,
+      });
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'DIAGNOSE',
+      module: 'service-orders',
+      entity: 'ServiceOrder',
+      entityId: id,
+    });
+
+    return this.findOne(actor.tenantId, id);
+  }
+
   async changeStatus(
     actor: AuthenticatedUser,
     id: string,
@@ -353,26 +622,33 @@ export class ServiceOrdersService {
   ): Promise<ServiceOrderDetailDto> {
     const row = await this.prisma.serviceOrder.findFirst({
       where: { id, tenantId: actor.tenantId },
-      select: { id: true, number: true, status: true, diagnosis: true },
+      select: {
+        id: true,
+        number: true,
+        status: true,
+        diagnosis: true,
+        items: { select: { id: true } },
+        quote: { select: { status: true } },
+      },
     });
     if (!row) throw new NotFoundException('OS não encontrada');
 
-    ServiceOrderStateMachine.assertTransition(row.status, input.status);
-
-    // Diagnóstico pronto exige um diagnóstico técnico preenchido.
-    if (
-      input.status === 'DIAGNOSTICO_PRONTO' &&
-      (row.diagnosis ?? '').trim() === ''
-    ) {
-      throw new ServiceOrderDomainError(
-        'Preencha o diagnóstico técnico antes de concluir o diagnóstico.',
-      );
-    }
+    ServiceOrderStateMachine.assertManualTransition(
+      {
+        status: row.status,
+        diagnosis: row.diagnosis,
+        itemCount: row.items.length,
+        quoteStatus: row.quote?.status ?? null,
+      },
+      input.status,
+    );
 
     // Aprovação manual (ORCAMENTO → ORCAMENTO_APROVADO): gera pedido de compra do
     // que falta; se faltar peça, a OS vai para "aguardando peça".
     const approving =
       input.status === 'ORCAMENTO_APROVADO' && row.status === 'ORCAMENTO';
+    const refusing =
+      input.status === 'ORCAMENTO_RECUSADO' && row.status === 'ORCAMENTO';
     // Entrar em execução baixa o estoque das peças (uma única vez, vindo de
     // aprovado/aguardando peça — não no retrabalho EM_TESTE → EM_EXECUCAO).
     const executing =
@@ -383,42 +659,84 @@ export class ServiceOrdersService {
       input.status === 'CANCELADA' &&
       (row.status === 'ORCAMENTO_APROVADO' || row.status === 'AGUARDANDO_PECA');
 
-    const effectiveStatus = await this.prisma.$transaction(async (tx) => {
-      let target: ServiceOrderStatus = input.status;
-      if (approving) {
-        const { shortfall } = await this.purchases.commitApprovalReservation(
-          tx,
-          actor.tenantId,
-          id,
-        );
-        if (shortfall) target = 'AGUARDANDO_PECA';
-      }
-      if (executing) {
-        await this.purchases.consumeOrderParts(tx, actor.tenantId, id, actor.id);
-      }
-      if (cancelling) {
-        await this.purchases.unwindOrderBackorder(tx, id);
-      }
-      await tx.serviceOrder.update({
-        where: { id },
-        data: {
-          status: target,
-          ...(isTerminalStatus(target) ? { closedAt: new Date() } : {}),
-          history: {
-            create: {
-              status: target,
-              userId: actor.id,
-              note:
-                input.note ??
-                (target === 'AGUARDANDO_PECA'
-                  ? 'Orçamento aprovado — aguardando peça (gere o pedido de compra)'
-                  : null),
+    const effectiveStatus = await this.withUniqueConstraintRetry(() =>
+      this.prisma.$transaction(async (tx) => {
+        let target: ServiceOrderStatus = input.status;
+        if (approving) {
+          const { shortfall } = await this.purchases.commitApprovalReservation(
+            tx,
+            actor.tenantId,
+            id,
+          );
+          await tx.quote.updateMany({
+            where: { serviceOrderId: id, status: 'ENVIADO' },
+            data: {
+              status: 'APROVADO',
+              decisionType: 'TOTAL',
+              decidedAt: new Date(),
+            },
+          });
+          await tx.quoteItem.updateMany({
+            where: { quote: { serviceOrderId: id } },
+            data: { decision: QuoteItemDecision.APROVADO },
+          });
+          if (shortfall) target = 'AGUARDANDO_PECA';
+        }
+        if (refusing) {
+          await tx.quote.updateMany({
+            where: { serviceOrderId: id, status: 'ENVIADO' },
+            data: {
+              status: 'RECUSADO',
+              decisionType: 'RECUSA',
+              decidedAt: new Date(),
+            },
+          });
+          await tx.quoteItem.updateMany({
+            where: { quote: { serviceOrderId: id } },
+            data: { decision: QuoteItemDecision.RECUSADO },
+          });
+        }
+        if (executing) {
+          await this.purchases.consumeOrderParts(tx, actor.tenantId, id, actor.id);
+        }
+        if (cancelling) {
+          await this.purchases.unwindOrderBackorder(tx, id);
+        }
+        const note =
+          input.note ??
+          (target === 'AGUARDANDO_PECA'
+            ? 'Orçamento aprovado — aguardando peça (gere o pedido de compra)'
+            : null);
+        await tx.serviceOrder.update({
+          where: { id },
+          data: {
+            status: target,
+            ...(isTerminalStatus(target) ? { closedAt: new Date() } : {}),
+            history: {
+              create: {
+                status: target,
+                userId: actor.id,
+                note,
+              },
             },
           },
-        },
-      });
-      return target;
-    });
+        });
+        await this.recordOrderEvent(tx, {
+          tenantId: actor.tenantId,
+          serviceOrderId: id,
+          type: target === 'PRONTO_RETIRAR' ? 'CUSTOMER_NOTIFICATION' : 'STATUS_CHANGE',
+          title: this.statusEventTitle(target),
+          description: note,
+          visibility: ['PRONTA', 'PRONTO_RETIRAR', 'ENTREGUE'].includes(target)
+            ? 'PUBLIC'
+            : 'INTERNAL',
+          fromStatus: row.status,
+          toStatus: target,
+          createdById: actor.id,
+        });
+        return target;
+      }),
+    );
 
     await this.audit.record({
       tenantId: actor.tenantId,
@@ -431,22 +749,12 @@ export class ServiceOrdersService {
       after: { status: effectiveStatus },
     });
 
-    if (effectiveStatus === 'PRONTA' || effectiveStatus === 'PRONTO_RETIRAR') {
-      await this.notifications.notifyRoles(actor.tenantId, ['ADMIN', 'ATENDENTE'], {
-        type: 'OS_READY',
-        title: `OS #${row.number} pronta`,
-        body: 'Avisar o cliente para retirada do veículo.',
-        link: `/os/${id}`,
-        entity: 'ServiceOrder',
-        entityId: id,
-      });
-    }
-
     // Mensagens automáticas por evento da OS.
     const statusEvent: Partial<Record<ServiceOrderStatus, MessageEvent>> = {
       DIAGNOSTICO_PRONTO: 'DIAGNOSIS_READY',
       EM_EXECUCAO: 'OS_IN_EXECUTION',
       PRONTA: 'OS_READY',
+      PRONTO_RETIRAR: 'CUSTOMER_NOTIFIED',
       ENTREGUE: 'VEHICLE_DELIVERED',
     };
     const evt = statusEvent[effectiveStatus];
@@ -454,7 +762,135 @@ export class ServiceOrdersService {
       await this.messaging.dispatchOrderEvent(actor.tenantId, evt, id);
     }
 
+    await this.notifyStatusChange(actor.tenantId, id, row.number, effectiveStatus);
+
     return this.findOne(actor.tenantId, id);
+  }
+
+  private async notifyStatusChange(
+    tenantId: string,
+    orderId: string,
+    orderNumber: number,
+    status: ServiceOrderStatus,
+  ): Promise<void> {
+    const payloads: Partial<Record<ServiceOrderStatus, { title: string; body: string }>> = {
+      DIAGNOSTICO_PRONTO: {
+        title: `OS #${orderNumber}: diagnóstico pronto`,
+        body: 'Gere ou envie o orçamento para o cliente.',
+      },
+      ORCAMENTO_APROVADO: {
+        title: `OS #${orderNumber}: orçamento aprovado`,
+        body: 'A OS está liberada para programação técnica.',
+      },
+      AGUARDANDO_PECA: {
+        title: `OS #${orderNumber}: aguardando peça`,
+        body: 'Há falta de peça para seguir com a execução.',
+      },
+      EM_EXECUCAO: {
+        title: `OS #${orderNumber}: execução iniciada`,
+        body: 'Acompanhe checklist e fotos do técnico.',
+      },
+      EM_TESTE: {
+        title: `OS #${orderNumber}: em teste`,
+        body: 'Valide o serviço antes de finalizar.',
+      },
+      PRONTA: {
+        title: `OS #${orderNumber}: serviço finalizado`,
+        body: 'Avise o cliente quando o veículo puder ser retirado.',
+      },
+      PRONTO_RETIRAR: {
+        title: `OS #${orderNumber}: cliente avisado`,
+        body: 'Veículo aguardando retirada.',
+      },
+      ENTREGUE: {
+        title: `OS #${orderNumber}: veículo entregue`,
+        body: 'OS finalizada com entrega ao cliente.',
+      },
+    };
+    const payload = payloads[status];
+    if (!payload) return;
+    await this.notifications.notifyRoles(tenantId, ['ADMIN', 'ATENDENTE'], {
+      type: 'OS_STATUS',
+      title: payload.title,
+      body: payload.body,
+      link: `/os/${orderId}`,
+      entity: 'ServiceOrder',
+      entityId: orderId,
+    });
+  }
+
+  async timeline(tenantId: string, id: string): Promise<ServiceOrderEventDto[]> {
+    const row = await this.prisma.serviceOrder.findFirst({
+      where: { id, tenantId },
+      select: { id: true },
+    });
+    if (!row) throw new NotFoundException('OS não encontrada');
+
+    const events = await this.prisma.serviceOrderEvent.findMany({
+      where: { tenantId, serviceOrderId: id },
+      orderBy: { createdAt: 'desc' },
+      include: eventInclude,
+    });
+    return events.map((event) => this.toEvent(event));
+  }
+
+  async technicalUpdate(
+    actor: AuthenticatedUser,
+    id: string,
+    input: CreateServiceOrderTechnicalUpdateInput,
+  ): Promise<ServiceOrderEventDto[]> {
+    const row = await this.prisma.serviceOrder.findFirst({
+      where: { id, tenantId: actor.tenantId },
+      select: { id: true, number: true, status: true },
+    });
+    if (!row) throw new NotFoundException('OS não encontrada');
+    if (isTerminalStatus(row.status)) {
+      throw new BadRequestException('Não é possível atualizar OS terminal');
+    }
+
+    const hasChecklist = input.checklist.length > 0;
+    const hasPhotos = input.photos.length > 0;
+    const type = hasChecklist ? 'CHECKLIST' : hasPhotos ? 'PHOTOS' : 'NOTE';
+    const title = hasChecklist
+      ? 'Checklist técnico atualizado'
+      : hasPhotos
+        ? 'Fotos técnicas adicionadas'
+        : 'Atualização técnica';
+
+    await this.prisma.$transaction(async (tx) => {
+      await this.recordOrderEvent(tx, {
+        tenantId: actor.tenantId,
+        serviceOrderId: id,
+        type,
+        title,
+        description: input.description ?? null,
+        visibility: input.public ? 'PUBLIC' : 'INTERNAL',
+        checklist: input.checklist,
+        photos: input.photos,
+        createdById: actor.id,
+      });
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'TECHNICAL_UPDATE',
+      module: 'service-orders',
+      entity: 'ServiceOrder',
+      entityId: id,
+      after: { checklist: input.checklist.length, photos: input.photos.length },
+    });
+
+    await this.notifications.notifyRoles(actor.tenantId, ['ADMIN', 'ATENDENTE'], {
+      type: 'OS_TECHNICAL_UPDATE',
+      title: `OS #${row.number}: atualização técnica`,
+      body: input.description ?? 'O técnico registrou uma atualização na OS.',
+      link: `/os/${id}`,
+      entity: 'ServiceOrder',
+      entityId: id,
+    });
+
+    return this.timeline(actor.tenantId, id);
   }
 
   // ─── Itens ───

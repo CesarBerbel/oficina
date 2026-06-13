@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getPublicSite } from '@/lib/public-api';
+import { SiteAddressLinks } from '@/components/site/site-address-links';
 
 export const metadata: Metadata = { title: 'Sobre' };
 
@@ -25,7 +26,11 @@ export default async function SiteSobre() {
           {s?.address && (
             <div>
               <p className="text-sm font-semibold text-muted-foreground">Endereço</p>
-              <p>{s.address}</p>
+              <SiteAddressLinks
+                address={s.address}
+                className="mt-1"
+                showIcon={false}
+              />
             </div>
           )}
           {s?.hours && (

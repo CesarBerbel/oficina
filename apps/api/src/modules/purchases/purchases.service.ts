@@ -24,6 +24,7 @@ const dec = (v: Prisma.Decimal | number | null | undefined): number =>
   v == null ? 0 : Number(v);
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 const round3 = (n: number): number => Math.round(n * 1000) / 1000;
+const PURCHASE_NUMBER_RETRY_ATTEMPTS = 5;
 
 const include = {
   supplier: { select: { id: true, name: true } },
@@ -73,6 +74,14 @@ export class PurchasesService {
     };
   }
 
+  /**
+   * Gera o próximo número do pedido dentro da transação atual.
+   *
+   * A constraint @@unique([tenantId, number]) é a proteção final contra
+   * concorrência. As operações que geram pedidos fazem retry em P2002,
+   * reexecutando a transação inteira e evitando SQL específico de advisory lock
+   * nos testes e em PostgreSQL gerenciado.
+   */
   private async nextNumber(tx: Tx, tenantId: string): Promise<number> {
     const last = await tx.purchaseOrder.findFirst({
       where: { tenantId },
@@ -80,6 +89,36 @@ export class PurchasesService {
       select: { number: true },
     });
     return (last?.number ?? 0) + 1;
+  }
+
+  private isUniqueConstraintError(err: unknown): boolean {
+    return (
+      err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002'
+    );
+  }
+
+  /**
+   * Reexecuta operações que calculam `nextNumber` e criam pedidos de compra.
+   * Em PostgreSQL, uma violação de unique constraint aborta a transação atual;
+   * por isso o retry precisa envolver a transação completa, não apenas o create.
+   */
+  private async withPurchaseNumberRetry<T>(
+    operation: () => Promise<T>,
+    failureMessage = 'Não foi possível gerar o número do pedido',
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= PURCHASE_NUMBER_RETRY_ATTEMPTS; attempt++) {
+      try {
+        return await operation();
+      } catch (err) {
+        if (this.isUniqueConstraintError(err)) {
+          if (attempt < PURCHASE_NUMBER_RETRY_ATTEMPTS) continue;
+          throw new BadRequestException(failureMessage);
+        }
+        throw err;
+      }
+    }
+
+    throw new BadRequestException(failureMessage);
   }
 
   async list(
@@ -151,28 +190,30 @@ export class PurchasesService {
       input.items.reduce((acc, i) => acc + i.quantity * i.unitCost, 0),
     );
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const number = await this.nextNumber(tx, actor.tenantId);
-      return tx.purchaseOrder.create({
-        data: {
-          tenantId: actor.tenantId,
-          number,
-          supplierId: input.supplierId ?? null,
-          dueDate: input.dueDate ? new Date(input.dueDate) : null,
-          notes: input.notes ?? null,
-          total,
-          items: {
-            create: input.items.map((i) => ({
-              partId: i.partId,
-              quantity: i.quantity,
-              unitCost: round2(i.unitCost),
-              total: round2(i.quantity * i.unitCost),
-            })),
+    const created = await this.withPurchaseNumberRetry(() =>
+      this.prisma.$transaction(async (tx) => {
+        const number = await this.nextNumber(tx, actor.tenantId);
+        return tx.purchaseOrder.create({
+          data: {
+            tenantId: actor.tenantId,
+            number,
+            supplierId: input.supplierId ?? null,
+            dueDate: input.dueDate ? new Date(input.dueDate) : null,
+            notes: input.notes ?? null,
+            total,
+            items: {
+              create: input.items.map((i) => ({
+                partId: i.partId,
+                quantity: i.quantity,
+                unitCost: round2(i.unitCost),
+                total: round2(i.quantity * i.unitCost),
+              })),
+            },
           },
-        },
-        include,
-      });
-    });
+          include,
+        });
+      }),
+    );
 
     await this.audit.record({
       tenantId: actor.tenantId,
@@ -206,12 +247,14 @@ export class PurchasesService {
       throw new BadRequestException('Nenhuma peça abaixo do estoque mínimo');
     }
 
-    const created = await this.prisma.$transaction((tx) =>
-      this.replenishBelowMin(
-        tx,
-        actor.tenantId,
-        parts.map((p) => p.id),
-        actor.id,
+    const created = await this.withPurchaseNumberRetry(() =>
+      this.prisma.$transaction((tx) =>
+        this.replenishBelowMin(
+          tx,
+          actor.tenantId,
+          parts.map((p) => p.id),
+          actor.id,
+        ),
       ),
     );
     if (created === 0) {
@@ -255,22 +298,62 @@ export class PurchasesService {
     id: string,
     input: ReceivePurchaseInput,
   ): Promise<PurchaseOrderDto> {
-    const order = await this.prisma.purchaseOrder.findFirst({
-      where: { id, tenantId: actor.tenantId },
-      include: { items: true },
-    });
-    if (!order) throw new NotFoundException('Pedido não encontrado');
-    if (['RECEBIDO', 'CANCELADO'].includes(order.status)) {
-      throw new BadRequestException('Pedido já finalizado');
-    }
-
-    const recvMap = new Map(input.received.map((r) => [r.itemId, r.quantity]));
-
     await this.prisma.$transaction(async (tx) => {
+      const order = await tx.purchaseOrder.findFirst({
+        where: { id, tenantId: actor.tenantId },
+        include: { items: true },
+      });
+      if (!order) throw new NotFoundException('Pedido não encontrado');
+      if (['RECEBIDO', 'CANCELADO'].includes(order.status)) {
+        throw new BadRequestException('Pedido já finalizado');
+      }
+
+      const itemsById = new Map(order.items.map((item) => [item.id, item]));
+      const recvMap = new Map<string, number>();
+      let positiveReceipts = 0;
+
+      for (const received of input.received) {
+        if (recvMap.has(received.itemId)) {
+          throw new BadRequestException(
+            'Informe cada item do pedido apenas uma vez no recebimento',
+          );
+        }
+
+        const item = itemsById.get(received.itemId);
+        if (!item) {
+          throw new BadRequestException('Item inválido para este pedido de compra');
+        }
+
+        const quantity = round3(received.quantity);
+        if (quantity <= 0) {
+          recvMap.set(received.itemId, 0);
+          continue;
+        }
+
+        const remaining = round3(dec(item.quantity) - dec(item.receivedQuantity));
+        if (remaining <= 0) {
+          throw new BadRequestException('Este item já foi totalmente recebido');
+        }
+        if (quantity > remaining) {
+          throw new BadRequestException(
+            'Quantidade recebida excede o saldo pendente do item',
+          );
+        }
+
+        recvMap.set(received.itemId, quantity);
+        positiveReceipts++;
+      }
+
+      if (positiveReceipts === 0) {
+        throw new BadRequestException(
+          'Informe ao menos uma quantidade positiva para receber',
+        );
+      }
+
       for (const item of order.items) {
         const recv = recvMap.get(item.id) ?? 0;
         if (recv <= 0) continue;
-        const newReceived = dec(item.receivedQuantity) + recv;
+        const newReceived = round3(dec(item.receivedQuantity) + recv);
         await tx.purchaseOrderItem.update({
           where: { id: item.id },
           data: { receivedQuantity: newReceived },
@@ -613,13 +696,15 @@ export class PurchasesService {
       );
     }
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      await this.cancelOpenOrderPurchases(tx, orderId);
-      return this.createGroupedPurchases(tx, actor.tenantId, lines, {
-        serviceOrderId: orderId,
-        notes: 'Peças aprovadas em falta na OS',
-      });
-    });
+    const created = await this.withPurchaseNumberRetry(() =>
+      this.prisma.$transaction(async (tx) => {
+        await this.cancelOpenOrderPurchases(tx, orderId);
+        return this.createGroupedPurchases(tx, actor.tenantId, lines, {
+          serviceOrderId: orderId,
+          notes: 'Peças aprovadas em falta na OS',
+        });
+      }),
+    );
 
     await this.audit.record({
       tenantId: actor.tenantId,

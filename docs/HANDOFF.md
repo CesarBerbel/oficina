@@ -22,11 +22,15 @@ partir do estado atual, mantendo a arquitetura e os padrões existentes.
   (campo "Oficina" = `slug` do tenant + e-mail + senha); falta o fluxo de cadastro
   de novas oficinas e resolução por domínio para virar SaaS completo.
 - **Deploy**: Docker + Docker Compose + Nginx, com proxy de `/api` e `/uploads` para a API.
+- **Status**: fases 0 a 10 concluídas, com hardening, CI, E2E da API,
+  upload seguro, tenant público e retry de numeração Prisma `P2002` em OS/compras.
 
 ### Ambiente (importante)
 - Node 24, pnpm 9.15.9 (instalado via npm global), Docker Desktop.
-- **Postgres dev na porta 5433** (host) para não colidir com um Postgres 18
-  nativo na 5432. `.env` na raiz é a fonte única (usado por compose, Prisma e Nest).
+- **Postgres dev na porta 5433** (host) e **Postgres E2E na porta 5434**
+  (`docker-compose.test.yml`) para evitar conflito entre banco local e banco
+  descartável de testes. `.env` na raiz é a fonte única do desenvolvimento
+  (usado por compose, Prisma e Nest).
 - Comandos Prisma rodam da **raiz** (`package.json` tem `prisma.schema` apontando
   para `apps/api/prisma/schema.prisma`).
 - Login seed: oficina (slug) `oficina-modelo` · `admin@oficina.local` / `Admin@123`.
@@ -52,8 +56,14 @@ partir do estado atual, mantendo a arquitetura e os padrões existentes.
 2. **Auth & RBAC**: login/refresh/logout, guards (JWT + permissões), CRUD de
    funcionários, bloqueio/inativação, `LoginAttempt`, `AuditLog`. Telas de login e usuários.
 3. **Clientes & Veículos**: CRUD completo, detalhe do cliente com veículos, listas responsivas.
-4. **OS (núcleo)**: máquina de estados pura e testada, itens com snapshot de preço,
-   totais automáticos, travas de edição, timeline, **Kanban técnico**. Tela da OS rica.
+4. **OS (núcleo)**: máquina de estados pura e testada, com matriz compartilhada
+   (`SERVICE_ORDER_TRANSITIONS`), ações manuais (`SERVICE_ORDER_MANUAL_TRANSITIONS`),
+   endpoint `GET /service-orders/:id/transitions`, guardas de domínio e retorno
+   `availableTransitions` no detalhe da OS. Itens com snapshot de preço, totais
+   automáticos, travas de edição, timeline e **Kanban técnico** em tela cheia, sem rolagem externa, com rolagem apenas
+   dentro das colunas quando houver muitos cards, sem OS canceladas/entregues/
+   recusadas e com botões de ação rápida por card, sem botão de cancelamento
+   no quadro. Tela da OS rica.
 5. **Catálogo & Estoque**: serviços (com peças padrão), **combos** (expandem nos
    serviços na OS, sem aparecer como combo), peças/insumos, movimentações + histórico,
    baixa/estorno de estoque na OS.
@@ -66,7 +76,7 @@ partir do estado atual, mantendo a arquitetura e os padrões existentes.
 8. **Dashboard, Central de Ações & Notificações**: métricas reais, pendências por
    prioridade, sino + página de notificações + **push PWA (VAPID)**.
 9. **Mensagens, Site Público & Blog**: templates com variáveis e **envio automático
-   por evento** (adapter mock/log), site público com SEO + painel, blog, **leads** do site.
+   por evento** (adapter mock/log), site público com SEO + painel, menu mobile, endereço clicável para Google Maps/Waze no mobile, home responsiva, blog, **Central de Pré-atendimento** do site.
 10. **Configurações, Auditoria, IA & Relatórios**: hub de configurações, visualização
     de auditoria, módulo de IA (provider + **chave criptografada AES-GCM**), relatórios
     (faturamento, OS por status, top serviços/peças).
@@ -141,21 +151,62 @@ itens de configuração ficam só dentro do hub `/configuracoes`.
 ---
 
 ## Como rodar e testar
-```bash
+
+### Desenvolvimento no Windows PowerShell
+
+```powershell
 cd C:\claude\oficina
-docker compose up -d            # Postgres (porta 5433)
+Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+docker compose up -d            # Postgres dev via .env, normalmente porta 5433
 corepack enable
 corepack prepare pnpm@9.15.9 --activate
 pnpm install --frozen-lockfile
-pnpm prisma:migrate             # da raiz
+pnpm prisma:generate
+pnpm prisma:deploy
 pnpm prisma:seed                # cria oficina "oficina-modelo" + admin
-pnpm dev                        # gera Prisma, aplica migrations pendentes, API :3333/api + Web :3000
+pnpm dev                        # API :3333/api + Web :3000
 # Login: Oficina = oficina-modelo · admin@oficina.local / Admin@123
-pnpm test                       # unit/API + testes configurados
-pnpm --filter @oficina/api test:e2e   # e2e backend (6)
-# Produção:
+```
+
+### E2E da API no Windows PowerShell
+
+```powershell
+docker compose -f docker-compose.test.yml up -d   # Postgres E2E, porta 5434
+$env:DATABASE_URL="postgresql://oficina:oficina_test_pwd@localhost:5434/oficina_test?schema=public"
+pnpm prisma:validate
+pnpm prisma:generate
+pnpm prisma:deploy
+pnpm --filter @oficina/api test:e2e
+Remove-Item Env:DATABASE_URL
+```
+
+### Qualidade/build
+
+```powershell
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+### Produção
+
+```powershell
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Documentos de referência: `docs/ARQUITETURA.md` (arquitetura/roadmap) e
 `docs/DEPLOY.md` (deploy).
+### Melhorias recentes — OS, Kanban e produtividade
+
+- **Timeline da OS**: a OS agora possui `ServiceOrderEvent`, registrando alterações de status, notas técnicas, checklist, fotos, eventos sistêmicos e visibilidade interna/pública. O endpoint `GET /api/service-orders/:id/timeline` retorna a linha do tempo operacional e o detalhe da OS também inclui `events`.
+- **Notificações automáticas**: eventos relevantes da OS disparam notificações internas para atendimento/administração e mensagens automáticas por templates (`OS_OPENED`, `DIAGNOSIS_READY`, `QUOTE_SENT`, `QUOTE_APPROVED`, `OS_IN_EXECUTION`, `OS_READY`, `CUSTOMER_NOTIFIED`, `VEHICLE_DELIVERED`). O seed cria templates WhatsApp simulados com `autoSend` ativo.
+- **Modo técnico mobile**: o detalhe da OS possui painel para o técnico registrar checklist, observações e fotos. Fotos usam o endpoint seguro `/uploads`; atualizações podem ser marcadas como públicas para aparecerem na consulta do cliente.
+- **Kanban com drag-and-drop**: além dos botões rápidos, o card pode ser arrastado para outra coluna quando existir transição rápida válida. Cancelamento continua oculto no Kanban.
+- **Dashboard de produtividade**: novo endpoint `GET /api/dashboard/productivity` calcula ciclo médio, tempo médio por etapa e produtividade por técnico nos últimos 30 dias.
+
+
+
+### Central de Pré-atendimento
+
+A tela `/leads` foi evoluída para Central de Pré-atendimento: busca cliente por nome/telefone/e-mail, procura veículo pela placa, alerta em amarelo quando a placa pertence a outro cliente, registra resultado de ligação/WhatsApp/e-mail e permite converter o contato em cliente, veículo e OS.

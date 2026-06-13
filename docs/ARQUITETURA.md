@@ -214,35 +214,61 @@ implementação; aqui ficam as decisões estruturais.
 
 ## 6. Máquina de estados da OS (regra central)
 
-Status: `ENTRADA → DIAGNOSTICO_PRONTO → ORCAMENTO → ORCAMENTO_APROVADO →
-EM_EXECUCAO → EM_TESTE → PRONTA → PRONTO_RETIRAR → ENTREGUE` · ramo lateral `CANCELADA`.
+A OS usa uma máquina de estados explícita e testável. A matriz de domínio fica em
+`packages/shared/src/enums/service-order-status.ts`; a validação autoritativa,
+com guardas de contexto, fica em
+`apps/api/src/modules/service-orders/domain/service-order.state-machine.ts`.
 
-Transições válidas (resumo):
+Fluxo principal:
 
 ```
-ENTRADA           → DIAGNOSTICO_PRONTO | CANCELADA
-DIAGNOSTICO_PRONTO→ ORCAMENTO | CANCELADA
-ORCAMENTO         → ORCAMENTO_APROVADO (via aprovação do cliente) | CANCELADA
-ORCAMENTO_APROVADO→ EM_EXECUCAO | CANCELADA
-EM_EXECUCAO       → EM_TESTE | CANCELADA
-EM_TESTE          → PRONTA | EM_EXECUCAO
-PRONTA            → PRONTO_RETIRAR
-PRONTO_RETIRAR    → ENTREGUE
-CANCELADA         → (terminal)
-ENTREGUE          → (terminal)
+ENTRADA → DIAGNOSTICO_PRONTO → ORCAMENTO → ORCAMENTO_APROVADO
+        → EM_EXECUCAO → EM_TESTE → PRONTA → PRONTO_RETIRAR → ENTREGUE
 ```
+
+Ramos/estados laterais:
+
+```
+ORCAMENTO → ORCAMENTO_RECUSADO → ORCAMENTO | CANCELADA
+ORCAMENTO → AGUARDANDO_PECA → ORCAMENTO_APROVADO | EM_EXECUCAO | CANCELADA
+qualquer etapa permitida pela matriz → CANCELADA
+```
+
+Separação importante:
+
+- `SERVICE_ORDER_TRANSITIONS`: matriz completa de domínio, incluindo transições
+  feitas por orçamento, compra, recebimento e sistema.
+- `SERVICE_ORDER_MANUAL_TRANSITIONS`: ações manuais expostas em
+  `POST /api/service-orders/:id/status`.
+- `GET /api/service-orders/:id/transitions`: retorna as próximas ações manuais
+  com label, descrição, flags de confirmação/destrutiva e `disabledReason`.
+- `GET /api/service-orders/board`: retorna o kanban técnico sem OS canceladas,
+  entregues ou recusadas, e cada card já traz `availableTransitions` para ações
+  rápidas de mudança de status pelo frontend. O quadro ocupa a área útil da tela
+  sem rolagem externa; quando houver muitos cards, apenas a coluna correspondente
+  rola verticalmente. A ação de cancelamento não é exibida no Kanban;
+  cancelamento continua disponível apenas no detalhe da OS.
 
 Regras invioláveis (validadas no domínio, não só na UI):
-1. Após aberta, **cliente, veículo, KM, dataPrevista e problemaRelatado ficam travados** (imutáveis). Alteração só via fluxo de correção auditado.
-2. **OS CANCELADA ou ENTREGUE não pode ser editada.**
-3. Toda transição grava **ServiceOrderStatusHistory** + **AuditLog**.
-4. Aprovação de orçamento move a OS automaticamente para `ORCAMENTO_APROVADO`.
-5. Peças entram no total corretamente (snapshot de preço no momento da inclusão) e baixam estoque ao entrar em execução/consumo.
-6. Adicionar combo expande **serviços + peças padrão** automaticamente.
-7. Transição inválida → erro de domínio (`InvalidStateTransition`), nunca silenciosa.
 
-A máquina de estados vive em `domain/service-order.state-machine.ts`, 100%
-testável por unidade, independente de banco e HTTP.
+1. `DIAGNOSTICO_PRONTO` exige diagnóstico técnico persistido.
+2. `DIAGNOSTICO_PRONTO → ORCAMENTO` ocorre pelo fluxo de orçamento, não pelo
+   endpoint genérico de status.
+3. Aprovação/recusa manual de orçamento exige orçamento enviado.
+4. Aprovação de orçamento reserva peças; se houver falta, a OS entra em
+   `AGUARDANDO_PECA`; se houver estoque, entra em `ORCAMENTO_APROVADO`.
+5. Recebimento total de compra vinculada pode avançar automaticamente
+   `AGUARDANDO_PECA → ORCAMENTO_APROVADO`.
+6. Entrar em `EM_EXECUCAO` baixa as peças reservadas uma única vez.
+7. OS `ENTREGUE` ou `CANCELADA` é terminal e não pode ser editada.
+8. OS `ORCAMENTO_APROVADO` ou `AGUARDANDO_PECA` é somente leitura; para editar,
+   o orçamento deve ser reaberto pelo fluxo de orçamento.
+9. Toda transição grava `ServiceOrderStatusHistory` e `AuditLog`.
+10. Transição inválida lança erro de domínio e retorna `422`.
+
+A página de detalhe da OS consome `availableTransitions` retornado pela API;
+assim, a UI não duplica a regra e não oferece botões incompatíveis com o estado
+real da OS.
 
 ---
 
@@ -375,6 +401,9 @@ Padrões visuais:
 
 **Fase 8 — Mensagens, Site público, Blog**
 - Templates + variáveis + eventos automáticos. Site público (SEO) + painel admin.
+- Header público com menu mobile, ações de WhatsApp/área restrita, endereço clicável
+  para Google Maps/Waze no mobile e home responsiva com seções principais sempre
+  visíveis, mesmo sem serviços/blog cadastrados.
   Blog CRUD.
 
 **Fase 9 — Configurações, Auditoria (telas), IA, Relatórios**
@@ -397,3 +426,40 @@ Padrões visuais:
 ## 14. Ambiente da máquina (verificado)
 
 - Node v24.15.0 · npm 11.14.1 · pnpm 9.15.9 (instalado via npm global) · Docker 29.4.2 · git 2.45.1 (Windows).
+### Melhorias recentes — OS, Kanban e produtividade
+
+- **Timeline da OS**: a OS agora possui `ServiceOrderEvent`, registrando alterações de status, notas técnicas, checklist, fotos, eventos sistêmicos e visibilidade interna/pública. O endpoint `GET /api/service-orders/:id/timeline` retorna a linha do tempo operacional e o detalhe da OS também inclui `events`.
+- **Notificações automáticas**: eventos relevantes da OS disparam notificações internas para atendimento/administração e mensagens automáticas por templates (`OS_OPENED`, `DIAGNOSIS_READY`, `QUOTE_SENT`, `QUOTE_APPROVED`, `OS_IN_EXECUTION`, `OS_READY`, `CUSTOMER_NOTIFIED`, `VEHICLE_DELIVERED`). O seed cria templates WhatsApp simulados com `autoSend` ativo.
+- **Modo técnico mobile**: o detalhe da OS possui painel para o técnico registrar checklist, observações e fotos. Fotos usam o endpoint seguro `/uploads`; atualizações podem ser marcadas como públicas para aparecerem na consulta do cliente.
+- **Kanban com drag-and-drop**: além dos botões rápidos, o card pode ser arrastado para outra coluna quando existir transição rápida válida. Cancelamento continua oculto no Kanban.
+- **Dashboard de produtividade**: novo endpoint `GET /api/dashboard/productivity` calcula ciclo médio, tempo médio por etapa e produtividade por técnico nos últimos 30 dias.
+
+
+## Central de Pré-atendimento
+
+Os contatos recebidos pelo site público entram na Central de Pré-atendimento (`/leads`) antes de serem convertidos em cliente, veículo e OS. O objetivo é evitar cadastros duplicados e erros operacionais com placa/cliente.
+
+Fluxo implementado:
+
+1. o formulário público registra nome, telefone, e-mail, placa, veículo informado e mensagem;
+2. o backend procura clientes por nome, telefone, WhatsApp e e-mail;
+3. o backend procura veículo pela placa normalizada;
+4. a tela mostra alerta verde quando cliente e veículo conferem, amarelo quando a placa existe para outro cliente e cinza quando não há dados suficientes;
+5. o atendente pode vincular cliente existente, vincular veículo existente, registrar contatos telefônicos/WhatsApp/e-mail e converter o lead em OS;
+6. cada contato e ação relevante gera histórico próprio do pré-atendimento.
+
+Principais tabelas:
+
+- `leads`: dados originais do site, status de triagem, vínculos sugeridos/convertidos e alerta de conferência;
+- `lead_contact_attempts`: tentativas de contato, canal, resultado, observação e data de retorno;
+- `lead_events`: timeline operacional do pré-atendimento.
+
+Endpoints principais:
+
+- `GET /api/leads`
+- `GET /api/leads/:id`
+- `POST /api/leads/:id/status`
+- `POST /api/leads/:id/contact-attempts`
+- `POST /api/leads/:id/link-customer`
+- `POST /api/leads/:id/link-vehicle`
+- `POST /api/leads/:id/convert-to-os`

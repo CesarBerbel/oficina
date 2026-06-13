@@ -5,6 +5,16 @@ import {
   ServiceOrderDomainError,
 } from './service-order.errors';
 
+const context = (
+  overrides: Partial<Parameters<typeof SM.availableTransitions>[0]> = {},
+) => ({
+  status: 'ENTRADA' as ServiceOrderStatus,
+  diagnosis: 'Diagnóstico técnico preenchido',
+  itemCount: 1,
+  quoteStatus: null,
+  ...overrides,
+});
+
 describe('ServiceOrderStateMachine', () => {
   it('permite o caminho feliz completo', () => {
     const path: ServiceOrderStatus[] = [
@@ -78,22 +88,37 @@ describe('ServiceOrderStateMachine', () => {
     expect(() => SM.assertEditable('EM_EXECUCAO')).not.toThrow();
   });
 
-  it('bloqueia edição com orçamento aprovado (somente leitura)', () => {
+  it('bloqueia edição com orçamento aprovado ou aguardando peça', () => {
     expect(() => SM.assertEditable('ORCAMENTO_APROVADO')).toThrow(
+      ServiceOrderDomainError,
+    );
+    expect(() => SM.assertEditable('AGUARDANDO_PECA')).toThrow(
       ServiceOrderDomainError,
     );
   });
 
-  it('permite reabrir o orçamento (ORCAMENTO_APROVADO -> DIAGNOSTICO_PRONTO)', () => {
+  it('permite reabrir o orçamento no domínio, mas não como ação manual de status', () => {
     expect(() =>
       SM.assertTransition('ORCAMENTO_APROVADO', 'DIAGNOSTICO_PRONTO'),
     ).not.toThrow();
+    expect(() =>
+      SM.assertManualTransition(
+        context({ status: 'ORCAMENTO_APROVADO' }),
+        'DIAGNOSTICO_PRONTO',
+      ),
+    ).toThrow(InvalidStateTransitionError);
   });
 
-  it('permite aprovar com falta de peça (ORCAMENTO -> AGUARDANDO_PECA)', () => {
+  it('permite aprovar com falta de peça como transição sistêmica', () => {
     expect(() =>
       SM.assertTransition('ORCAMENTO', 'AGUARDANDO_PECA'),
     ).not.toThrow();
+    expect(() =>
+      SM.assertManualTransition(
+        context({ status: 'ORCAMENTO', quoteStatus: 'ENVIADO' }),
+        'AGUARDANDO_PECA',
+      ),
+    ).toThrow(InvalidStateTransitionError);
   });
 
   it('da AGUARDANDO_PECA avança para aprovado ou execução', () => {
@@ -105,15 +130,46 @@ describe('ServiceOrderStateMachine', () => {
     ).not.toThrow();
   });
 
-  it('permite reabrir o orçamento aguardando peça (AGUARDANDO_PECA -> DIAGNOSTICO_PRONTO)', () => {
+  it('bloqueia ação manual de diagnóstico pronto sem diagnóstico salvo', () => {
+    const actionContext = context({ status: 'ENTRADA', diagnosis: '' });
+
     expect(() =>
-      SM.assertTransition('AGUARDANDO_PECA', 'DIAGNOSTICO_PRONTO'),
+      SM.assertManualTransition(actionContext, 'DIAGNOSTICO_PRONTO'),
+    ).toThrow(ServiceOrderDomainError);
+
+    expect(
+      SM.availableTransitions(actionContext).find(
+        (item) => item.status === 'DIAGNOSTICO_PRONTO',
+      )?.disabledReason,
+    ).toContain('diagnóstico técnico');
+  });
+
+  it('bloqueia aprovação/recusa manual sem orçamento enviado', () => {
+    const actionContext = context({ status: 'ORCAMENTO', quoteStatus: null });
+
+    expect(() =>
+      SM.assertManualTransition(actionContext, 'ORCAMENTO_APROVADO'),
+    ).toThrow(ServiceOrderDomainError);
+    expect(() =>
+      SM.assertManualTransition(actionContext, 'ORCAMENTO_RECUSADO'),
+    ).toThrow(ServiceOrderDomainError);
+  });
+
+  it('permite aprovação manual com orçamento enviado', () => {
+    expect(() =>
+      SM.assertManualTransition(
+        context({ status: 'ORCAMENTO', quoteStatus: 'ENVIADO' }),
+        'ORCAMENTO_APROVADO',
+      ),
     ).not.toThrow();
   });
 
-  it('bloqueia edição aguardando peça (somente leitura)', () => {
-    expect(() => SM.assertEditable('AGUARDANDO_PECA')).toThrow(
-      ServiceOrderDomainError,
-    );
+  it('não expõe transições sistêmicas como ação manual', () => {
+    const actions = SM.availableTransitions(
+      context({ status: 'DIAGNOSTICO_PRONTO' }),
+    ).map((item) => item.status);
+
+    expect(actions).not.toContain('ORCAMENTO');
+    expect(actions).toContain('CANCELADA');
   });
 });

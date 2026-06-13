@@ -78,3 +78,24 @@
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 }
+
+@layer utilities {
+  @keyframes brand-marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(calc(-50% - 0.5rem));
+    }
+  }
+
+  .animate-brand-marquee {
+    animation: brand-marquee 28s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-brand-marquee {
+      animation: none;
+    }
+  }
+}

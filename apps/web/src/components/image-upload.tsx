@@ -47,7 +47,7 @@ export function ImageUpload({
         <input
           ref={ref}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp,image/gif"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];

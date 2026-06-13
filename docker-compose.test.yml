@@ -1,0 +1,22 @@
+# Infra descartável para testes E2E locais. Não reutilize o banco de desenvolvimento.
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: oficina_postgres_test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_TEST_USER:-oficina}
+      POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD:-oficina_test_pwd}
+      POSTGRES_DB: ${POSTGRES_TEST_DB:-oficina_test}
+    ports:
+      - '${POSTGRES_TEST_PORT:-5434}:5432'
+    volumes:
+      - oficina_pgdata_test:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_TEST_USER:-oficina} -d ${POSTGRES_TEST_DB:-oficina_test}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  oficina_pgdata_test:

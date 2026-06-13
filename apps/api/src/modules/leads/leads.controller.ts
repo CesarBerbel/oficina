@@ -1,9 +1,23 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import {
+  appointmentActionSchema,
+  convertLeadToServiceOrderSchema,
+  createDirectReceptionLeadSchema,
+  linkLeadCustomerSchema,
+  linkLeadVehicleSchema,
   listLeadsQuerySchema,
+  registerLeadContactSchema,
+  scheduleLeadSchema,
   updateLeadStatusSchema,
   Permission,
+  type AppointmentActionInput,
+  type ConvertLeadToServiceOrderInput,
+  type CreateDirectReceptionLeadInput,
+  type LinkLeadCustomerInput,
+  type LinkLeadVehicleInput,
   type ListLeadsQuery,
+  type RegisterLeadContactInput,
+  type ScheduleLeadInput,
   type UpdateLeadStatusInput,
 } from '@oficina/shared';
 import { LeadsService } from './leads.service';
@@ -25,6 +39,22 @@ export class LeadsController {
     return this.leads.list(actor.tenantId, query);
   }
 
+  @Post('direct-reception')
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  createDirectReception(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body(new ZodValidationPipe(createDirectReceptionLeadSchema))
+    body: CreateDirectReceptionLeadInput,
+  ) {
+    return this.leads.createDirectReception(actor, body);
+  }
+
+  @Get(':id')
+  @RequirePermission(Permission.CUSTOMERS_READ)
+  findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.leads.findOne(actor.tenantId, id);
+  }
+
   @Post(':id/status')
   @RequirePermission(Permission.CUSTOMERS_WRITE)
   updateStatus(
@@ -33,5 +63,107 @@ export class LeadsController {
     @Body(new ZodValidationPipe(updateLeadStatusSchema)) body: UpdateLeadStatusInput,
   ) {
     return this.leads.updateStatus(actor, id, body.status);
+  }
+
+  @Post(':id/contact-attempts')
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  registerContact(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(registerLeadContactSchema))
+    body: RegisterLeadContactInput,
+  ) {
+    return this.leads.registerContact(actor, id, body);
+  }
+
+  @Post(':id/schedule')
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  schedule(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(scheduleLeadSchema)) body: ScheduleLeadInput,
+  ) {
+    return this.leads.schedule(actor, id, body);
+  }
+
+  @Post(':id/confirm-appointment')
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  confirmAppointment(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(appointmentActionSchema)) body: AppointmentActionInput,
+  ) {
+    return this.leads.confirmAppointment(actor, id, body);
+  }
+
+  @Post(':id/check-in')
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  checkIn(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(appointmentActionSchema)) body: AppointmentActionInput,
+  ) {
+    return this.leads.checkIn(actor, id, body);
+  }
+
+  @Post(':id/no-show')
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  noShow(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(appointmentActionSchema)) body: AppointmentActionInput,
+  ) {
+    return this.leads.noShow(actor, id, body);
+  }
+
+  @Post(':id/cancel-check-in')
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  cancelCheckIn(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(appointmentActionSchema)) body: AppointmentActionInput,
+  ) {
+    return this.leads.cancelCheckIn(actor, id, body);
+  }
+
+  @Post(':id/cancel-appointment')
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  cancelAppointment(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(appointmentActionSchema)) body: AppointmentActionInput,
+  ) {
+    return this.leads.cancelAppointment(actor, id, body);
+  }
+
+  @Post(':id/link-customer')
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  linkCustomer(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(linkLeadCustomerSchema)) body: LinkLeadCustomerInput,
+  ) {
+    return this.leads.linkCustomer(actor, id, body);
+  }
+
+  @Post(':id/link-vehicle')
+  @RequirePermission(Permission.VEHICLES_WRITE)
+  linkVehicle(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(linkLeadVehicleSchema)) body: LinkLeadVehicleInput,
+  ) {
+    return this.leads.linkVehicle(actor, id, body);
+  }
+
+  @Post(':id/convert-to-os')
+  @RequirePermission(Permission.OS_WRITE)
+  convertToServiceOrder(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(convertLeadToServiceOrderSchema))
+    body: ConvertLeadToServiceOrderInput,
+  ) {
+    return this.leads.convertToServiceOrder(actor, id, body);
   }
 }

@@ -12,6 +12,7 @@ import {
   type CustomerDto,
 } from '@oficina/shared';
 import { ApiError } from '@/lib/api';
+import { buildWhatsAppHref } from '@/lib/contact-links';
 import { maskCpfCnpj, maskPhone } from '@/lib/masks';
 import { useAuth } from '@/lib/auth-context';
 import { useCustomers, useDeleteCustomer } from '@/features/customers/use-customers';
@@ -153,7 +154,7 @@ export default function CustomersPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{c.document ? maskCpfCnpj(c.document) : '—'}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {c.phone ? maskPhone(c.phone) : c.whatsapp ? maskPhone(c.whatsapp) : c.email ?? '—'}
+                    <CustomerContact customer={c} />
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -186,9 +187,9 @@ export default function CustomersPage() {
                   <Link href={`/clientes/${c.id}?returnTo=${encodeURIComponent('/clientes')}`} className="block truncate font-medium hover:underline">
                     {c.name}
                   </Link>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {c.document ? maskCpfCnpj(c.document) : c.phone ? maskPhone(c.phone) : c.email ?? '—'}
-                  </p>
+                  <div className="truncate text-sm text-muted-foreground">
+                    {c.document ? maskCpfCnpj(c.document) : <CustomerContact customer={c} />}
+                  </div>
                 </div>
                 <RowActions c={c} canWrite={canWrite} onEdit={(x) => { setEditing(x); setDialogOpen(true); }} onDelete={handleDelete} />
               </div>
@@ -220,6 +221,30 @@ export default function CustomersPage() {
       )}
 
       <CustomerFormDialog open={dialogOpen} onOpenChange={setDialogOpen} customer={editing} />
+    </div>
+  );
+}
+
+
+function CustomerContact({ customer }: { customer: CustomerDto }) {
+  const whatsappHref = buildWhatsAppHref(customer.whatsapp);
+
+  if (!customer.phone && !customer.whatsapp && !customer.email) return <>—</>;
+
+  return (
+    <div className="space-y-0.5">
+      {customer.phone && <p>Telefone: {maskPhone(customer.phone)}</p>}
+      {whatsappHref && customer.whatsapp && (
+        <a
+          href={whatsappHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex hover:text-primary hover:underline"
+        >
+          WhatsApp: {maskPhone(customer.whatsapp)}
+        </a>
+      )}
+      {!customer.phone && !customer.whatsapp && customer.email && <p>{customer.email}</p>}
     </div>
   );
 }

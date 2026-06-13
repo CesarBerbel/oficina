@@ -29,3 +29,27 @@ export interface ActionItem {
   /** Idade da pendência mais antiga, em horas. */
   ageHours: number | null;
 }
+
+
+export interface DashboardProductivityStatusDto {
+  status: string;
+  label: string;
+  averageHours: number | null;
+  sampleSize: number;
+}
+
+export interface DashboardProductivityTechnicianDto {
+  technicianId: string | null;
+  technicianName: string;
+  deliveredOrders: number;
+  activeOrders: number;
+  averageCycleHours: number | null;
+}
+
+export interface DashboardProductivityDto {
+  periodDays: number;
+  deliveredOrders: number;
+  averageCycleHours: number | null;
+  averageStatusHours: DashboardProductivityStatusDto[];
+  technicians: DashboardProductivityTechnicianDto[];
+}

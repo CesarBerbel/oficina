@@ -11,6 +11,7 @@ import {
   type FuelType,
 } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
+import { buildWhatsAppHref } from '@/lib/contact-links';
 import { maskCpfCnpj, maskPhone } from '@/lib/masks';
 import { useCustomer } from '@/features/customers/use-customers';
 import { CustomerFormDialog } from '@/features/customers/customer-form-dialog';
@@ -48,6 +49,7 @@ export default function CustomerDetailPage({
   }
 
   const vehicles = vehiclesData?.data ?? [];
+  const whatsappHref = buildWhatsAppHref(customer.whatsapp);
   const address = [
     customer.street,
     customer.number,
@@ -88,7 +90,22 @@ export default function CustomerDetailPage({
           <CardContent className="space-y-3 text-sm">
             <Info label="Documento" value={customer.document ? maskCpfCnpj(customer.document) : null} />
             <Info icon={Phone} label="Telefone" value={customer.phone ? maskPhone(customer.phone) : null} />
-            <Info icon={Phone} label="WhatsApp" value={customer.whatsapp ? maskPhone(customer.whatsapp) : null} />
+            <Info
+              icon={Phone}
+              label="WhatsApp"
+              value={
+                whatsappHref && customer.whatsapp ? (
+                  <a
+                    href={whatsappHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-primary hover:underline"
+                  >
+                    {maskPhone(customer.whatsapp)}
+                  </a>
+                ) : null
+              }
+            />
             <Info icon={Mail} label="E-mail" value={customer.email} />
             <Info icon={MapPin} label="Endereço" value={address || null} />
             {customer.notes && (
@@ -170,7 +187,7 @@ function Info({
 }: {
   icon?: React.ComponentType<{ className?: string }>;
   label: string;
-  value: string | null;
+  value: React.ReactNode | null;
 }) {
   if (!value) return null;
   return (

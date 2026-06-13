@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
   BlogPostDto,
@@ -76,7 +76,6 @@ export class BlogService {
   private async uniqueSlug(tenantId: string, base: string, ignoreId?: string): Promise<string> {
     let slug = base || 'artigo';
     let n = 1;
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const clash = await this.prisma.blogPost.findFirst({
         where: { tenantId, slug, ...(ignoreId ? { NOT: { id: ignoreId } } : {}) },
