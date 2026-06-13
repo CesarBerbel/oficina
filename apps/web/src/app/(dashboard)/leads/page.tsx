@@ -867,9 +867,12 @@ function LeadDetailPanel({ id }: { id?: string }) {
     );
   }
 
+  const leadId = lead.id;
+  const hasAppointment = Boolean(lead.appointmentStartAt);
+
   async function changeStatus(statusValue: LeadStatus) {
     try {
-      await updateStatus.mutateAsync({ id: lead.id, status: statusValue });
+      await updateStatus.mutateAsync({ id: leadId, status: statusValue });
       toast.success('Status atualizado');
     } catch (err) {
       toast.error(errorMessage(err));
@@ -880,7 +883,7 @@ function LeadDetailPanel({ id }: { id?: string }) {
     event.preventDefault();
     try {
       await registerContact.mutateAsync({
-        id: lead.id,
+        id: leadId,
         input: {
           channel: contact.channel,
           outcome: contact.outcome,
@@ -904,7 +907,7 @@ function LeadDetailPanel({ id }: { id?: string }) {
     }
     try {
       await scheduleLead.mutateAsync({
-        id: lead.id,
+        id: leadId,
         input: {
           appointmentStartAt,
           appointmentEndAt: toIsoFromLocalInput(schedule.appointmentEndAt),
@@ -912,7 +915,7 @@ function LeadDetailPanel({ id }: { id?: string }) {
           appointmentNotes: schedule.appointmentNotes || undefined,
         },
       });
-      toast.success(lead.appointmentStartAt ? 'Agendamento remarcado' : 'Agendamento criado');
+      toast.success(hasAppointment ? 'Agendamento remarcado' : 'Agendamento criado');
     } catch (err) {
       toast.error(errorMessage(err));
     }
@@ -924,11 +927,11 @@ function LeadDetailPanel({ id }: { id?: string }) {
   ) {
     try {
       const input = { notes: schedule.appointmentNotes || undefined };
-      if (action === 'confirm') await confirmAppointment.mutateAsync({ id: lead.id, input });
-      if (action === 'check-in') await checkInLead.mutateAsync({ id: lead.id, input });
-      if (action === 'cancel-check-in') await cancelCheckIn.mutateAsync({ id: lead.id, input });
-      if (action === 'no-show') await noShowLead.mutateAsync({ id: lead.id, input });
-      if (action === 'cancel') await cancelAppointment.mutateAsync({ id: lead.id, input });
+      if (action === 'confirm') await confirmAppointment.mutateAsync({ id: leadId, input });
+      if (action === 'check-in') await checkInLead.mutateAsync({ id: leadId, input });
+      if (action === 'cancel-check-in') await cancelCheckIn.mutateAsync({ id: leadId, input });
+      if (action === 'no-show') await noShowLead.mutateAsync({ id: leadId, input });
+      if (action === 'cancel') await cancelAppointment.mutateAsync({ id: leadId, input });
       toast.success(successMessage);
     } catch (err) {
       toast.error(errorMessage(err));
@@ -937,7 +940,7 @@ function LeadDetailPanel({ id }: { id?: string }) {
 
   async function submitLinkCustomer(targetCustomerId: string) {
     try {
-      await linkCustomer.mutateAsync({ id: lead.id, input: { customerId: targetCustomerId } });
+      await linkCustomer.mutateAsync({ id: leadId, input: { customerId: targetCustomerId } });
       toast.success('Cliente vinculado');
     } catch (err) {
       toast.error(errorMessage(err));
@@ -946,7 +949,7 @@ function LeadDetailPanel({ id }: { id?: string }) {
 
   async function submitLinkVehicle(targetVehicleId: string) {
     try {
-      await linkVehicle.mutateAsync({ id: lead.id, input: { vehicleId: targetVehicleId } });
+      await linkVehicle.mutateAsync({ id: leadId, input: { vehicleId: targetVehicleId } });
       toast.success('Veículo vinculado');
     } catch (err) {
       toast.error(errorMessage(err));
@@ -957,7 +960,7 @@ function LeadDetailPanel({ id }: { id?: string }) {
     event.preventDefault();
     try {
       await convertLead.mutateAsync({
-        id: lead.id,
+        id: leadId,
         input: {
           customerId: customerId || undefined,
           customer: customerId
@@ -999,7 +1002,6 @@ function LeadDetailPanel({ id }: { id?: string }) {
     SEM_DADOS: 'border-muted bg-muted/40 text-muted-foreground',
   }[lead.match.conflictLevel];
 
-  const hasAppointment = Boolean(lead.appointmentStartAt);
   const isCheckedIn = lead.status === 'CLIENTE_CHEGOU' || Boolean(lead.checkedInAt);
   const isConverted = lead.status === 'CONVERTIDO' || Boolean(lead.convertedServiceOrderId);
   const isClosed = CLOSED_RECEPTION_STATUSES.has(lead.status);
