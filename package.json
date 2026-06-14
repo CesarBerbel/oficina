@@ -27,7 +27,8 @@
     "prisma:generate": "prisma generate --schema apps/api/prisma/schema.prisma",
     "prepare": "husky || true",
     "dev:turbo": "pnpm --filter @oficina/shared build && turbo run dev",
-    "dev:no-migrate": "pnpm --filter @oficina/shared build && turbo run dev"
+    "dev:no-migrate": "pnpm --filter @oficina/shared build && turbo run dev",
+    "seed": "prisma db seed --schema apps/api/prisma/schema.prisma"
   },
   "devDependencies": {
     "husky": "^9.1.7",

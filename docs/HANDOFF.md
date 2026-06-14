@@ -164,8 +164,10 @@ pnpm install --frozen-lockfile
 pnpm prisma:generate
 pnpm prisma:deploy
 pnpm prisma:seed                # cria oficina "oficina-modelo" + admin
+# ou personalizado:
+pnpm seed -- --oficina "Auto Mecânica Bandeirantes" --slug automec-band --user adm@adm.com --senha 321654
 pnpm dev                        # API :3333/api + Web :3000
-# Login: Oficina = oficina-modelo · admin@oficina.local / Admin@123
+# Login padrão: Oficina = oficina-modelo · admin@oficina.local / Admin@123
 ```
 
 ### E2E da API no Windows PowerShell

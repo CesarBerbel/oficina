@@ -3,6 +3,26 @@ import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
+type SeedOptions = {
+  tenantName?: string;
+  tenantSlug?: string;
+  adminEmail?: string;
+  adminPassword?: string;
+};
+
+const ARG_ALIASES: Record<string, keyof SeedOptions> = {
+  oficina: 'tenantName',
+  tenant: 'tenantName',
+  nome: 'tenantName',
+  name: 'tenantName',
+  slug: 'tenantSlug',
+  user: 'adminEmail',
+  usuario: 'adminEmail',
+  email: 'adminEmail',
+  senha: 'adminPassword',
+  password: 'adminPassword',
+};
+
 function slugify(value: string): string {
   return value
     .normalize('NFD')
@@ -12,18 +32,119 @@ function slugify(value: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
-async function main(): Promise<void> {
-  const tenantName = process.env.SEED_TENANT_NAME ?? 'Oficina Modelo';
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@oficina.local';
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'Admin@123';
-  const tenantSlug = process.env.SEED_TENANT_SLUG ?? tenantName;
+function cleanValue(value: string | undefined): string | undefined {
+  const cleaned = value?.trim();
+  return cleaned ? cleaned : undefined;
+}
+
+function shouldPrintHelp(args: string[]): boolean {
+  return args.includes('--help') || args.includes('-h');
+}
+
+function printHelp(): void {
+  console.log(`Uso:
+  pnpm prisma:seed -- --oficina "Auto Mecânica Bandeirantes" --slug automec-band --user adm@adm.com --senha 321654
+
+Opções:
+  --oficina, --tenant, --nome, --name    Nome da oficina/tenant
+  --slug                                Slug usado no login e no site público
+  --user, --usuario, --email            E-mail do usuário administrador
+  --senha, --password                   Senha do usuário administrador
+
+Também é possível usar variáveis de ambiente:
+  SEED_TENANT_NAME
+  SEED_TENANT_SLUG
+  SEED_ADMIN_EMAIL
+  SEED_ADMIN_PASSWORD`);
+}
+
+function parseSeedArgs(args: string[]): SeedOptions {
+  const options: SeedOptions = {};
+  let index = 0;
+
+  while (index < args.length) {
+    const rawArg = args[index];
+
+    if (!rawArg.startsWith('--')) {
+      index += 1;
+      continue;
+    }
+
+    const [rawKey, inlineValue] = rawArg.slice(2).split(/=(.*)/s, 2);
+    const optionKey = ARG_ALIASES[rawKey];
+
+    if (!optionKey) {
+      index += 1;
+      continue;
+    }
+
+    if (inlineValue !== undefined) {
+      const value = cleanValue(inlineValue);
+      if (!value) throw new Error(`Informe um valor para --${rawKey}.`);
+      options[optionKey] = value;
+      index += 1;
+      continue;
+    }
+
+    const valueParts: string[] = [];
+    let nextIndex = index + 1;
+    while (nextIndex < args.length && !args[nextIndex].startsWith('--')) {
+      valueParts.push(args[nextIndex]);
+      nextIndex += 1;
+    }
+
+    const value = cleanValue(valueParts.join(' '));
+    if (!value) throw new Error(`Informe um valor para --${rawKey}.`);
+
+    options[optionKey] = value;
+    index = nextIndex;
+  }
+
+  return options;
+}
+
+function getSeedOptions(): Required<SeedOptions> {
+  const cliOptions = parseSeedArgs(process.argv.slice(2));
+  const tenantName =
+    cleanValue(cliOptions.tenantName) ??
+    cleanValue(process.env.SEED_TENANT_NAME) ??
+    'Oficina Modelo';
+  const tenantSlug =
+    cleanValue(cliOptions.tenantSlug) ??
+    cleanValue(process.env.SEED_TENANT_SLUG) ??
+    tenantName;
+  const adminEmail =
+    cleanValue(cliOptions.adminEmail) ??
+    cleanValue(process.env.SEED_ADMIN_EMAIL) ??
+    'admin@oficina.local';
+  const adminPassword =
+    cleanValue(cliOptions.adminPassword) ??
+    cleanValue(process.env.SEED_ADMIN_PASSWORD) ??
+    'Admin@123';
 
   const slug = slugify(tenantSlug);
+  if (!slug) throw new Error('Informe um slug válido para a oficina.');
+
+  return {
+    tenantName,
+    tenantSlug: slug,
+    adminEmail,
+    adminPassword,
+  };
+}
+
+async function main(): Promise<void> {
+  if (shouldPrintHelp(process.argv.slice(2))) {
+    printHelp();
+    return;
+  }
+
+  const { tenantName, tenantSlug, adminEmail, adminPassword } = getSeedOptions();
 
   const tenant = await prisma.tenant.upsert({
-    where: { slug },
-    update: {},
-    create: { name: tenantName, slug },
+    where: { slug: tenantSlug },
+    update: { name: tenantName, active: true },
+    create: { name: tenantName, slug: tenantSlug },
   });
 
   const passwordHash = await argon2.hash(adminPassword);
@@ -39,8 +160,6 @@ async function main(): Promise<void> {
       role: Role.ADMIN,
     },
   });
-
-
 
   const baseTemplates: Array<{
     event: MessageEvent;
@@ -88,7 +207,6 @@ async function main(): Promise<void> {
       body: 'Olá {{cliente.nome}}, registramos a entrega do veículo da OS #{{os.numero}}. Obrigado pela confiança!',
     },
   ];
-
 
   const templates = baseTemplates.flatMap((template) => [
     {
