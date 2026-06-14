@@ -8,6 +8,7 @@ import {
   Copy,
   MessageCircle,
   RefreshCw,
+  Settings,
   Star,
   Users,
 } from 'lucide-react';
@@ -27,10 +28,13 @@ const PRIORITY_VARIANT: Record<PostSaleOpportunityPriority, BadgeProps['variant'
 };
 
 const KIND_LABEL: Record<PostSaleOpportunityDto['kind'], string> = {
-  REVISAO_PREVENTIVA: 'Revisão preventiva',
+  REVISAO_PREVENTIVA: 'Revisão por tempo',
+  REVISAO_KM: 'Revisão por KM',
   CLIENTE_INATIVO: 'Cliente inativo',
   RETORNO_POS_ENTREGA: 'Pós-entrega',
   ORCAMENTO_RECUSADO: 'Recuperar orçamento',
+  MANUTENCAO_RECOMENDADA: 'Manutenção recomendada',
+  CAMPANHA_SAZONAL: 'Campanha sazonal',
 };
 
 function whatsappHref(opportunity: PostSaleOpportunityDto): string | null {
@@ -62,17 +66,22 @@ export default function CrmPage() {
             Oportunidades automáticas de revisão, retorno, recuperação e reativação de clientes.
           </p>
         </div>
-        <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCw className={isFetching ? 'animate-spin' : ''} /> Atualizar
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/configuracoes/crm"><Settings /> Configurar CRM</Link>
+          </Button>
+          <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={isFetching ? 'animate-spin' : ''} /> Atualizar
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Kpi icon={Star} label="Oportunidades" value={data.summary.total} />
         <Kpi icon={AlertTriangle} label="Alta prioridade" value={data.summary.highPriority} tone="danger" />
-        <Kpi icon={Car} label="Revisões" value={data.summary.preventiveReview} />
+        <Kpi icon={Car} label="Revisões" value={data.summary.preventiveReview + data.summary.kmReview} />
         <Kpi icon={Users} label="Inativos" value={data.summary.inactiveCustomers} tone="warning" />
-        <Kpi icon={CalendarClock} label="Pós-entrega" value={data.summary.postDeliveryReturn} tone="success" />
+        <Kpi icon={CalendarClock} label="Campanhas/retorno" value={data.summary.postDeliveryReturn + data.summary.seasonalCampaigns} tone="success" />
       </div>
 
       {data.opportunities.length === 0 ? (
@@ -156,6 +165,9 @@ function OpportunityCard({ opportunity }: { opportunity: PostSaleOpportunityDto 
           <Info label="Último serviço" value={opportunity.lastServiceAt ? formatDate(opportunity.lastServiceAt) : '—'} />
           <Info label="Dias" value={opportunity.daysSinceLastService != null ? String(opportunity.daysSinceLastService) : '—'} />
           <Info label="Histórico" value={opportunity.estimatedValue != null ? formatCurrency(opportunity.estimatedValue) : '—'} />
+          {opportunity.currentKm != null ? <Info label="KM atual" value={opportunity.currentKm.toLocaleString('pt-BR')} /> : null}
+          {opportunity.nextReviewKm != null ? <Info label="Próxima KM" value={opportunity.nextReviewKm.toLocaleString('pt-BR')} /> : null}
+          {opportunity.campaignName ? <Info label="Campanha" value={opportunity.campaignName} /> : null}
         </div>
 
         <div className="rounded-lg border bg-background p-3 text-sm">

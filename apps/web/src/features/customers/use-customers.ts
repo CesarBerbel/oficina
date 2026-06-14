@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query';
 import type {
   CreateCustomerInput,
+  Customer360Dto,
   CustomerDto,
   ListCustomersQuery,
   Paginated,
@@ -29,6 +30,16 @@ export function useCustomers(params: Partial<ListCustomersQuery>) {
     queryKey: ['customers', params],
     queryFn: () => api.get<Paginated<CustomerDto>>(`/customers${qs(params)}`),
     placeholderData: keepPreviousData,
+  });
+}
+
+
+
+export function useCustomer360(id: string | undefined) {
+  return useQuery({
+    queryKey: ['customers', '360', id],
+    queryFn: () => api.get<Customer360Dto>(`/customers/${id}/360`),
+    enabled: !!id,
   });
 }
 

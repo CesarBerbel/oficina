@@ -269,6 +269,26 @@ export class QuotesService {
 
     const res = await this.messaging.sendQuoteEmail(actor.tenantId, orderId);
 
+    await this.prisma.serviceOrderEvent.create({
+      data: {
+        tenantId: actor.tenantId,
+        serviceOrderId: orderId,
+        type: 'STATUS_CHANGE',
+        title: 'E-mail de orçamento enviado',
+        description: `Link do orçamento enviado para ${res.to}`,
+        visibility: 'PUBLIC',
+      },
+    });
+
+    await this.notifications.notifyRoles(actor.tenantId, ['ADMIN', 'ATENDENTE'], {
+      type: 'QUOTE_SENT',
+      title: 'Orçamento enviado por e-mail',
+      body: `OS com link de aprovação enviado para ${res.to}.`,
+      link: `/os/${orderId}`,
+      entity: 'ServiceOrder',
+      entityId: orderId,
+    });
+
     await this.audit.record({
       tenantId: actor.tenantId,
       userId: actor.id,

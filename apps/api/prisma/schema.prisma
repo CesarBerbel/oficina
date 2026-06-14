@@ -241,6 +241,8 @@ model Tenant {
   categories     Category[]
   serviceOrderEvents ServiceOrderEvent[]
   receptionScheduleBlocks ReceptionScheduleBlock[]
+  crmSettings CrmSettings?
+  operationalSettings OperationalSettings?
 
   @@map("tenants")
 }
@@ -805,6 +807,70 @@ model Category {
   @@unique([tenantId, kind, name])
   @@index([tenantId, kind])
   @@map("categories")
+}
+
+
+/// Configurações do CRM de pós-venda e retenção.
+model CrmSettings {
+  id        String   @id @default(cuid())
+  tenantId  String   @unique
+
+  enabled Boolean @default(true)
+
+  reviewIntervalDays Int @default(180)
+  reviewIntervalKm Int @default(10000)
+  reviewKmWarning Int @default(1000)
+  inactiveCustomerDays Int @default(365)
+  postDeliveryStartDays Int @default(3)
+  postDeliveryEndDays Int @default(21)
+  refusedQuoteRecoveryDays Int @default(45)
+  refusedQuoteMinimumAgeDays Int @default(15)
+  highPriorityDays Int @default(365)
+  mediumPriorityDays Int @default(210)
+
+  enablePreventiveReview Boolean @default(true)
+  enableKmReview Boolean @default(true)
+  enableInactiveCustomers Boolean @default(true)
+  enablePostDeliveryReturn Boolean @default(true)
+  enableRefusedQuoteRecovery Boolean @default(true)
+  enableRecommendedMaintenance Boolean @default(true)
+  enableSeasonalCampaigns Boolean @default(true)
+
+  recommendedMaintenanceKeywords String[] @default(["recomend", "retornar", "acompanhar", "atenção", "preventiva"])
+  seasonalCampaigns Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("crm_settings")
+}
+
+
+/// Configurações do dashboard operacional e inbox unificado.
+model OperationalSettings {
+  id        String   @id @default(cuid())
+  tenantId  String   @unique
+
+  appointmentLookaheadHours Int @default(12)
+  waitingCustomerMinutes Int @default(30)
+  stalledServiceOrderHours Int @default(24)
+  pendingApprovalHours Int @default(24)
+  crmHighPriorityLimit Int @default(10)
+
+  enableAppointmentAlerts Boolean @default(true)
+  enableWaitingCustomerAlerts Boolean @default(true)
+  enableStalledOsAlerts Boolean @default(true)
+  enablePendingApprovalAlerts Boolean @default(true)
+  enableCrmAlerts Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("operational_settings")
 }
 
 /// Configuração do assistente de IA (singleton por oficina). Chave criptografada.

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomInt } from 'node:crypto';
@@ -9,11 +9,14 @@ import {
   type GarageOrderDto,
   type GarageRequestCodeResult,
   type GarageSessionDto,
+  type QuoteDecisionInput,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
 import { MessagingService } from '../messaging/messaging.service';
 import { SiteService, type PublicTenantLookup } from '../site/site.service';
+import { QuotesService } from '../quotes/quotes.service';
+import { quoteInclude, toQuoteDto } from '../quotes/quote.mapper';
 
 const dec = (v: Prisma.Decimal | number | null | undefined): number =>
   v == null ? 0 : Number(v);
@@ -37,6 +40,7 @@ export class GarageService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly messaging: MessagingService,
+    private readonly quotes: QuotesService,
     private readonly site: SiteService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
@@ -245,6 +249,11 @@ export class GarageService {
           include: {
             items: { orderBy: { createdAt: 'asc' } },
             history: { orderBy: { createdAt: 'asc' } },
+            events: {
+              where: { visibility: 'PUBLIC' },
+              orderBy: { createdAt: 'asc' },
+            },
+            quote: { include: quoteInclude },
           },
         },
       },
@@ -260,17 +269,30 @@ export class GarageService {
       reportedProblem: o.reportedProblem,
       diagnosis: o.diagnosis,
       total: dec(o.total),
+      publicToken: o.publicToken,
+      quote: o.quote ? toQuoteDto(o.quote, o.publicToken) : null,
       items: o.items.map((it) => ({
         kind: it.kind,
         description: it.description,
         quantity: dec(it.quantity),
         total: dec(it.total),
       })),
-      timeline: o.history.map((h) => ({
-        status: h.status,
-        note: h.note,
-        createdAt: h.createdAt.toISOString(),
-      })),
+      timeline:
+        o.events.length > 0
+          ? o.events.map((event) => ({
+              status: event.toStatus,
+              title: event.title,
+              note: event.description,
+              photos: event.photos,
+              createdAt: event.createdAt.toISOString(),
+            }))
+          : o.history.map((h) => ({
+              status: h.status,
+              title: h.status,
+              note: h.note,
+              photos: [],
+              createdAt: h.createdAt.toISOString(),
+            })),
     }));
 
     // OS atual = a mais recente que ainda não foi entregue/cancelada.
@@ -292,5 +314,36 @@ export class GarageService {
       current,
       past,
     };
+  }
+
+  /**
+   * Aplica uma decisão de orçamento a partir da sessão da garagem. Garante que
+   * a OS pertence ao veículo autenticado antes de reutilizar a regra pública
+   * existente de aprovação/recusa por token.
+   */
+  async decideQuote(
+    authHeader: string | undefined,
+    orderId: string,
+    input: QuoteDecisionInput,
+    meta: { ip?: string | null; userAgent?: string | string[] | null },
+  ) {
+    const session = await this.authenticate(authHeader);
+    const order = await this.prisma.serviceOrder.findFirst({
+      where: {
+        id: orderId,
+        tenantId: session.tid,
+        vehicleId: session.sub,
+        customerId: session.cid,
+      },
+      select: { publicToken: true },
+    });
+    if (!order) throw new NotFoundException('Orçamento não encontrado.');
+
+    return this.quotes.applyDecisionByToken(order.publicToken, input, {
+      ip: meta.ip ?? null,
+      userAgent: Array.isArray(meta.userAgent)
+        ? (meta.userAgent[0] ?? null)
+        : (meta.userAgent ?? null),
+    });
   }
 }

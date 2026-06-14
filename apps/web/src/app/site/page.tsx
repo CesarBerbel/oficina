@@ -260,38 +260,28 @@ export default async function SiteHome() {
             Ver todos os serviços <ArrowRight className="size-4" />
           </Link>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
           {featuredServices.map((svc) => (
             <div
               key={svc.id}
-              className="overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary"
+              className="min-w-[78%] snap-start rounded-xl border bg-card p-5 transition-colors hover:border-primary sm:min-w-0"
             >
-              {s.serviceCardImageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={s.serviceCardImageUrl}
-                  alt={svc.name}
-                  className="h-40 w-full object-cover opacity-[0.85]"
-                />
+              {svc.category && (
+                <span className="text-xs font-medium uppercase text-primary">
+                  {svc.category}
+                </span>
               )}
-              <div className="p-5">
-                {svc.category && (
-                  <span className="text-xs font-medium uppercase text-primary">
-                    {svc.category}
-                  </span>
-                )}
-                <h3 className="mt-1 font-semibold">{svc.name}</h3>
-                {svc.description && (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {svc.description}
-                  </p>
-                )}
-                {svc.salePrice > 0 && (
-                  <p className="mt-3 text-sm font-semibold text-primary">
-                    a partir de {formatCurrency(svc.salePrice)}
-                  </p>
-                )}
-              </div>
+              <h3 className="mt-1 font-semibold">{svc.name}</h3>
+              {svc.description && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {svc.description}
+                </p>
+              )}
+              {svc.salePrice > 0 && (
+                <p className="mt-3 text-sm font-semibold text-primary">
+                  a partir de {formatCurrency(svc.salePrice)}
+                </p>
+              )}
             </div>
           ))}
         </div>

@@ -9,7 +9,9 @@ import {
   ShieldCheck,
   BarChart3,
   Bell,
+  Gauge,
   Tags,
+  Repeat,
   ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -28,6 +30,8 @@ const ITEMS: Item[] = [
   { title: 'Site público', description: 'Dados da oficina, capacidade, logo e textos.', href: '/site-config', icon: Globe, permission: 'site:manage' },
   { title: 'Categorias', description: 'Categorias de clientes, serviços e peças.', href: '/categorias', icon: Tags, permission: 'settings:manage' },
   { title: 'Mensagens', description: 'Templates, variáveis e eventos automáticos.', href: '/mensagens', icon: MessageSquare, permission: 'messages:read' },
+  { title: 'CRM pós-venda', description: 'Regras de revisão, inatividade, campanhas e retenção.', href: '/configuracoes/crm', icon: Repeat, permission: 'settings:manage' },
+  { title: 'Operação diária', description: 'Regras do dashboard operacional, alertas e inbox.', href: '/configuracoes/operacional', icon: Gauge, permission: 'settings:manage' },
   { title: 'Usuários e permissões', description: 'Funcionários, perfis e acessos.', href: '/usuarios', icon: Users, permission: 'users:read' },
   { title: 'Assistente de IA', description: 'Provedor, chave de API e instruções.', href: '/ia', icon: Sparkles, permission: 'ai:manage' },
   { title: 'Relatórios', description: 'Faturamento, OS por status e rankings.', href: '/relatorios', icon: BarChart3, permission: 'dashboard:read' },

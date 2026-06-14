@@ -5,6 +5,9 @@ import webpush from 'web-push';
 import type {
   ListNotificationsQuery,
   NotificationDto,
+  NotificationInboxDto,
+  OperationalNotificationCategory,
+  OperationalPriority,
   Paginated,
   PushSubscribeInput,
 } from '@oficina/shared';
@@ -38,6 +41,73 @@ export class NotificationsService {
       );
       this.pushEnabled = true;
     }
+  }
+
+
+  private classifyNotification(n: { type: string; title: string; link: string | null }): {
+    category: OperationalNotificationCategory;
+    priority: OperationalPriority;
+  } {
+    const value = `${n.type} ${n.title} ${n.link ?? ''}`.toLowerCase();
+    let category: OperationalNotificationCategory = 'sistema';
+    if (value.includes('lead') || value.includes('recep') || value.includes('/leads') || value.includes('cliente chegou')) {
+      category = 'recepcao';
+    } else if (value.includes('crm') || value.includes('revis') || value.includes('pós') || value.includes('pos')) {
+      category = 'crm';
+    } else if (value.includes('compra') || value.includes('finance') || value.includes('pagamento')) {
+      category = 'financeiro';
+    } else if (value.includes('os') || value.includes('orçamento') || value.includes('orcamento') || value.includes('/os')) {
+      category = 'oficina';
+    }
+
+    let priority: OperationalPriority = 'baixa';
+    if (value.includes('aprov') || value.includes('chegou') || value.includes('parada') || value.includes('atras')) {
+      priority = 'alta';
+    } else if (value.includes('agend') || value.includes('retorno') || value.includes('orçamento') || value.includes('orcamento')) {
+      priority = 'media';
+    }
+    return { category, priority };
+  }
+
+  async inbox(userId: string): Promise<NotificationInboxDto> {
+    const rows = await this.prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 80,
+    });
+    const categories: NotificationInboxDto['categories'] = [
+      { category: 'recepcao', label: 'Recepção', unread: 0, total: 0 },
+      { category: 'oficina', label: 'Oficina', unread: 0, total: 0 },
+      { category: 'crm', label: 'CRM', unread: 0, total: 0 },
+      { category: 'financeiro', label: 'Financeiro', unread: 0, total: 0 },
+      { category: 'sistema', label: 'Sistema', unread: 0, total: 0 },
+    ];
+    const byCategory = new Map(categories.map((category) => [category.category, category]));
+    const items = rows.map((row) => {
+      const classified = this.classifyNotification(row);
+      const category = byCategory.get(classified.category);
+      if (category) {
+        category.total += 1;
+        if (!row.read) category.unread += 1;
+      }
+      return {
+        id: row.id,
+        type: row.type,
+        category: classified.category,
+        priority: classified.priority,
+        title: row.title,
+        body: row.body,
+        link: row.link,
+        read: row.read,
+        createdAt: row.createdAt.toISOString(),
+      };
+    });
+    return {
+      generatedAt: new Date().toISOString(),
+      unreadTotal: rows.filter((row) => !row.read).length,
+      categories,
+      items,
+    };
   }
 
   private toDto(n: Prisma.NotificationGetPayload<object>): NotificationDto {

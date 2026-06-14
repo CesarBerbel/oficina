@@ -1,15 +1,29 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { Car, LogOut, Wrench, Clock, FileText } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Car,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  FileText,
+  LogOut,
+  MailCheck,
+  Wrench,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { CarLoader } from '@/components/car-loader';
 import {
+  QUOTE_STATUS_LABELS,
   SERVICE_ORDER_STATUS_LABELS,
+  cpfCnpjSchema,
   type GarageOrderDto,
+  type QuoteItemDto,
 } from '@oficina/shared';
 import {
+  decideGarageQuote,
   fetchGarageData,
   setGarageToken,
   getGarageToken,
@@ -17,7 +31,14 @@ import {
 } from '@/features/garage/garage-api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { maskCpfCnpj } from '@/lib/masks';
+
+type GarageOrderWithQuote = GarageOrderDto & {
+  quote: NonNullable<GarageOrderDto['quote']>;
+};
 
 export default function GaragemPage() {
   const router = useRouter();
@@ -65,18 +86,21 @@ export default function GaragemPage() {
     );
   }
 
+  const pendingQuotes = [data.current, ...data.past].filter(
+    (order): order is GarageOrderDto => !!order?.quote && order.quote.status === 'ENVIADO',
+  );
+
   return (
     <div className="container space-y-6 py-10">
-      {/* Cabeçalho do veículo */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Car className="size-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{data.vehicle.label}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Portal do Cliente</h1>
             <p className="text-sm text-muted-foreground">
-              Placa {data.vehicle.plate}
+              {data.vehicle.label} · Placa {data.vehicle.plate}
               {data.vehicle.currentKm != null &&
                 ` · ${data.vehicle.currentKm.toLocaleString('pt-BR')} km`}
               {` · ${data.customerName}`}
@@ -88,7 +112,28 @@ export default function GaragemPage() {
         </Button>
       </div>
 
-      {/* OS atual */}
+      {pendingQuotes.length > 0 && (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-semibold">Você tem orçamento aguardando aprovação</p>
+              <p className="text-sm text-muted-foreground">
+                Revise os itens, aprove total/parcialmente ou recuse diretamente neste portal.
+              </p>
+            </div>
+            <a href={`#os-${pendingQuotes[0].id}`}>
+              <Button size="sm">Ver orçamento</Button>
+            </a>
+          </CardContent>
+        </Card>
+      )}
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <InfoCard title="OS atual" value={data.current ? `#${data.current.number}` : 'Nenhuma'} />
+        <InfoCard title="Histórico" value={`${data.past.length} OS anteriores`} />
+        <InfoCard title="Orçamentos pendentes" value={String(pendingQuotes.length)} />
+      </section>
+
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Ordem de serviço atual
@@ -104,7 +149,6 @@ export default function GaragemPage() {
         )}
       </section>
 
-      {/* OS anteriores */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Histórico ({data.past.length})
@@ -113,8 +157,8 @@ export default function GaragemPage() {
           <p className="text-sm text-muted-foreground">Sem serviços anteriores.</p>
         ) : (
           <div className="space-y-4">
-            {data.past.map((o) => (
-              <OrderCard key={o.id} order={o} />
+            {data.past.map((order) => (
+              <OrderCard key={order.id} order={order} />
             ))}
           </div>
         )}
@@ -127,6 +171,19 @@ export default function GaragemPage() {
   );
 }
 
+function InfoCard({ title, value }: { title: string; value: string }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {title}
+        </p>
+        <p className="mt-1 text-lg font-semibold">{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function OrderCard({
   order,
   highlight,
@@ -134,11 +191,11 @@ function OrderCard({
   order: GarageOrderDto;
   highlight?: boolean;
 }) {
-  const services = order.items.filter((i) => i.kind === 'SERVICE');
-  const parts = order.items.filter((i) => i.kind === 'PART');
+  const services = order.items.filter((item) => item.kind === 'SERVICE');
+  const parts = order.items.filter((item) => item.kind === 'PART');
 
   return (
-    <Card className={highlight ? 'border-primary/40 shadow-sm' : undefined}>
+    <Card id={`os-${order.id}`} className={highlight ? 'border-primary/40 shadow-sm' : undefined}>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <FileText className="size-4" /> OS #{order.number}
@@ -158,76 +215,265 @@ function OrderCard({
           <p>{order.reportedProblem}</p>
         </div>
 
-        {services.length > 0 && (
+        {order.diagnosis && (
           <div>
-            <p className="mb-1 flex items-center gap-1.5 font-medium text-muted-foreground">
-              <Wrench className="size-3.5" /> Serviços
-            </p>
-            <ul className="space-y-1">
-              {services.map((s, i) => (
-                <li key={i} className="flex items-center justify-between gap-3">
-                  <span>
-                    {s.description}
-                    {s.quantity > 1 && (
-                      <span className="text-muted-foreground"> ×{s.quantity}</span>
-                    )}
-                  </span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {formatCurrency(s.total)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <p className="font-medium text-muted-foreground">Diagnóstico</p>
+            <p>{order.diagnosis}</p>
           </div>
         )}
 
-        {parts.length > 0 && (
-          <div>
-            <p className="mb-1 font-medium text-muted-foreground">Peças</p>
-            <ul className="space-y-1">
-              {parts.map((p, i) => (
-                <li key={i} className="flex items-center justify-between gap-3">
-                  <span>
-                    {p.description}
-                    {p.quantity > 1 && (
-                      <span className="text-muted-foreground"> ×{p.quantity}</span>
-                    )}
-                  </span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {formatCurrency(p.total)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <OrderItems title="Serviços" icon={<Wrench className="size-3.5" />} items={services} />
+        <OrderItems title="Peças" items={parts} />
 
         <div className="flex justify-between border-t pt-2 font-medium">
-          <span>Total</span>
+          <span>Total da OS</span>
           <span>{formatCurrency(order.total)}</span>
         </div>
 
-        {/* Linha do tempo */}
-        <div>
-          <p className="mb-2 flex items-center gap-1.5 font-medium text-muted-foreground">
-            <Clock className="size-3.5" /> Linha do tempo
-          </p>
-          <ol className="relative space-y-3 border-l pl-4">
-            {order.timeline.map((t, i) => (
-              <li key={i} className="relative">
-                <span className="absolute -left-[1.36rem] top-1 size-2.5 rounded-full bg-primary" />
-                <p className="font-medium">
-                  {SERVICE_ORDER_STATUS_LABELS[t.status]}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(t.createdAt).toLocaleString('pt-BR')}
-                  {t.note ? ` · ${t.note}` : ''}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </div>
+        {order.quote && <QuoteSection order={order as GarageOrderWithQuote} />}
+
+        <TimelineSection order={order} />
       </CardContent>
     </Card>
+  );
+}
+
+function OrderItems({
+  title,
+  icon,
+  items,
+}: {
+  title: string;
+  icon?: ReactNode;
+  items: GarageOrderDto['items'];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <p className="mb-1 flex items-center gap-1.5 font-medium text-muted-foreground">
+        {icon} {title}
+      </p>
+      <ul className="space-y-1">
+        {items.map((item, index) => (
+          <li key={`${item.description}-${index}`} className="flex items-center justify-between gap-3">
+            <span>
+              {item.description}
+              {item.quantity > 1 && (
+                <span className="text-muted-foreground"> ×{item.quantity}</span>
+              )}
+            </span>
+            <span className="tabular-nums text-muted-foreground">
+              {formatCurrency(item.total)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function QuoteSection({ order }: { order: GarageOrderWithQuote }) {
+  const queryClient = useQueryClient();
+  const quote = order.quote;
+  const [decisions, setDecisions] = useState<Record<string, boolean>>({});
+  const [signature, setSignature] = useState('');
+  const [signerDoc, setSignerDoc] = useState('');
+
+  const decisionMutation = useMutation({
+    mutationFn: (reject: boolean) =>
+      decideGarageQuote(order.id, {
+        reject,
+        signatureName: signature,
+        signatureDoc: signerDoc,
+        itemDecisions: quote.items.map((item) => ({
+          itemId: item.id,
+          decision: reject || !isApproved(item) ? 'RECUSADO' : 'APROVADO',
+        })),
+      }),
+    onSuccess: async () => {
+      toast.success('Resposta do orçamento registrada.');
+      await queryClient.invalidateQueries({ queryKey: ['garage-data'] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : 'Erro ao responder orçamento.');
+    },
+  });
+
+  const groupedQuoteItems = useMemo(
+    () => quote.items.map((item) => ({ item, linked: !!item.parentItemId })),
+    [quote.items],
+  );
+
+  const docResult = cpfCnpjSchema.safeParse(signerDoc);
+  const canSubmit = signature.trim().length > 0 && docResult.success && docResult.data !== null;
+  const canDecide = quote.status === 'ENVIADO';
+
+  function isApproved(item: QuoteItemDto): boolean {
+    return decisions[item.id] ?? true;
+  }
+
+  function toggleItem(item: QuoteItemDto, checked: boolean) {
+    setDecisions((current) => ({ ...current, [item.id]: checked }));
+  }
+
+  return (
+    <div className="rounded-xl border bg-muted/30 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="flex items-center gap-1.5 font-semibold">
+            <MailCheck className="size-4" /> Orçamento digital
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Status: {QUOTE_STATUS_LABELS[quote.status]}
+            {quote.decidedAt && ` · respondido em ${new Date(quote.decidedAt).toLocaleString('pt-BR')}`}
+          </p>
+        </div>
+        <a href={`/acompanhar/${quote.token}`} target="_blank" rel="noreferrer">
+          <Button variant="outline" size="sm">
+            <ExternalLink className="size-4" /> Abrir link direto
+          </Button>
+        </a>
+      </div>
+
+      {quote.publicNotes && (
+        <p className="mb-3 whitespace-pre-wrap rounded-lg bg-background p-3 text-xs text-muted-foreground">
+          {quote.publicNotes}
+        </p>
+      )}
+
+      <div className="divide-y rounded-lg border bg-background">
+        {groupedQuoteItems.map(({ item, linked }) => (
+          <div key={item.id} className={`flex items-center justify-between gap-3 p-3 ${linked ? 'pl-8' : ''}`}>
+            <div className="flex items-center gap-2">
+              {canDecide && (
+                <input
+                  type="checkbox"
+                  className="size-4"
+                  checked={isApproved(item)}
+                  onChange={(event) => toggleItem(item, event.target.checked)}
+                />
+              )}
+              <span>
+                {linked && <span className="mr-1 text-muted-foreground">↳</span>}
+                {item.description}
+                <span className="text-muted-foreground"> ×{item.quantity}</span>
+              </span>
+            </div>
+            <span className="font-medium">{formatCurrency(item.total)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 space-y-1 text-sm">
+        <Row label="Serviços" value={formatCurrency(quote.totalServices)} />
+        <Row label="Peças" value={formatCurrency(quote.totalParts)} />
+        {quote.discount > 0 && <Row label="Desconto" value={`- ${formatCurrency(quote.discount)}`} />}
+        <div className="flex justify-between pt-1 text-base font-semibold">
+          <span>Total</span>
+          <span>{formatCurrency(quote.total)}</span>
+        </div>
+      </div>
+
+      {canDecide ? (
+        <div className="mt-4 space-y-3 rounded-lg border bg-background p-3">
+          <p className="text-sm font-medium">Aprovação digital</p>
+          <p className="text-xs text-muted-foreground">
+            Desmarque itens que não deseja aprovar. A confirmação registra data, assinatura e origem da resposta.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Seu nome completo</Label>
+              <Input value={signature} onChange={(event) => setSignature(event.target.value)} placeholder="Nome completo" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>CPF ou CNPJ</Label>
+              <Input
+                value={signerDoc}
+                onChange={(event) => setSignerDoc(maskCpfCnpj(event.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+              />
+              {signerDoc.length > 0 && !canSubmit && (
+                <p className="text-xs text-destructive">Informe um CPF ou CNPJ válido.</p>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              onClick={() => decisionMutation.mutate(false)}
+              disabled={decisionMutation.isPending || !canSubmit}
+              className="flex-1"
+            >
+              {decisionMutation.isPending ? (
+                <CarLoader className="size-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="size-4" />
+              )}
+              Aprovar selecionados
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => decisionMutation.mutate(true)}
+              disabled={decisionMutation.isPending || !canSubmit}
+            >
+              Recusar orçamento
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-lg border bg-emerald-500/10 p-3 text-sm">
+          Orçamento já respondido
+          {quote.signatureName && ` por ${quote.signatureName}`}
+          {quote.decidedAt && ` em ${new Date(quote.decidedAt).toLocaleString('pt-BR')}`}.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TimelineSection({ order }: { order: GarageOrderDto }) {
+  return (
+    <div>
+      <p className="mb-2 flex items-center gap-1.5 font-medium text-muted-foreground">
+        <Clock className="size-3.5" /> Linha do tempo
+      </p>
+      {order.timeline.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Sem atualizações públicas.</p>
+      ) : (
+        <ol className="relative space-y-3 border-l pl-4">
+          {order.timeline.map((event, index) => (
+            <li key={`${event.createdAt}-${index}`} className="relative">
+              <span className="absolute -left-[1.36rem] top-1 size-2.5 rounded-full bg-primary" />
+              <p className="font-medium">
+                {event.status ? SERVICE_ORDER_STATUS_LABELS[event.status] : event.title}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(event.createdAt).toLocaleString('pt-BR')}
+                {event.note ? ` · ${event.note}` : ''}
+              </p>
+              {event.photos.length > 0 && (
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {event.photos.map((url) => (
+                    <a key={url} href={url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-md border bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="Foto da OS" className="aspect-square w-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span>{value}</span>
+    </div>
   );
 }

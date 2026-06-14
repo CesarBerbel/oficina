@@ -25,6 +25,11 @@ const unsubscribeSchema = z.object({ endpoint: z.string().min(1) });
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
+  @Get('inbox')
+  inbox(@CurrentUser() user: AuthenticatedUser) {
+    return this.notifications.inbox(user.id);
+  }
+
   @Get()
   list(
     @CurrentUser() user: AuthenticatedUser,

@@ -1,5 +1,7 @@
 import {
   LayoutDashboard,
+  Gauge,
+  BellRing,
   ListChecks,
   Users,
   Car,
@@ -42,6 +44,8 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Atendimento',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: Permission.DASHBOARD_READ },
+      { label: 'Operacional', href: '/operacional', icon: Gauge, permission: Permission.DASHBOARD_READ },
+      { label: 'Inbox', href: '/central-notificacoes', icon: BellRing },
       { label: 'Central de ações', href: '/central-acoes', icon: ListChecks, permission: Permission.DASHBOARD_READ },
       { label: 'Clientes', href: '/clientes', icon: Users, permission: Permission.CUSTOMERS_READ },
       { label: 'Veículos', href: '/veiculos', icon: Car, permission: Permission.VEHICLES_READ },

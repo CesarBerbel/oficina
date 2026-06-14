@@ -38,6 +38,14 @@ export class CustomersController {
     return this.customers.list(actor.tenantId, query);
   }
 
+
+
+  @Get(':id/360')
+  @RequirePermission(Permission.CUSTOMERS_READ)
+  find360(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.customers.find360(actor.tenantId, id);
+  }
+
   @Get(':id')
   @RequirePermission(Permission.CUSTOMERS_READ)
   findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { Camera, ImagePlus, X } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { uploadImage } from '@/features/uploads/upload';
@@ -16,7 +16,8 @@ export function PhotoGrid({
   onChange: (urls: string[]) => void;
   max?: number;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
   async function onFiles(files: FileList) {
@@ -39,7 +40,29 @@ export function PhotoGrid({
   }
 
   return (
-    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => cameraRef.current?.click()}
+          disabled={busy || value.length >= max}
+          className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Camera className="size-4" />
+          Tirar foto
+        </button>
+        <button
+          type="button"
+          onClick={() => galleryRef.current?.click()}
+          disabled={busy || value.length >= max}
+          className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <ImagePlus className="size-4" />
+          Enviar da galeria
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
       {value.map((url) => (
         <div key={url} className="group relative aspect-square">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -61,7 +84,7 @@ export function PhotoGrid({
       {value.length < max && (
         <button
           type="button"
-          onClick={() => ref.current?.click()}
+          onClick={() => galleryRef.current?.click()}
           disabled={busy}
           className="grid aspect-square place-items-center rounded-lg border border-dashed text-muted-foreground transition hover:border-foreground hover:text-foreground"
         >
@@ -72,8 +95,21 @@ export function PhotoGrid({
           )}
         </button>
       )}
+      </div>
+
       <input
-        ref={ref}
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files?.length) onFiles(e.target.files);
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={galleryRef}
         type="file"
         accept="image/*"
         multiple

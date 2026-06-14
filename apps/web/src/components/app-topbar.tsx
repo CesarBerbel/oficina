@@ -6,6 +6,7 @@ import { Menu, Moon, Sun, LogOut } from 'lucide-react';
 import { USER_ROLE_LABELS, type UserRole } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
 import { NotificationBell } from '@/features/notifications/notification-bell';
+import { GlobalSearchDialog } from '@/features/global-search/global-search-dialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -46,6 +47,8 @@ export function AppTopbar({ onMenu }: { onMenu?: () => void }) {
       </Button>
 
       <div className="flex-1" />
+
+      <GlobalSearchDialog />
 
       <NotificationBell />
 

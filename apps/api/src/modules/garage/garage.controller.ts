@@ -1,11 +1,13 @@
-import { Body, Controller, Get, Headers, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import {
   garageRequestCodeSchema,
   garageVerifyCodeSchema,
+  quoteDecisionSchema,
   type GarageRequestCodeInput,
   type GarageVerifyCodeInput,
+  type QuoteDecisionInput,
 } from '@oficina/shared';
 import { GarageService } from './garage.service';
 import type { PublicTenantLookup } from '../site/site.service';
@@ -65,4 +67,19 @@ export class GarageController {
   data(@Headers('authorization') auth?: string) {
     return this.garage.getData(auth);
   }
+
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('orders/:orderId/quote-decision')
+  decideQuote(
+    @Headers('authorization') auth: string | undefined,
+    @Param('orderId') orderId: string,
+    @Body(new ZodValidationPipe(quoteDecisionSchema)) body: QuoteDecisionInput,
+    @Req() req: Request,
+  ) {
+    return this.garage.decideQuote(auth, orderId, body, {
+      ip: req.ip ?? req.socket?.remoteAddress ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
+    });
+  }
 }
+

@@ -44,3 +44,5 @@ export * from './schemas/ai.js';
 export * from './schemas/audit.js';
 export * from './schemas/reports.js';
 export * from './schemas/crm.js';
+export * from './schemas/global-search.js';
+export * from './schemas/operational.js';

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { placaSchema } from './common.js';
 import type { ServiceOrderStatus } from '../enums/service-order-status.js';
 import type { ServiceOrderItemKind } from '../enums/service-order-item.js';
+import type { QuoteDto } from './quote.js';
 
 /** Solicitação do código de acesso à área do cliente (informa a placa). */
 export const garageRequestCodeSchema = z.object({
@@ -47,8 +48,10 @@ export interface GarageOrderItemDto {
 }
 
 export interface GarageOrderTimelineDto {
-  status: ServiceOrderStatus;
+  status: ServiceOrderStatus | null;
+  title: string;
   note: string | null;
+  photos: string[];
   createdAt: string;
 }
 
@@ -62,6 +65,10 @@ export interface GarageOrderDto {
   reportedProblem: string;
   diagnosis: string | null;
   total: number;
+  /** Token público da OS, usado apenas para atalhos diretos já existentes. */
+  publicToken: string;
+  /** Orçamento da OS, quando gerado, integrado ao Portal do Cliente. */
+  quote: QuoteDto | null;
   items: GarageOrderItemDto[];
   timeline: GarageOrderTimelineDto[];
 }

@@ -4,6 +4,7 @@ import type {
   GarageDataDto,
   GarageRequestCodeResult,
   GarageSessionDto,
+  QuoteDecisionInput,
 } from '@oficina/shared';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
@@ -68,4 +69,35 @@ export async function fetchGarageData(): Promise<GarageDataDto> {
   }
   if (!res.ok) throw new Error('Erro ao carregar o histórico do veículo.');
   return res.json() as Promise<GarageDataDto>;
+}
+
+
+export async function decideGarageQuote(
+  orderId: string,
+  input: QuoteDecisionInput,
+): Promise<void> {
+  const token = getGarageToken();
+  if (!token) throw new Error(GARAGE_NO_SESSION);
+  const res = await fetch(`${API_URL}/public/garage/orders/${orderId}/quote-decision`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(input),
+  });
+  if (res.status === 401) {
+    setGarageToken(null);
+    throw new Error(GARAGE_NO_SESSION);
+  }
+  if (!res.ok) {
+    let msg = 'Erro ao enviar decisão do orçamento.';
+    try {
+      const data = await res.json();
+      msg = data.message ?? msg;
+    } catch {
+      /* sem corpo */
+    }
+    throw new Error(msg);
+  }
 }

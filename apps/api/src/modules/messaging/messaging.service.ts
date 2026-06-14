@@ -229,7 +229,7 @@ export class MessagingService {
       ? this.render(template.body, built.ctx)
       : `Olá ${built.ctx.cliente.nome}, o orçamento da OS #${built.ctx.os.numero} ` +
         `(${built.ctx.veiculo.modelo} · ${built.ctx.veiculo.placa}) está pronto. ` +
-        `Acesse o link para aprovar online: ${built.ctx.os.link}`;
+        `Acesse o link para consultar a OS, ver a timeline e aprovar online: ${built.ctx.os.link}`;
 
     const res = await this.deliver(
       'EMAIL',
