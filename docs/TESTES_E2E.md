@@ -32,6 +32,8 @@ pnpm prisma:generate
 pnpm prisma:deploy
 ```
 
+> O script `pnpm --filter @oficina/api test:e2e` também executa `prisma migrate deploy` automaticamente antes do Jest. O comando acima continua útil para validar o schema manualmente ou preparar o banco antes de uma depuração.
+
 ### Linux/macOS/Git Bash
 
 ```bash
@@ -43,6 +45,8 @@ pnpm prisma:validate
 pnpm prisma:generate
 pnpm prisma:deploy
 ```
+
+> O script `pnpm --filter @oficina/api test:e2e` também executa `prisma migrate deploy` automaticamente antes do Jest. O comando acima continua útil para validar o schema manualmente ou preparar o banco antes de uma depuração.
 
 ## Rodar E2E da API
 

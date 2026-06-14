@@ -89,7 +89,7 @@ export default function LeadsPage() {
     status: (status || undefined) as LeadStatus | undefined,
     search: search || undefined,
   });
-  const leads = data?.data ?? [];
+  const leads = useMemo(() => data?.data ?? [], [data?.data]);
 
   useEffect(() => {
     if (!selectedId && leads[0]) setSelectedId(leads[0].id);
@@ -261,9 +261,11 @@ function LeadDetailPanel({ id }: { id?: string }) {
     );
   }
 
+  const activeLead = lead;
+
   async function changeStatus(statusValue: LeadStatus) {
     try {
-      await updateStatus.mutateAsync({ id: lead.id, status: statusValue });
+      await updateStatus.mutateAsync({ id: activeLead.id, status: statusValue });
       toast.success('Status atualizado');
     } catch (err) {
       toast.error(errorMessage(err));
@@ -274,7 +276,7 @@ function LeadDetailPanel({ id }: { id?: string }) {
     event.preventDefault();
     try {
       await registerContact.mutateAsync({
-        id: lead.id,
+        id: activeLead.id,
         input: {
           channel: contact.channel,
           outcome: contact.outcome,
@@ -291,7 +293,7 @@ function LeadDetailPanel({ id }: { id?: string }) {
 
   async function submitLinkCustomer(targetCustomerId: string) {
     try {
-      await linkCustomer.mutateAsync({ id: lead.id, input: { customerId: targetCustomerId } });
+      await linkCustomer.mutateAsync({ id: activeLead.id, input: { customerId: targetCustomerId } });
       toast.success('Cliente vinculado');
     } catch (err) {
       toast.error(errorMessage(err));
@@ -300,7 +302,7 @@ function LeadDetailPanel({ id }: { id?: string }) {
 
   async function submitLinkVehicle(targetVehicleId: string) {
     try {
-      await linkVehicle.mutateAsync({ id: lead.id, input: { vehicleId: targetVehicleId } });
+      await linkVehicle.mutateAsync({ id: activeLead.id, input: { vehicleId: targetVehicleId } });
       toast.success('Veículo vinculado');
     } catch (err) {
       toast.error(errorMessage(err));
@@ -311,7 +313,7 @@ function LeadDetailPanel({ id }: { id?: string }) {
     event.preventDefault();
     try {
       await convertLead.mutateAsync({
-        id: lead.id,
+        id: activeLead.id,
         input: {
           customerId: customerId || undefined,
           customer: customerId

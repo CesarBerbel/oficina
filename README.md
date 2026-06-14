@@ -132,7 +132,7 @@ docker compose -f docker-compose.test.yml up -d
 $env:DATABASE_URL="postgresql://oficina:oficina_test_pwd@localhost:5434/oficina_test?schema=public"
 pnpm prisma:validate
 pnpm prisma:generate
-pnpm prisma:deploy
+pnpm prisma:deploy             # opcional: o test:e2e também aplica migrations
 pnpm --filter @oficina/api test:e2e
 Remove-Item Env:DATABASE_URL
 ```

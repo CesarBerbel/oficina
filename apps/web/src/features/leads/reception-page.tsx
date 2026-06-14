@@ -57,7 +57,7 @@ export function ReceptionPage() {
     search: search || undefined,
   });
   const { data: receptionAlerts } = useReceptionAlerts();
-  const leads = data?.data ?? [];
+  const leads = useMemo(() => data?.data ?? [], [data?.data]);
   const alerts = normalizeReceptionAlerts(receptionAlerts);
   const fullScreenView = view === 'agenda' || view === 'kanban';
 

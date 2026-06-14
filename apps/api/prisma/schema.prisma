@@ -771,14 +771,15 @@ model SiteSettings {
   @@map("site_settings")
 }
 
-/// Tipo de categoria: cliente, serviço ou peça.
+/// Tipo de categoria: cliente, serviço, peça ou marca.
 enum CategoryKind {
   CUSTOMER
   SERVICE
   PART
+  BRAND
 }
 
-/// Categoria cadastrável (por tipo) — vinculada a clientes, serviços e peças.
+/// Categoria cadastrável (por tipo) — vinculada a clientes, serviços, peças e marcas.
 model Category {
   id        String       @id @default(cuid())
   tenantId  String

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Post,
   Put,
@@ -58,6 +59,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
+  @HttpCode(204)
   @RequirePermission(Permission.SETTINGS_MANAGE)
   remove(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
     return this.categories.remove(actor, id);
