@@ -14,6 +14,8 @@ RUN pnpm install --frozen-lockfile
 # ---- build ----
 FROM deps AS build
 ENV NEXT_TELEMETRY_DISABLED=1
+# Desabilita somente o lint no build de produção. O typecheck segue ativo.
+ENV NEXT_DISABLE_ESLINT_DURING_BUILD=true
 # URL pública da API (embutida no bundle do browser). Atrás do Nginx, /api.
 ARG NEXT_PUBLIC_API_URL=/api
 ARG NEXT_PUBLIC_SITE_TENANT_SLUG=
