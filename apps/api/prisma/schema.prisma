@@ -133,7 +133,11 @@ enum LeadStatus {
   CONTATO_REALIZADO
   RETORNAR_DEPOIS
   AGENDADO
+  CONFIRMADO
+  CLIENTE_CHEGOU
   CONVERTIDO
+  NAO_COMPARECEU
+  CANCELADO
   PERDIDO
   DUPLICADO
   INVALIDO
@@ -154,6 +158,10 @@ enum LeadContactOutcome {
   CHAMAR_WHATSAPP
   PEDIU_RETORNO
   AGENDOU_VISITA
+  CONFIRMOU_AGENDAMENTO
+  CLIENTE_CHEGOU
+  NAO_COMPARECEU
+  CANCELOU_AGENDAMENTO
   SEM_INTERESSE
   JA_RESOLVEU
   ORCAMENTO_ENVIADO
@@ -600,6 +608,7 @@ model Part {
   tenantId     String
   name         String
   sku          String?
+  ncm          String?
   ean          String?
   type         PartType @default(PECA)
   category     String?
@@ -771,7 +780,7 @@ model SiteSettings {
   @@map("site_settings")
 }
 
-/// Tipo de categoria: cliente, serviço, peça ou marca.
+/// Tipo de categoria: cliente, serviço ou peça.
 enum CategoryKind {
   CUSTOMER
   SERVICE
@@ -779,7 +788,7 @@ enum CategoryKind {
   BRAND
 }
 
-/// Categoria cadastrável (por tipo) — vinculada a clientes, serviços, peças e marcas.
+/// Categoria cadastrável (por tipo) — vinculada a clientes, serviços e peças.
 model Category {
   id        String       @id @default(cuid())
   tenantId  String
@@ -836,7 +845,7 @@ model BlogPost {
   @@map("blog_posts")
 }
 
-/// Lead recebido pelo formulário do site e tratado na Central de Pré-atendimento.
+/// Atendimento recebido pelo site/recepção e tratado na Central de Atendimento.
 model Lead {
   id                      String            @id @default(cuid())
   tenantId                String
@@ -857,6 +866,14 @@ model Lead {
   conflictLevel           LeadConflictLevel @default(SEM_DADOS)
   conflictReason          String?
   nextFollowUpAt          DateTime?
+  appointmentStartAt      DateTime?
+  appointmentEndAt        DateTime?
+  appointmentServiceType  String?
+  appointmentNotes        String?
+  appointmentConfirmedAt  DateTime?
+  checkedInAt             DateTime?
+  noShowAt                DateTime?
+  appointmentCanceledAt   DateTime?
   createdAt               DateTime          @default(now())
   updatedAt               DateTime          @updatedAt
   convertedAt             DateTime?
@@ -869,11 +886,12 @@ model Lead {
   @@index([tenantId, status])
   @@index([tenantId, plate])
   @@index([tenantId, nextFollowUpAt])
+  @@index([tenantId, appointmentStartAt])
   @@index([tenantId, matchedCustomerId])
   @@map("leads")
 }
 
-/// Registro de contato feito pelo atendente durante a triagem do lead.
+/// Registro de contato feito pelo atendente durante a jornada do atendimento.
 model LeadContactAttempt {
   id             String             @id @default(cuid())
   tenantId       String
@@ -893,7 +911,7 @@ model LeadContactAttempt {
   @@map("lead_contact_attempts")
 }
 
-/// Timeline operacional da Central de Pré-atendimento.
+/// Timeline operacional da Central de Atendimento/Recepção.
 model LeadEvent {
   id          String   @id @default(cuid())
   tenantId    String

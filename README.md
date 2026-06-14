@@ -59,9 +59,7 @@ docker compose up -d
 
 # 4) Migrations + Prisma Client
 pnpm prisma:migrate             # cria o schema no banco
-pnpm prisma:seed                # cria oficina padrão + usuário admin
-# ou, para criar uma oficina personalizada:
-pnpm seed -- --oficina "Auto Mecânica Bandeirantes" --slug automec-band --user adm@adm.com --senha 321654
+pnpm prisma:seed                # cria oficina + usuário admin
 
 # 5) Rodar tudo (API + Web) em modo dev
 pnpm dev
@@ -81,17 +79,7 @@ Após rodar `pnpm prisma:seed`, use:
 | E-mail | `admin@oficina.local` |
 | Senha | `Admin@123` |
 
-Para criar uma oficina personalizada sem editar o `.env`, use:
-
-```bash
-pnpm seed -- --oficina "Auto Mecânica Bandeirantes" --slug automec-band --user adm@adm.com --senha 321654
-```
-
-O seed também aceita as variáveis `SEED_TENANT_NAME`, `SEED_TENANT_SLUG`,
-`SEED_ADMIN_EMAIL` e `SEED_ADMIN_PASSWORD`. Os argumentos de linha de comando
-têm prioridade sobre as variáveis do `.env`.
-
-Também há um botão na página `/login` para preencher os dados de demonstração automaticamente.
+Também há um botão na página `/login` para preencher esses dados de demonstração automaticamente.
 
 > Os comandos Prisma acima já executam a partir da raiz via scripts do monorepo.
 > Para rodar diretamente no workspace da API, use `pnpm --filter @oficina/api prisma:migrate`,
@@ -108,7 +96,6 @@ pnpm test         # testes (Jest na API)
 pnpm lint         # ESLint em todos os workspaces
 pnpm typecheck    # checagem de tipos
 pnpm format       # Prettier --write
-pnpm seed         # executa seed; aceita argumentos após --
 ```
 
 Por workspace (ex.: só a API):
@@ -127,8 +114,7 @@ pnpm --filter @oficina/api test
 
 ```bash
 pnpm prisma:migrate             # dev: cria/aplica migrations
-pnpm prisma:seed                # popula dados iniciais padrão
-pnpm seed -- --oficina "Auto Mecânica Bandeirantes" --slug automec-band --user adm@adm.com --senha 321654
+pnpm prisma:seed                # popula dados iniciais
 pnpm --filter @oficina/api prisma:studio   # GUI do banco
 pnpm prisma:generate            # regenera o client
 ```
@@ -146,7 +132,7 @@ docker compose -f docker-compose.test.yml up -d
 $env:DATABASE_URL="postgresql://oficina:oficina_test_pwd@localhost:5434/oficina_test?schema=public"
 pnpm prisma:validate
 pnpm prisma:generate
-pnpm prisma:deploy             # opcional: o test:e2e também aplica migrations
+pnpm prisma:deploy
 pnpm --filter @oficina/api test:e2e
 Remove-Item Env:DATABASE_URL
 ```
@@ -179,12 +165,6 @@ A aplicação fica acessível via Nginx em `http://localhost` (porta 80), que ro
 `/api` e `/uploads` para a API e o restante para o frontend.
 
 Seed inicial (primeira vez): `docker compose -f docker-compose.prod.yml exec api npx prisma db seed`
-
-Seed inicial com dados personalizados:
-
-```bash
-docker compose -f docker-compose.prod.yml exec api npx prisma db seed -- --oficina "Auto Mecânica Bandeirantes" --slug automec-band --user adm@adm.com --senha 321654
-```
 
 > **Guia completo de deploy** (env, HTTPS, backup, seed, S3): [`docs/DEPLOY.md`](docs/DEPLOY.md).
 > Antes do deploy, configure os segredos no `.env` (JWT, `ENCRYPTION_KEY`,

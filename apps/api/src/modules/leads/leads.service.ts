@@ -7,7 +7,9 @@ import {
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import type {
+  AppointmentActionInput,
   ConvertLeadToServiceOrderInput,
+  CreateDirectReceptionLeadInput,
   CreateLeadInput,
   LeadContactAttemptDto,
   LeadCustomerSuggestionDto,
@@ -21,7 +23,9 @@ import type {
   LinkLeadVehicleInput,
   ListLeadsQuery,
   Paginated,
+  ReceptionAlertsDto,
   RegisterLeadContactInput,
+  ScheduleLeadInput,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -29,6 +33,18 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 const UNIQUE_CONSTRAINT_RETRY_ATTEMPTS = 3;
+const RECEPTION_ALERT_ARRIVAL_WINDOW_MINUTES = 60;
+const RECEPTION_ALERT_NO_SHOW_TOLERANCE_MINUTES = 15;
+const OPEN_APPOINTMENT_STATUSES: LeadStatus[] = ['AGENDADO', 'CONFIRMADO'];
+const ACTIVE_RECEPTION_STATUSES: LeadStatus[] = [
+  'NOVO',
+  'EM_ATENDIMENTO',
+  'CONTATO_REALIZADO',
+  'RETORNAR_DEPOIS',
+  'AGENDADO',
+  'CONFIRMADO',
+  'CLIENTE_CHEGOU',
+];
 
 const leadDetailInclude = {
   contactAttempts: { orderBy: { createdAt: 'desc' } },
@@ -98,6 +114,14 @@ export class LeadsService {
       conflictLevel: l.conflictLevel,
       conflictReason: l.conflictReason,
       nextFollowUpAt: l.nextFollowUpAt?.toISOString() ?? null,
+      appointmentStartAt: l.appointmentStartAt?.toISOString() ?? null,
+      appointmentEndAt: l.appointmentEndAt?.toISOString() ?? null,
+      appointmentServiceType: l.appointmentServiceType,
+      appointmentNotes: l.appointmentNotes,
+      appointmentConfirmedAt: l.appointmentConfirmedAt?.toISOString() ?? null,
+      checkedInAt: l.checkedInAt?.toISOString() ?? null,
+      noShowAt: l.noShowAt?.toISOString() ?? null,
+      appointmentCanceledAt: l.appointmentCanceledAt?.toISOString() ?? null,
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),
     };
@@ -332,7 +356,7 @@ export class LeadsService {
           create: {
             tenantId,
             type: 'LEAD_RECEIVED',
-            title: 'Lead recebido pelo site',
+            title: 'Atendimento recebido pelo site',
             description: firstLine(input.message),
           },
         },
@@ -341,7 +365,7 @@ export class LeadsService {
     await this.syncMatchSnapshot(lead);
     await this.notifications.notifyRoles(tenantId, ['ADMIN', 'ATENDENTE'], {
       type: 'LEAD_NEW',
-      title: 'Novo lead do site',
+      title: 'Novo atendimento do site',
       body: `${lead.name} · ${lead.phone}`,
       link: '/leads',
       entity: 'Lead',
@@ -349,12 +373,93 @@ export class LeadsService {
     });
   }
 
+  /** Criado manualmente pela recepção quando o cliente chega direto na oficina. */
+  async createDirectReception(
+    actor: AuthenticatedUser,
+    input: CreateDirectReceptionLeadInput,
+  ): Promise<LeadDetailDto> {
+    const now = new Date();
+    const lead = await this.prisma.lead.create({
+      data: {
+        tenantId: actor.tenantId,
+        name: input.name,
+        phone: input.phone,
+        email: input.email ?? null,
+        plate: normalizePlate(input.plate) ?? null,
+        vehicle: input.vehicle ?? null,
+        message: input.message,
+        status: 'CLIENTE_CHEGOU',
+        assignedToId: actor.id,
+        assignedToName: actor.email,
+        appointmentStartAt: now,
+        appointmentEndAt: now,
+        appointmentServiceType: input.appointmentServiceType ?? 'Atendimento presencial',
+        appointmentNotes: input.appointmentNotes ?? null,
+        checkedInAt: now,
+        events: {
+          create: [
+            {
+              tenantId: actor.tenantId,
+              userId: actor.id,
+              userName: actor.email,
+              type: 'DIRECT_RECEPTION_CREATED',
+              title: 'Cliente recebido direto na oficina',
+              description: firstLine(input.message),
+              metadata: {
+                appointmentServiceType: input.appointmentServiceType ?? null,
+              },
+            },
+            {
+              tenantId: actor.tenantId,
+              userId: actor.id,
+              userName: actor.email,
+              type: 'CHECKED_IN',
+              title: 'Chegada registrada pela recepção',
+              description: input.appointmentNotes ?? null,
+            },
+          ],
+        },
+        contactAttempts: {
+          create: {
+            tenantId: actor.tenantId,
+            userId: actor.id,
+            userName: actor.email,
+            channel: 'PRESENCIAL',
+            outcome: 'CLIENTE_CHEGOU',
+            notes: input.appointmentNotes ?? 'Cliente chegou direto na oficina.',
+          },
+        },
+      },
+    });
+
+    await this.syncMatchSnapshot(lead);
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'CREATE_DIRECT_RECEPTION',
+      module: 'leads',
+      entity: 'Lead',
+      entityId: lead.id,
+    });
+
+    return this.findOne(actor.tenantId, lead.id);
+  }
+
   async list(tenantId: string, query: ListLeadsQuery): Promise<Paginated<LeadDto>> {
-    const { page, pageSize, status, search } = query;
+    const { page, pageSize, status, search, appointmentFrom, appointmentTo } = query;
     const normalizedSearchPlate = normalizePlate(search);
     const searchDigits = digits(search);
+    const appointmentWindow = appointmentFrom || appointmentTo
+      ? {
+          appointmentStartAt: {
+            ...(appointmentFrom ? { gte: new Date(appointmentFrom) } : {}),
+            ...(appointmentTo ? { lt: new Date(appointmentTo) } : {}),
+          },
+        }
+      : {};
     const where: Prisma.LeadWhereInput = {
       tenantId,
+      ...appointmentWindow,
       ...(status ? { status } : {}),
       ...(search
         ? {
@@ -376,7 +481,11 @@ export class LeadsService {
       this.prisma.lead.count({ where }),
       this.prisma.lead.findMany({
         where,
-        orderBy: [{ nextFollowUpAt: 'asc' }, { createdAt: 'desc' }],
+        orderBy: [
+          { appointmentStartAt: 'asc' },
+          { nextFollowUpAt: 'asc' },
+          { createdAt: 'desc' },
+        ],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -387,12 +496,125 @@ export class LeadsService {
     };
   }
 
+  async receptionAlerts(tenantId: string): Promise<ReceptionAlertsDto> {
+    const now = new Date();
+    const arrivalWindowEnd = new Date(
+      now.getTime() + RECEPTION_ALERT_ARRIVAL_WINDOW_MINUTES * 60_000,
+    );
+    const noShowCutoff = new Date(
+      now.getTime() - RECEPTION_ALERT_NO_SHOW_TOLERANCE_MINUTES * 60_000,
+    );
+
+    const commonWhere: Prisma.LeadWhereInput = {
+      tenantId,
+      status: { in: OPEN_APPOINTMENT_STATUSES },
+      appointmentStartAt: { not: null },
+      convertedServiceOrderId: null,
+      checkedInAt: null,
+      noShowAt: null,
+      appointmentCanceledAt: null,
+    };
+
+    const [upcomingRows, noShowRows, overdueFollowUpRows, checkedInRows] = await this.prisma.$transaction([
+      this.prisma.lead.findMany({
+        where: {
+          ...commonWhere,
+          appointmentStartAt: { gte: now, lte: arrivalWindowEnd },
+        },
+        orderBy: { appointmentStartAt: 'asc' },
+        take: 20,
+      }),
+      this.prisma.lead.findMany({
+        where: {
+          ...commonWhere,
+          appointmentStartAt: { lte: noShowCutoff },
+        },
+        orderBy: { appointmentStartAt: 'asc' },
+        take: 20,
+      }),
+      this.prisma.lead.findMany({
+        where: {
+          tenantId,
+          status: { in: ACTIVE_RECEPTION_STATUSES },
+          nextFollowUpAt: { lte: now },
+          convertedServiceOrderId: null,
+        },
+        orderBy: { nextFollowUpAt: 'asc' },
+        take: 20,
+      }),
+      this.prisma.lead.findMany({
+        where: {
+          tenantId,
+          status: 'CLIENTE_CHEGOU',
+          checkedInAt: { not: null },
+          convertedServiceOrderId: null,
+        },
+        orderBy: { checkedInAt: 'asc' },
+        take: 20,
+      }),
+    ]);
+
+    return {
+      generatedAt: now.toISOString(),
+      arrivalWindowMinutes: RECEPTION_ALERT_ARRIVAL_WINDOW_MINUTES,
+      noShowToleranceMinutes: RECEPTION_ALERT_NO_SHOW_TOLERANCE_MINUTES,
+      upcomingArrivals: upcomingRows.map((lead) => {
+        const appointmentTime = lead.appointmentStartAt?.getTime() ?? now.getTime();
+        return {
+          ...this.toDto(lead),
+          minutesUntilAppointment: Math.max(
+            0,
+            Math.round((appointmentTime - now.getTime()) / 60_000),
+          ),
+          minutesLate: null,
+          alertReason: 'Cliente perto do horário de chegada.',
+        };
+      }),
+      noShowCandidates: noShowRows.map((lead) => {
+        const appointmentTime = lead.appointmentStartAt?.getTime() ?? now.getTime();
+        return {
+          ...this.toDto(lead),
+          minutesUntilAppointment: null,
+          minutesLate: Math.max(
+            0,
+            Math.round((now.getTime() - appointmentTime) / 60_000),
+          ),
+          alertReason: 'Horário já passou. Registre chegada ou não comparecimento.',
+        };
+      }),
+      overdueFollowUps: overdueFollowUpRows.map((lead) => {
+        const followUpTime = lead.nextFollowUpAt?.getTime() ?? now.getTime();
+        return {
+          ...this.toDto(lead),
+          minutesUntilAppointment: null,
+          minutesLate: Math.max(
+            0,
+            Math.round((now.getTime() - followUpTime) / 60_000),
+          ),
+          alertReason: 'Retorno combinado vencido.',
+        };
+      }),
+      checkedInWithoutOs: checkedInRows.map((lead) => {
+        const checkedInTime = lead.checkedInAt?.getTime() ?? now.getTime();
+        return {
+          ...this.toDto(lead),
+          minutesUntilAppointment: null,
+          minutesLate: Math.max(
+            0,
+            Math.round((now.getTime() - checkedInTime) / 60_000),
+          ),
+          alertReason: 'Cliente chegou e ainda nao virou OS.',
+        };
+      }),
+    };
+  }
+
   async findOne(tenantId: string, id: string): Promise<LeadDetailDto> {
     const lead = await this.prisma.lead.findFirst({
       where: { id, tenantId },
       include: leadDetailInclude,
     });
-    if (!lead) throw new NotFoundException('Lead não encontrado');
+    if (!lead) throw new NotFoundException('Atendimento não encontrado');
     const match = await this.buildMatch(tenantId, lead);
     return {
       ...this.toDto(lead),
@@ -412,14 +634,14 @@ export class LeadsService {
         where: { id, tenantId: actor.tenantId },
         select: { id: true, status: true },
       });
-      if (!current) throw new NotFoundException('Lead não encontrado');
+      if (!current) throw new NotFoundException('Atendimento não encontrado');
       await tx.lead.update({
         where: { id },
         data: {
           status,
-          closedAt: ['PERDIDO', 'DUPLICADO', 'INVALIDO', 'DESCARTADO'].includes(status)
+          closedAt: ['CONVERTIDO', 'NAO_COMPARECEU', 'CANCELADO', 'PERDIDO', 'DUPLICADO', 'INVALIDO', 'DESCARTADO'].includes(status)
             ? new Date()
-            : undefined,
+            : null,
         },
       });
       await this.recordEvent(tx, {
@@ -427,7 +649,7 @@ export class LeadsService {
         leadId: id,
         actor,
         type: 'STATUS_CHANGE',
-        title: 'Status do pré-atendimento alterado',
+        title: 'Status do atendimento alterado',
         description: `${current.status} → ${status}`,
       });
     });
@@ -444,7 +666,7 @@ export class LeadsService {
         where: { id, tenantId: actor.tenantId },
         select: { id: true, name: true },
       });
-      if (!lead) throw new NotFoundException('Lead não encontrado');
+      if (!lead) throw new NotFoundException('Atendimento não encontrado');
 
       await tx.leadContactAttempt.create({
         data: {
@@ -460,6 +682,7 @@ export class LeadsService {
       });
 
       const status = this.statusForOutcome(input.outcome);
+      const now = new Date();
       await tx.lead.update({
         where: { id },
         data: {
@@ -467,7 +690,11 @@ export class LeadsService {
           assignedToId: actor.id,
           assignedToName: actor.email,
           nextFollowUpAt: input.nextFollowUpAt ? new Date(input.nextFollowUpAt) : null,
-          closedAt: ['PERDIDO', 'INVALIDO'].includes(status) ? new Date() : undefined,
+          appointmentConfirmedAt: input.outcome === 'CONFIRMOU_AGENDAMENTO' ? now : undefined,
+          checkedInAt: input.outcome === 'CLIENTE_CHEGOU' ? now : undefined,
+          noShowAt: input.outcome === 'NAO_COMPARECEU' ? now : undefined,
+          appointmentCanceledAt: input.outcome === 'CANCELOU_AGENDAMENTO' ? now : undefined,
+          closedAt: ['NAO_COMPARECEU', 'CANCELADO', 'PERDIDO', 'INVALIDO'].includes(status) ? now : null,
         },
       });
 
@@ -496,12 +723,259 @@ export class LeadsService {
       CHAMAR_WHATSAPP: 'EM_ATENDIMENTO',
       PEDIU_RETORNO: 'RETORNAR_DEPOIS',
       AGENDOU_VISITA: 'AGENDADO',
+      CONFIRMOU_AGENDAMENTO: 'CONFIRMADO',
+      CLIENTE_CHEGOU: 'CLIENTE_CHEGOU',
+      NAO_COMPARECEU: 'NAO_COMPARECEU',
+      CANCELOU_AGENDAMENTO: 'CANCELADO',
       SEM_INTERESSE: 'PERDIDO',
       JA_RESOLVEU: 'PERDIDO',
       ORCAMENTO_ENVIADO: 'CONTATO_REALIZADO',
       CONVERTIDO_OS: 'CONVERTIDO',
     };
     return statuses[outcome];
+  }
+
+  async schedule(
+    actor: AuthenticatedUser,
+    id: string,
+    input: ScheduleLeadInput,
+  ): Promise<LeadDetailDto> {
+    await this.prisma.$transaction(async (tx) => {
+      const current = await tx.lead.findFirst({
+        where: { id, tenantId: actor.tenantId },
+        select: {
+          id: true,
+          appointmentStartAt: true,
+          appointmentEndAt: true,
+          convertedServiceOrderId: true,
+        },
+      });
+      if (!current) throw new NotFoundException('Atendimento não encontrado');
+      if (current.convertedServiceOrderId) {
+        throw new ConflictException('Atendimento já convertido em OS');
+      }
+
+      const appointmentStartAt = new Date(input.appointmentStartAt);
+      const appointmentEndAt = input.appointmentEndAt
+        ? new Date(input.appointmentEndAt)
+        : new Date(appointmentStartAt.getTime());
+      if (appointmentEndAt < appointmentStartAt) {
+        throw new BadRequestException('O horário final não pode ser menor que o horário inicial');
+      }
+
+      await tx.lead.update({
+        where: { id },
+        data: {
+          status: 'AGENDADO',
+          assignedToId: actor.id,
+          assignedToName: actor.email,
+          appointmentStartAt,
+          appointmentEndAt,
+          appointmentServiceType: input.appointmentServiceType ?? null,
+          appointmentNotes: input.appointmentNotes ?? null,
+          appointmentConfirmedAt: null,
+          checkedInAt: null,
+          noShowAt: null,
+          appointmentCanceledAt: null,
+          closedAt: null,
+        },
+      });
+
+      await this.recordEvent(tx, {
+        tenantId: actor.tenantId,
+        leadId: id,
+        actor,
+        type: current.appointmentStartAt ? 'APPOINTMENT_RESCHEDULED' : 'APPOINTMENT_SCHEDULED',
+        title: current.appointmentStartAt ? 'Agendamento remarcado' : 'Agendamento criado',
+        description: input.appointmentNotes ?? input.appointmentServiceType ?? null,
+        metadata: {
+          previousStartAt: current.appointmentStartAt?.toISOString() ?? null,
+          previousEndAt: current.appointmentEndAt?.toISOString() ?? null,
+          appointmentStartAt: appointmentStartAt.toISOString(),
+          appointmentEndAt: appointmentEndAt.toISOString(),
+          appointmentServiceType: input.appointmentServiceType ?? null,
+        },
+      });
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'SCHEDULE',
+      module: 'leads',
+      entity: 'Lead',
+      entityId: id,
+    });
+
+    return this.findOne(actor.tenantId, id);
+  }
+
+  async confirmAppointment(
+    actor: AuthenticatedUser,
+    id: string,
+    input: AppointmentActionInput,
+  ): Promise<LeadDetailDto> {
+    return this.applyAppointmentAction(actor, id, {
+      status: 'CONFIRMADO',
+      eventType: 'APPOINTMENT_CONFIRMED',
+      eventTitle: 'Agendamento confirmado',
+      notes: input.notes,
+      data: { appointmentConfirmedAt: new Date(), closedAt: null },
+    });
+  }
+
+  async checkIn(
+    actor: AuthenticatedUser,
+    id: string,
+    input: AppointmentActionInput,
+  ): Promise<LeadDetailDto> {
+    return this.applyAppointmentAction(actor, id, {
+      status: 'CLIENTE_CHEGOU',
+      eventType: 'CHECKED_IN',
+      eventTitle: 'Cliente chegou',
+      notes: input.notes,
+      data: { checkedInAt: new Date(), closedAt: null },
+    });
+  }
+
+  async noShow(
+    actor: AuthenticatedUser,
+    id: string,
+    input: AppointmentActionInput,
+  ): Promise<LeadDetailDto> {
+    return this.applyAppointmentAction(actor, id, {
+      status: 'NAO_COMPARECEU',
+      eventType: 'APPOINTMENT_NO_SHOW',
+      eventTitle: 'Cliente não compareceu',
+      notes: input.notes,
+      data: { noShowAt: new Date(), closedAt: new Date() },
+    });
+  }
+
+  async cancelCheckIn(
+    actor: AuthenticatedUser,
+    id: string,
+    input: AppointmentActionInput,
+  ): Promise<LeadDetailDto> {
+    await this.prisma.$transaction(async (tx) => {
+      const current = await tx.lead.findFirst({
+        where: { id, tenantId: actor.tenantId },
+        select: {
+          id: true,
+          appointmentStartAt: true,
+          appointmentConfirmedAt: true,
+          checkedInAt: true,
+          convertedServiceOrderId: true,
+          status: true,
+        },
+      });
+      if (!current) throw new NotFoundException('Atendimento não encontrado');
+      if (!current.appointmentStartAt) {
+        throw new BadRequestException('Crie um agendamento antes desta ação');
+      }
+      if (current.convertedServiceOrderId) {
+        throw new ConflictException('Atendimento já convertido em OS');
+      }
+      if (!current.checkedInAt && current.status !== 'CLIENTE_CHEGOU') {
+        throw new BadRequestException('A chegada do cliente ainda não foi registrada');
+      }
+
+      const status: LeadStatus = current.appointmentConfirmedAt ? 'CONFIRMADO' : 'AGENDADO';
+
+      await tx.lead.update({
+        where: { id },
+        data: {
+          status,
+          checkedInAt: null,
+          noShowAt: null,
+          appointmentCanceledAt: null,
+          closedAt: null,
+          assignedToId: actor.id,
+          assignedToName: actor.email,
+        },
+      });
+
+      await this.recordEvent(tx, {
+        tenantId: actor.tenantId,
+        leadId: id,
+        actor,
+        type: 'CHECK_IN_CANCELED',
+        title: 'Chegada do cliente cancelada',
+        description: input.notes ?? null,
+        metadata: { restoredStatus: status },
+      });
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'CANCEL_CHECK_IN',
+      module: 'leads',
+      entity: 'Lead',
+      entityId: id,
+    });
+
+    return this.findOne(actor.tenantId, id);
+  }
+
+  async cancelAppointment(
+    actor: AuthenticatedUser,
+    id: string,
+    input: AppointmentActionInput,
+  ): Promise<LeadDetailDto> {
+    return this.applyAppointmentAction(actor, id, {
+      status: 'CANCELADO',
+      eventType: 'APPOINTMENT_CANCELED',
+      eventTitle: 'Agendamento cancelado',
+      notes: input.notes,
+      data: { appointmentCanceledAt: new Date(), closedAt: new Date() },
+    });
+  }
+
+  private async applyAppointmentAction(
+    actor: AuthenticatedUser,
+    id: string,
+    input: {
+      status: LeadStatus;
+      eventType: string;
+      eventTitle: string;
+      notes?: string;
+      data: Prisma.LeadUpdateInput;
+    },
+  ): Promise<LeadDetailDto> {
+    await this.prisma.$transaction(async (tx) => {
+      const current = await tx.lead.findFirst({
+        where: { id, tenantId: actor.tenantId },
+        select: { id: true, appointmentStartAt: true, convertedServiceOrderId: true },
+      });
+      if (!current) throw new NotFoundException('Atendimento não encontrado');
+      if (!current.appointmentStartAt) {
+        throw new BadRequestException('Crie um agendamento antes desta ação');
+      }
+      if (current.convertedServiceOrderId) {
+        throw new ConflictException('Atendimento já convertido em OS');
+      }
+
+      await tx.lead.update({
+        where: { id },
+        data: {
+          ...input.data,
+          status: input.status,
+          assignedToId: actor.id,
+          assignedToName: actor.email,
+        },
+      });
+      await this.recordEvent(tx, {
+        tenantId: actor.tenantId,
+        leadId: id,
+        actor,
+        type: input.eventType,
+        title: input.eventTitle,
+        description: input.notes ?? null,
+      });
+    });
+
+    return this.findOne(actor.tenantId, id);
   }
 
   async linkCustomer(
@@ -520,7 +994,7 @@ export class LeadsService {
         where: { id, tenantId: actor.tenantId },
         select: { id: true },
       });
-      if (!lead) throw new NotFoundException('Lead não encontrado');
+      if (!lead) throw new NotFoundException('Atendimento não encontrado');
 
       await tx.lead.update({
         where: { id },
@@ -536,7 +1010,7 @@ export class LeadsService {
         leadId: id,
         actor,
         type: 'CUSTOMER_LINKED',
-        title: 'Cliente vinculado ao pré-atendimento',
+        title: 'Cliente vinculado ao atendimento',
         description: customer.name,
       });
     });
@@ -567,7 +1041,7 @@ export class LeadsService {
         where: { id, tenantId: actor.tenantId },
         select: { id: true },
       });
-      if (!lead) throw new NotFoundException('Lead não encontrado');
+      if (!lead) throw new NotFoundException('Atendimento não encontrado');
 
       await tx.lead.update({
         where: { id },
@@ -585,7 +1059,7 @@ export class LeadsService {
         leadId: id,
         actor,
         type: 'VEHICLE_LINKED',
-        title: 'Veículo vinculado ao pré-atendimento',
+        title: 'Veículo vinculado ao atendimento',
         description: `${vehicle.plate} · ${vehicle.customer.name}`,
       });
     });
@@ -641,9 +1115,9 @@ export class LeadsService {
           const lead = await tx.lead.findFirst({
             where: { id, tenantId: actor.tenantId },
           });
-          if (!lead) throw new NotFoundException('Lead não encontrado');
+          if (!lead) throw new NotFoundException('Atendimento não encontrado');
           if (lead.convertedServiceOrderId) {
-            throw new ConflictException('Lead já convertido em OS');
+            throw new ConflictException('Atendimento já convertido em OS');
           }
 
           const customerId = await this.resolveCustomerForConversion(tx, actor, lead, input);
@@ -666,14 +1140,14 @@ export class LeadsService {
                 create: {
                   status: 'ENTRADA',
                   userId: actor.id,
-                  note: `OS aberta a partir do pré-atendimento ${lead.name}`,
+                  note: `OS aberta a partir do atendimento ${lead.name}`,
                 },
               },
               events: {
                 create: {
                   tenantId: actor.tenantId,
                   type: 'STATUS_CHANGE',
-                  title: 'OS criada a partir do pré-atendimento',
+                  title: 'OS criada a partir do atendimento',
                   description: reportedProblem,
                   visibility: 'PUBLIC',
                   toStatus: 'ENTRADA',
@@ -709,11 +1183,11 @@ export class LeadsService {
             actor,
             type: 'CONVERTED_TO_OS',
             title: `Convertido em OS #${order.number}`,
-            description: 'Cliente, veículo e ordem de serviço registrados a partir do pré-atendimento.',
+            description: 'Cliente, veículo e ordem de serviço registrados a partir do atendimento.',
             metadata: { serviceOrderId: order.id, customerId, vehicleId },
           });
         }),
-      'Não foi possível converter o pré-atendimento em OS',
+      'Não foi possível converter o atendimento em OS',
     );
 
     await this.audit.record({
@@ -756,7 +1230,7 @@ export class LeadsService {
         phone: digits(input.customer.phone) || digits(lead.phone) || null,
         whatsapp: digits(input.customer.whatsapp) || digits(lead.phone) || null,
         email: input.customer.email ?? lead.email,
-        notes: input.customer.notes ?? `Criado a partir do pré-atendimento: ${lead.message}`,
+        notes: input.customer.notes ?? `Criado a partir do atendimento: ${lead.message}`,
       },
       select: { id: true },
     });

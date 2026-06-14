@@ -1,139 +1,146 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { LeadStatus, type Role } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
-const ALERT_ROLES = ['ADMIN', 'ATENDENTE'] satisfies Role[];
-const UPCOMING_FOLLOW_UP_WINDOW_MINUTES = 30;
-const OVERDUE_FOLLOW_UP_MINUTES = 15;
+const ALERT_ROLES: Role[] = ['ADMIN', 'ATENDENTE'];
+const ARRIVAL_WINDOW_MINUTES = 60;
+const NO_SHOW_TOLERANCE_MINUTES = 15;
+const CHECKED_IN_WITHOUT_OS_MINUTES = 10;
+const SCAN_INTERVAL_MS = 60_000;
 
+/**
+ * Converte alertas operacionais da Recepção em notificações internas e Web Push.
+ *
+ * A tela /leads continua consultando GET /leads/reception-alerts para exibição
+ * em tempo real, mas este serviço garante que celulares com PWA instalado e
+ * push ativado recebam avisos mesmo fora da tela da Recepção.
+ */
 @Injectable()
-export class ReceptionPushAlertsService {
+export class ReceptionPushAlertsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ReceptionPushAlertsService.name);
+  private timer: NodeJS.Timeout | null = null;
+  private initialTimer: NodeJS.Timeout | null = null;
+  private running = false;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
   ) {}
 
-  /**
-   * Executa a verificação de alertas da Central de Pré-atendimento.
-   *
-   * O schema atual de Lead não possui campos de chegada/check-in ou agenda
-   * técnica, como appointmentStartAt/checkedInAt. Por isso os alertas usam
-   * nextFollowUpAt, que é o campo existente para retorno ou visita agendada.
-   */
-  async run(now = new Date()): Promise<void> {
-    await this.notifyUpcomingFollowUps(now);
-    await this.notifyOverdueFollowUps(now);
+  onModuleInit(): void {
+    this.timer = setInterval(() => void this.scan(), SCAN_INTERVAL_MS);
+    this.initialTimer = setTimeout(() => void this.scan(), 10_000);
   }
 
-  private async notifyUpcomingFollowUps(now: Date): Promise<void> {
-    const windowEnd = new Date(
-      now.getTime() + UPCOMING_FOLLOW_UP_WINDOW_MINUTES * 60_000,
-    );
+  onModuleDestroy(): void {
+    if (this.timer) clearInterval(this.timer);
+    if (this.initialTimer) clearTimeout(this.initialTimer);
+  }
 
-    const leads = await this.prisma.lead.findMany({
-      where: {
-        status: { in: [LeadStatus.AGENDADO, LeadStatus.RETORNAR_DEPOIS] },
-        nextFollowUpAt: { gte: now, lte: windowEnd },
-        closedAt: null,
-        convertedAt: null,
-      },
-      orderBy: { nextFollowUpAt: 'asc' },
-      select: {
-        id: true,
-        tenantId: true,
-        name: true,
-        phone: true,
-        plate: true,
-        vehicle: true,
-        nextFollowUpAt: true,
-      },
-    });
-
-    for (const lead of leads) {
-      const start = lead.nextFollowUpAt ?? now;
-      await this.notifications.notifyRolesOnce(
-        lead.tenantId,
-        ALERT_ROLES,
-        {
-          type: 'LEAD_FOLLOW_UP_UPCOMING',
-          title: 'Retorno de lead próximo',
-          body: this.describeLead(
-            lead,
-            `Retorno previsto para ${this.formatTime(start)}.`,
-          ),
-          link: `/leads?leadId=${lead.id}`,
-          entity: 'lead',
-          entityId: lead.id,
-        },
-        new Date(start.getTime() - UPCOMING_FOLLOW_UP_WINDOW_MINUTES * 60_000),
+  async scan(): Promise<void> {
+    if (this.running) return;
+    this.running = true;
+    try {
+      const now = new Date();
+      const arrivalEnd = new Date(now.getTime() + ARRIVAL_WINDOW_MINUTES * 60_000);
+      const noShowCutoff = new Date(now.getTime() - NO_SHOW_TOLERANCE_MINUTES * 60_000);
+      const checkedInCutoff = new Date(
+        now.getTime() - CHECKED_IN_WITHOUT_OS_MINUTES * 60_000,
       );
+
+      const [arrivals, noShows, checkedInWithoutOs] = await this.prisma.$transaction([
+        this.prisma.lead.findMany({
+          where: {
+            status: { in: [LeadStatus.AGENDADO, LeadStatus.CONFIRMADO] },
+            appointmentStartAt: { gte: now, lte: arrivalEnd },
+            convertedServiceOrderId: null,
+            checkedInAt: null,
+            noShowAt: null,
+            appointmentCanceledAt: null,
+          },
+          orderBy: { appointmentStartAt: 'asc' },
+          take: 50,
+        }),
+        this.prisma.lead.findMany({
+          where: {
+            status: { in: [LeadStatus.AGENDADO, LeadStatus.CONFIRMADO] },
+            appointmentStartAt: { lte: noShowCutoff },
+            convertedServiceOrderId: null,
+            checkedInAt: null,
+            noShowAt: null,
+            appointmentCanceledAt: null,
+          },
+          orderBy: { appointmentStartAt: 'asc' },
+          take: 50,
+        }),
+        this.prisma.lead.findMany({
+          where: {
+            status: LeadStatus.CLIENTE_CHEGOU,
+            checkedInAt: { lte: checkedInCutoff },
+            convertedServiceOrderId: null,
+          },
+          orderBy: { checkedInAt: 'asc' },
+          take: 50,
+        }),
+      ]);
+
+      for (const lead of arrivals) {
+        const start = lead.appointmentStartAt ?? now;
+        const minutes = Math.max(0, Math.round((start.getTime() - now.getTime()) / 60_000));
+        await this.notifications.notifyRolesOnce(
+          lead.tenantId,
+          ALERT_ROLES,
+          {
+            type: 'RECEPTION_APPOINTMENT_UPCOMING',
+            title: 'Cliente perto de chegar',
+            body: `${lead.name} chega em aproximadamente ${minutes} min.`,
+            link: `/leads?selected=${lead.id}`,
+            entity: 'Lead',
+            entityId: lead.id,
+          },
+          new Date(start.getTime() - ARRIVAL_WINDOW_MINUTES * 60_000),
+        );
+      }
+
+      for (const lead of noShows) {
+        const start = lead.appointmentStartAt ?? now;
+        const minutes = Math.max(0, Math.round((now.getTime() - start.getTime()) / 60_000));
+        await this.notifications.notifyRolesOnce(
+          lead.tenantId,
+          ALERT_ROLES,
+          {
+            type: 'RECEPTION_NO_SHOW_PENDING',
+            title: 'Registrar não comparecimento',
+            body: `${lead.name} está ${minutes} min atrasado. Registre chegada ou não comparecimento.`,
+            link: `/leads?selected=${lead.id}`,
+            entity: 'Lead',
+            entityId: lead.id,
+          },
+          start,
+        );
+      }
+
+      for (const lead of checkedInWithoutOs) {
+        const checkedInAt = lead.checkedInAt ?? now;
+        await this.notifications.notifyRolesOnce(
+          lead.tenantId,
+          ALERT_ROLES,
+          {
+            type: 'RECEPTION_CHECKED_IN_WITHOUT_OS',
+            title: 'Cliente aguardando OS',
+            body: `${lead.name} já chegou. Converta o atendimento em OS quando possível.`,
+            link: `/leads?selected=${lead.id}`,
+            entity: 'Lead',
+            entityId: lead.id,
+          },
+          checkedInAt,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(`Falha ao verificar alertas push da Recepção: ${String(err)}`);
+    } finally {
+      this.running = false;
     }
-  }
-
-  private async notifyOverdueFollowUps(now: Date): Promise<void> {
-    const overdueCutoff = new Date(
-      now.getTime() - OVERDUE_FOLLOW_UP_MINUTES * 60_000,
-    );
-
-    const leads = await this.prisma.lead.findMany({
-      where: {
-        status: { in: [LeadStatus.AGENDADO, LeadStatus.RETORNAR_DEPOIS] },
-        nextFollowUpAt: { lte: overdueCutoff },
-        closedAt: null,
-        convertedAt: null,
-      },
-      orderBy: { nextFollowUpAt: 'asc' },
-      select: {
-        id: true,
-        tenantId: true,
-        name: true,
-        phone: true,
-        plate: true,
-        vehicle: true,
-        nextFollowUpAt: true,
-      },
-    });
-
-    for (const lead of leads) {
-      const start = lead.nextFollowUpAt ?? now;
-      await this.notifications.notifyRolesOnce(
-        lead.tenantId,
-        ALERT_ROLES,
-        {
-          type: 'LEAD_FOLLOW_UP_OVERDUE',
-          title: 'Retorno de lead atrasado',
-          body: this.describeLead(
-            lead,
-            `Retorno estava previsto para ${this.formatTime(start)}.`,
-          ),
-          link: `/leads?leadId=${lead.id}`,
-          entity: 'lead',
-          entityId: lead.id,
-        },
-        start,
-      );
-    }
-  }
-
-  private describeLead(
-    lead: {
-      name: string;
-      phone: string;
-      plate: string | null;
-      vehicle: string | null;
-    },
-    suffix: string,
-  ): string {
-    const vehicle = lead.plate ?? lead.vehicle;
-    const details = vehicle ? `${lead.name} - ${vehicle}` : lead.name;
-    return `${details}. Telefone: ${lead.phone}. ${suffix}`;
-  }
-
-  private formatTime(date: Date): string {
-    return date.toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   }
 }

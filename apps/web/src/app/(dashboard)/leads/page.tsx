@@ -89,7 +89,7 @@ export default function LeadsPage() {
     status: (status || undefined) as LeadStatus | undefined,
     search: search || undefined,
   });
-  const leads = useMemo(() => data?.data ?? [], [data?.data]);
+  const leads = data?.data ?? [];
 
   useEffect(() => {
     if (!selectedId && leads[0]) setSelectedId(leads[0].id);

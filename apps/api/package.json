@@ -4,22 +4,21 @@
   "private": true,
   "description": "Backend NestJS — API da oficina",
   "scripts": {
-    "build": "pnpm prisma:generate && nest build",
+    "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
-    "typecheck": "pnpm prisma:generate && tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
-    "test:e2e": "pnpm prisma:generate && pnpm prisma:deploy && pnpm --filter @oficina/shared build && jest --config ./test/jest-e2e.json --runInBand --detectOpenHandles",
+    "test:e2e": "pnpm --filter @oficina/shared build && jest --config ./test/jest-e2e.json --runInBand --detectOpenHandles",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
-    "prisma:validate": "prisma validate --schema prisma/schema.prisma",
-    "seed": "prisma db seed"
+    "prisma:validate": "prisma validate --schema prisma/schema.prisma"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

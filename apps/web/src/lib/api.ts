@@ -87,7 +87,15 @@ async function rawRequest<T>(
   }
 
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+
+  const text = await res.text();
+  if (!text) return undefined as T;
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as T;
+  }
 }
 
 let refreshPromise: Promise<boolean> | null = null;

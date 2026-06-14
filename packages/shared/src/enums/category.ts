@@ -1,4 +1,4 @@
-/** Tipo de categoria cadastrável. */
+/** Tipo de categoria/marca cadastrável. */
 export const CategoryKind = {
   CUSTOMER: 'CUSTOMER',
   SERVICE: 'SERVICE',

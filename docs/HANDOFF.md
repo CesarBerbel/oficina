@@ -164,10 +164,8 @@ pnpm install --frozen-lockfile
 pnpm prisma:generate
 pnpm prisma:deploy
 pnpm prisma:seed                # cria oficina "oficina-modelo" + admin
-# ou personalizado:
-pnpm seed -- --oficina "Auto Mecânica Bandeirantes" --slug automec-band --user adm@adm.com --senha 321654
 pnpm dev                        # API :3333/api + Web :3000
-# Login padrão: Oficina = oficina-modelo · admin@oficina.local / Admin@123
+# Login: Oficina = oficina-modelo · admin@oficina.local / Admin@123
 ```
 
 ### E2E da API no Windows PowerShell
@@ -177,7 +175,7 @@ docker compose -f docker-compose.test.yml up -d   # Postgres E2E, porta 5434
 $env:DATABASE_URL="postgresql://oficina:oficina_test_pwd@localhost:5434/oficina_test?schema=public"
 pnpm prisma:validate
 pnpm prisma:generate
-pnpm prisma:deploy             # opcional: o test:e2e também aplica migrations
+pnpm prisma:deploy
 pnpm --filter @oficina/api test:e2e
 Remove-Item Env:DATABASE_URL
 ```

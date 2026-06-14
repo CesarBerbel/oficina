@@ -6,6 +6,6 @@ import { ReceptionPushAlertsService } from './reception-push-alerts.service';
 @Module({
   controllers: [LeadsController],
   providers: [LeadsService, ReceptionPushAlertsService],
-  exports: [LeadsService, ReceptionPushAlertsService],
+  exports: [LeadsService],
 })
 export class LeadsModule {}

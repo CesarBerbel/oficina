@@ -31,9 +31,9 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Categorias e marcas</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Categorias</h1>
         <p className="text-muted-foreground">
-          Categorias de clientes, serviços, peças e marcas usadas nos cadastros.
+          Categorias de clientes, serviços e peças usadas nos cadastros.
         </p>
       </div>
 
@@ -85,7 +85,7 @@ function KindTab({ kind, canManage }: { kind: CategoryKind; canManage: boolean }
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={`Novo cadastro de ${CATEGORY_KIND_LABELS[kind].toLowerCase()}`}
+            placeholder={`Nova categoria de ${CATEGORY_KIND_LABELS[kind].toLowerCase()}`}
             maxLength={60}
             className="max-w-sm"
           />

@@ -41,17 +41,11 @@ docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
 ```
 
 ## 4. Seed inicial (primeira vez)
-Cria a oficina e o usuário administrador usando as variáveis `SEED_*` do `.env`:
+Cria a oficina e o usuário administrador:
 ```bash
 docker compose -f docker-compose.prod.yml exec api npx prisma db seed
 ```
-
-Também é possível informar os dados diretamente no comando:
-```bash
-docker compose -f docker-compose.prod.yml exec api npx prisma db seed -- --oficina "Auto Mecânica Bandeirantes" --slug automec-band --user adm@adm.com --senha 321654
-```
-
-Login: slug informado em `--slug` ou `SEED_TENANT_SLUG`, e-mail informado em `--user` ou `SEED_ADMIN_EMAIL`, senha informada em `--senha` ou `SEED_ADMIN_PASSWORD`.
+Login: `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` (definidos no `.env`).
 **Troque a senha do admin após o primeiro acesso.**
 
 ## 5. Verificação
