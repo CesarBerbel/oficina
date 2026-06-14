@@ -33,6 +33,7 @@ import { BlogModule } from './modules/blog/blog.module';
 import { LeadsModule } from './modules/leads/leads.module';
 import { AiModule } from './modules/ai/ai.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { CrmModule } from './modules/crm/crm.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { HealthModule } from './modules/health/health.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -82,6 +83,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     LeadsModule,
     AiModule,
     ReportsModule,
+    CrmModule,
     UploadsModule,
     AuthModule,
     UsersModule,

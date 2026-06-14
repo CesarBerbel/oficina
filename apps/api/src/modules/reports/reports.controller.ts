@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { Permission } from '@oficina/shared';
 import { ReportsService } from './reports.service';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -11,7 +11,10 @@ export class ReportsController {
 
   @Get('summary')
   @RequirePermission(Permission.DASHBOARD_READ)
-  summary(@CurrentUser() actor: AuthenticatedUser) {
-    return this.reports.summary(actor.tenantId);
+  summary(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Query('periodDays') periodDays?: string,
+  ) {
+    return this.reports.summary(actor.tenantId, Number(periodDays) || 180);
   }
 }

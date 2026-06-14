@@ -1,12 +1,15 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { LeadStatus, type Role } from '@prisma/client';
+import { LeadStatus, ServiceOrderStatus, type Role } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 const ALERT_ROLES: Role[] = ['ADMIN', 'ATENDENTE'];
+const OS_ALERT_ROLES: Role[] = ['ADMIN', 'ATENDENTE', 'TECNICO'];
 const ARRIVAL_WINDOW_MINUTES = 60;
 const NO_SHOW_TOLERANCE_MINUTES = 15;
 const CHECKED_IN_WITHOUT_OS_MINUTES = 10;
+const OVERDUE_FOLLOW_UP_MINUTES = 5;
+const STALLED_OS_HOURS = 24;
 const SCAN_INTERVAL_MS = 60_000;
 
 /**
@@ -48,8 +51,10 @@ export class ReceptionPushAlertsService implements OnModuleInit, OnModuleDestroy
       const checkedInCutoff = new Date(
         now.getTime() - CHECKED_IN_WITHOUT_OS_MINUTES * 60_000,
       );
+      const overdueFollowUpCutoff = new Date(now.getTime() - OVERDUE_FOLLOW_UP_MINUTES * 60_000);
+      const stalledOsCutoff = new Date(now.getTime() - STALLED_OS_HOURS * 3_600_000);
 
-      const [arrivals, noShows, checkedInWithoutOs] = await this.prisma.$transaction([
+      const [arrivals, noShows, checkedInWithoutOs, overdueFollowUps, stalledOrders] = await this.prisma.$transaction([
         this.prisma.lead.findMany({
           where: {
             status: { in: [LeadStatus.AGENDADO, LeadStatus.CONFIRMADO] },
@@ -81,6 +86,31 @@ export class ReceptionPushAlertsService implements OnModuleInit, OnModuleDestroy
             convertedServiceOrderId: null,
           },
           orderBy: { checkedInAt: 'asc' },
+          take: 50,
+        }),
+        this.prisma.lead.findMany({
+          where: {
+            status: { in: [
+              LeadStatus.NOVO,
+              LeadStatus.EM_ATENDIMENTO,
+              LeadStatus.CONTATO_REALIZADO,
+              LeadStatus.RETORNAR_DEPOIS,
+              LeadStatus.AGENDADO,
+              LeadStatus.CONFIRMADO,
+              LeadStatus.CLIENTE_CHEGOU,
+            ] },
+            nextFollowUpAt: { lte: overdueFollowUpCutoff },
+            convertedServiceOrderId: null,
+          },
+          orderBy: { nextFollowUpAt: 'asc' },
+          take: 50,
+        }),
+        this.prisma.serviceOrder.findMany({
+          where: {
+            status: { notIn: [ServiceOrderStatus.ENTREGUE, ServiceOrderStatus.CANCELADA] },
+            updatedAt: { lte: stalledOsCutoff },
+          },
+          orderBy: { updatedAt: 'asc' },
           take: 50,
         }),
       ]);
@@ -135,6 +165,41 @@ export class ReceptionPushAlertsService implements OnModuleInit, OnModuleDestroy
             entityId: lead.id,
           },
           checkedInAt,
+        );
+      }
+
+      for (const lead of overdueFollowUps) {
+        const followUpAt = lead.nextFollowUpAt ?? now;
+        const minutes = Math.max(0, Math.round((now.getTime() - followUpAt.getTime()) / 60_000));
+        await this.notifications.notifyRolesOnce(
+          lead.tenantId,
+          ALERT_ROLES,
+          {
+            type: 'RECEPTION_FOLLOW_UP_OVERDUE',
+            title: 'Retorno de cliente pendente',
+            body: `${lead.name} tem retorno vencido há ${minutes} min.`,
+            link: `/leads?selected=${lead.id}`,
+            entity: 'Lead',
+            entityId: lead.id,
+          },
+          followUpAt,
+        );
+      }
+
+      for (const order of stalledOrders) {
+        const hours = Math.max(24, Math.round((now.getTime() - order.updatedAt.getTime()) / 3_600_000));
+        await this.notifications.notifyRolesOnce(
+          order.tenantId,
+          OS_ALERT_ROLES,
+          {
+            type: 'SERVICE_ORDER_STALLED',
+            title: 'OS parada há muito tempo',
+            body: `OS #${order.number} está sem atualização há ${hours}h.`,
+            link: `/os/${order.id}`,
+            entity: 'ServiceOrder',
+            entityId: order.id,
+          },
+          new Date(order.updatedAt.getTime() + STALLED_OS_HOURS * 3_600_000),
         );
       }
     } catch (err) {

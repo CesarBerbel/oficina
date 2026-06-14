@@ -240,6 +240,7 @@ model Tenant {
   garageCodes    GarageAccessCode[]
   categories     Category[]
   serviceOrderEvents ServiceOrderEvent[]
+  receptionScheduleBlocks ReceptionScheduleBlock[]
 
   @@map("tenants")
 }
@@ -267,6 +268,7 @@ model User {
   pushSubscriptions PushSubscription[]
   checkins          VehicleCheckin[]            @relation("CheckinCreator")
   serviceOrderEvents ServiceOrderEvent[]        @relation("ServiceOrderEventCreator")
+  receptionScheduleBlocks ReceptionScheduleBlock[] @relation("ReceptionScheduleBlockTechnician")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -889,6 +891,28 @@ model Lead {
   @@index([tenantId, appointmentStartAt])
   @@index([tenantId, matchedCustomerId])
   @@map("leads")
+}
+
+/// Bloqueio operacional da agenda da Recepção.
+model ReceptionScheduleBlock {
+  id           String   @id @default(cuid())
+  tenantId     String
+  technicianId String?
+  title        String
+  notes        String?
+  startAt      DateTime
+  endAt        DateTime
+  createdById  String?
+  createdByName String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  technician User?  @relation("ReceptionScheduleBlockTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, startAt])
+  @@index([tenantId, technicianId, startAt])
+  @@map("reception_schedule_blocks")
 }
 
 /// Registro de contato feito pelo atendente durante a jornada do atendimento.

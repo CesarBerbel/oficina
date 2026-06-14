@@ -1,21 +1,25 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import {
   appointmentActionSchema,
   convertLeadToServiceOrderSchema,
+  createReceptionScheduleBlockSchema,
   createDirectReceptionLeadSchema,
   linkLeadCustomerSchema,
   linkLeadVehicleSchema,
   listLeadsQuerySchema,
+  listReceptionScheduleBlocksQuerySchema,
   registerLeadContactSchema,
   scheduleLeadSchema,
   updateLeadStatusSchema,
   Permission,
   type AppointmentActionInput,
   type ConvertLeadToServiceOrderInput,
+  type CreateReceptionScheduleBlockInput,
   type CreateDirectReceptionLeadInput,
   type LinkLeadCustomerInput,
   type LinkLeadVehicleInput,
   type ListLeadsQuery,
+  type ListReceptionScheduleBlocksQuery,
   type RegisterLeadContactInput,
   type ScheduleLeadInput,
   type UpdateLeadStatusInput,
@@ -47,6 +51,34 @@ export class LeadsController {
     body: CreateDirectReceptionLeadInput,
   ) {
     return this.leads.createDirectReception(actor, body);
+  }
+
+
+  @Get('schedule-blocks')
+  @RequirePermission(Permission.CUSTOMERS_READ)
+  scheduleBlocks(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Query(new ZodValidationPipe(listReceptionScheduleBlocksQuerySchema))
+    query: ListReceptionScheduleBlocksQuery,
+  ) {
+    return this.leads.listScheduleBlocks(actor.tenantId, query);
+  }
+
+  @Post('schedule-blocks')
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  createScheduleBlock(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body(new ZodValidationPipe(createReceptionScheduleBlockSchema))
+    body: CreateReceptionScheduleBlockInput,
+  ) {
+    return this.leads.createScheduleBlock(actor, body);
+  }
+
+  @Delete('schedule-blocks/:id')
+  @HttpCode(204)
+  @RequirePermission(Permission.CUSTOMERS_WRITE)
+  deleteScheduleBlock(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.leads.deleteScheduleBlock(actor, id);
   }
 
   @Get('reception-alerts')

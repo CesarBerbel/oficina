@@ -9,6 +9,7 @@ import { randomBytes } from 'crypto';
 import type {
   AppointmentActionInput,
   ConvertLeadToServiceOrderInput,
+  CreateReceptionScheduleBlockInput,
   CreateDirectReceptionLeadInput,
   CreateLeadInput,
   LeadContactAttemptDto,
@@ -22,8 +23,10 @@ import type {
   LinkLeadCustomerInput,
   LinkLeadVehicleInput,
   ListLeadsQuery,
+  ListReceptionScheduleBlocksQuery,
   Paginated,
   ReceptionAlertsDto,
+  ReceptionScheduleBlockDto,
   RegisterLeadContactInput,
   ScheduleLeadInput,
 } from '@oficina/shared';
@@ -53,6 +56,7 @@ const leadDetailInclude = {
 
 type LeadRow = Prisma.LeadGetPayload<object>;
 type LeadDetailRow = Prisma.LeadGetPayload<{ include: typeof leadDetailInclude }>;
+type ReceptionScheduleBlockRow = Prisma.ReceptionScheduleBlockGetPayload<{ include: { technician: { select: { name: true } } } }>;
 type Tx = Prisma.TransactionClient;
 
 type CustomerSuggestionSource = {
@@ -86,6 +90,60 @@ function firstLine(value: string): string {
   return value.split(/\r?\n/)[0]?.trim() ?? value;
 }
 
+type OperationalPriority = 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+
+function leadOperationalScore(lead: Pick<LeadRow, 'status' | 'conflictLevel' | 'nextFollowUpAt' | 'appointmentStartAt' | 'checkedInAt' | 'convertedServiceOrderId' | 'createdAt'>): { score: number; priority: OperationalPriority; reasons: string[] } {
+  const now = Date.now();
+  let score = 0;
+  const reasons: string[] = [];
+
+  if (lead.conflictLevel === 'CONFLITO') {
+    score += 45;
+    reasons.push('conflito cliente/placa');
+  } else if (lead.conflictLevel === 'ATENCAO') {
+    score += 25;
+    reasons.push('dados precisam de conferência');
+  }
+
+  if (lead.nextFollowUpAt && lead.nextFollowUpAt.getTime() <= now) {
+    score += 35;
+    reasons.push('retorno combinado vencido');
+  }
+
+  if (lead.appointmentStartAt) {
+    const minutes = Math.round((lead.appointmentStartAt.getTime() - now) / 60_000);
+    if (['AGENDADO', 'CONFIRMADO'].includes(lead.status) && minutes <= 15 && minutes >= 0) {
+      score += 30;
+      reasons.push('chegada nos próximos 15 minutos');
+    }
+    if (['AGENDADO', 'CONFIRMADO'].includes(lead.status) && minutes < -15) {
+      score += 50;
+      reasons.push('horário já passou');
+    }
+  }
+
+  if (lead.status === 'CLIENTE_CHEGOU' && lead.checkedInAt && !lead.convertedServiceOrderId) {
+    const waiting = Math.round((now - lead.checkedInAt.getTime()) / 60_000);
+    if (waiting >= 10) {
+      score += 45;
+      reasons.push('cliente aguardando abertura da OS');
+    }
+  }
+  const ageHours = Math.round((now - lead.createdAt.getTime()) / 3_600_000);
+  if (['NOVO', 'EM_ATENDIMENTO'].includes(lead.status) && ageHours >= 24) {
+    score += 20;
+    reasons.push('atendimento aberto há mais de 24h');
+  }
+
+  const bounded = Math.min(100, score);
+  const priority: OperationalPriority = bounded >= 80 ? 'CRITICA' : bounded >= 55 ? 'ALTA' : bounded >= 25 ? 'MEDIA' : 'BAIXA';
+  return {
+    score: bounded,
+    priority,
+    reasons: reasons.length > 0 ? reasons : ['sem pendências críticas'],
+  };
+}
+
 @Injectable()
 export class LeadsService {
   constructor(
@@ -95,6 +153,7 @@ export class LeadsService {
   ) {}
 
   private toDto(l: LeadRow): LeadDto {
+    const operational = leadOperationalScore(l);
     return {
       id: l.id,
       name: l.name,
@@ -113,6 +172,9 @@ export class LeadsService {
       convertedServiceOrderId: l.convertedServiceOrderId,
       conflictLevel: l.conflictLevel,
       conflictReason: l.conflictReason,
+      operationalScore: operational.score,
+      operationalPriority: operational.priority,
+      operationalReasons: operational.reasons,
       nextFollowUpAt: l.nextFollowUpAt?.toISOString() ?? null,
       appointmentStartAt: l.appointmentStartAt?.toISOString() ?? null,
       appointmentEndAt: l.appointmentEndAt?.toISOString() ?? null,
@@ -125,6 +187,31 @@ export class LeadsService {
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),
     };
+  }
+
+
+  private toScheduleBlockDto(row: ReceptionScheduleBlockRow): ReceptionScheduleBlockDto {
+    return {
+      id: row.id,
+      technicianId: row.technicianId,
+      technicianName: row.technician?.name ?? null,
+      title: row.title,
+      notes: row.notes,
+      startAt: row.startAt.toISOString(),
+      endAt: row.endAt.toISOString(),
+      createdByName: row.createdByName,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  private async technicianForSchedule(tenantId: string, technicianId: string | undefined): Promise<{ id: string; name: string } | null> {
+    if (!technicianId) return null;
+    const technician = await this.prisma.user.findFirst({
+      where: { id: technicianId, tenantId, role: 'TECNICO', active: true },
+      select: { id: true, name: true },
+    });
+    if (!technician) throw new BadRequestException('Técnico não encontrado ou inativo');
+    return technician;
   }
 
   private toContactDto(row: LeadDetailRow['contactAttempts'][number]): LeadContactAttemptDto {
@@ -715,6 +802,85 @@ export class LeadsService {
     return this.findOne(actor.tenantId, id);
   }
 
+
+  async listScheduleBlocks(
+    tenantId: string,
+    query: ListReceptionScheduleBlocksQuery,
+  ): Promise<ReceptionScheduleBlockDto[]> {
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) {
+      throw new BadRequestException('Período inválido para consultar bloqueios');
+    }
+
+    const rows = await this.prisma.receptionScheduleBlock.findMany({
+      where: {
+        tenantId,
+        startAt: { lt: to },
+        endAt: { gt: from },
+        ...(query.technicianId ? { technicianId: query.technicianId } : {}),
+      },
+      include: { technician: { select: { name: true } } },
+      orderBy: { startAt: 'asc' },
+    });
+    return rows.map((row) => this.toScheduleBlockDto(row));
+  }
+
+  async createScheduleBlock(
+    actor: AuthenticatedUser,
+    input: CreateReceptionScheduleBlockInput,
+  ): Promise<ReceptionScheduleBlockDto> {
+    const startAt = new Date(input.startAt);
+    const endAt = new Date(input.endAt);
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime()) || endAt <= startAt) {
+      throw new BadRequestException('O fim do bloqueio precisa ser maior que o início');
+    }
+
+    const technician = await this.technicianForSchedule(actor.tenantId, input.technicianId);
+    const row = await this.prisma.receptionScheduleBlock.create({
+      data: {
+        tenantId: actor.tenantId,
+        technicianId: technician?.id ?? null,
+        title: input.title,
+        notes: input.notes ?? null,
+        startAt,
+        endAt,
+        createdById: actor.id,
+        createdByName: actor.email,
+      },
+      include: { technician: { select: { name: true } } },
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'CREATE_SCHEDULE_BLOCK',
+      module: 'leads',
+      entity: 'ReceptionScheduleBlock',
+      entityId: row.id,
+    });
+
+    return this.toScheduleBlockDto(row);
+  }
+
+  async deleteScheduleBlock(actor: AuthenticatedUser, id: string): Promise<void> {
+    const existing = await this.prisma.receptionScheduleBlock.findFirst({
+      where: { id, tenantId: actor.tenantId },
+      select: { id: true },
+    });
+    if (!existing) throw new NotFoundException('Bloqueio não encontrado');
+
+    await this.prisma.receptionScheduleBlock.delete({ where: { id } });
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'DELETE_SCHEDULE_BLOCK',
+      module: 'leads',
+      entity: 'ReceptionScheduleBlock',
+      entityId: id,
+    });
+  }
+
   private statusForOutcome(outcome: RegisterLeadContactInput['outcome']): LeadStatus {
     const statuses: Record<RegisterLeadContactInput['outcome'], LeadStatus> = {
       ATENDEU: 'CONTATO_REALIZADO',
@@ -763,12 +929,15 @@ export class LeadsService {
         throw new BadRequestException('O horário final não pode ser menor que o horário inicial');
       }
 
+      const technician = await this.technicianForSchedule(actor.tenantId, input.assignedToId);
+      const shouldClearTechnician = input.clearAssignedTo === true && !technician;
+
       await tx.lead.update({
         where: { id },
         data: {
           status: 'AGENDADO',
-          assignedToId: actor.id,
-          assignedToName: actor.email,
+          assignedToId: shouldClearTechnician ? null : technician?.id ?? actor.id,
+          assignedToName: shouldClearTechnician ? null : technician?.name ?? actor.email,
           appointmentStartAt,
           appointmentEndAt,
           appointmentServiceType: input.appointmentServiceType ?? null,
@@ -794,6 +963,8 @@ export class LeadsService {
           appointmentStartAt: appointmentStartAt.toISOString(),
           appointmentEndAt: appointmentEndAt.toISOString(),
           appointmentServiceType: input.appointmentServiceType ?? null,
+          assignedToId: shouldClearTechnician ? null : technician?.id ?? actor.id,
+          assignedToName: shouldClearTechnician ? null : technician?.name ?? actor.email,
         },
       });
     });

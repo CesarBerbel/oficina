@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarClock, Clock } from 'lucide-react';
+import { CalendarClock, Clock, Gauge } from 'lucide-react';
 import { LEAD_STATUS_LABELS, type LeadDto } from '@oficina/shared';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
@@ -41,7 +41,12 @@ export function ReceptionCard({
           <p className="truncate font-medium">{lead.name}</p>
           <p className="text-xs text-muted-foreground">Recebido em {formatDate(lead.createdAt)}</p>
         </div>
-        <Badge variant={STATUS_VARIANT[lead.status]}>{LEAD_STATUS_LABELS[lead.status]}</Badge>
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant={STATUS_VARIANT[lead.status]}>{LEAD_STATUS_LABELS[lead.status]}</Badge>
+          <Badge variant={lead.operationalPriority === 'CRITICA' ? 'destructive' : lead.operationalPriority === 'ALTA' ? 'warning' : lead.operationalPriority === 'MEDIA' ? 'secondary' : 'outline'}>
+            <Gauge className="mr-1 size-3" /> {lead.operationalScore}
+          </Badge>
+        </div>
       </div>
       <div className="mt-2 space-y-1 text-xs text-muted-foreground">
         <WhatsAppNumberLink
@@ -61,6 +66,9 @@ export function ReceptionCard({
           <p className="flex items-center gap-1.5 text-amber-700">
             <Clock className="size-3" /> Retorno: {formatDateTime(lead.nextFollowUpAt)}
           </p>
+        )}
+        {lead.operationalReasons.length > 0 && lead.operationalPriority !== 'BAIXA' && (
+          <p className="font-medium text-amber-700">Prioridade: {lead.operationalReasons[0]}</p>
         )}
         {isPastAppointment(lead) && (
           <p className="font-medium text-amber-700">Agendamento atrasado ou pendente de baixa.</p>

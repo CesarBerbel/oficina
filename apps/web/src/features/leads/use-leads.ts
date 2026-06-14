@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import type {
   AppointmentActionInput,
   ConvertLeadToServiceOrderInput,
+  CreateReceptionScheduleBlockInput,
   CreateDirectReceptionLeadInput,
   LeadDetailDto,
   LeadDto,
@@ -13,6 +14,7 @@ import type {
   ListLeadsQuery,
   Paginated,
   ReceptionAlertsDto,
+  ReceptionScheduleBlockDto,
   RegisterLeadContactInput,
   ScheduleLeadInput,
 } from '@oficina/shared';
@@ -41,6 +43,33 @@ export function useLeads(params: Partial<ListLeadsQuery>) {
   });
 }
 
+
+
+export function useReceptionScheduleBlocks(params: { from: string; to: string; technicianId?: string }) {
+  return useQuery({
+    queryKey: ['leads', 'schedule-blocks', params],
+    queryFn: () => api.get<ReceptionScheduleBlockDto[]>(`/leads/schedule-blocks${qs(params)}`),
+    enabled: Boolean(params.from && params.to),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useCreateReceptionScheduleBlock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateReceptionScheduleBlockInput) =>
+      api.post<ReceptionScheduleBlockDto>('/leads/schedule-blocks', input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads', 'schedule-blocks'] }),
+  });
+}
+
+export function useDeleteReceptionScheduleBlock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/leads/schedule-blocks/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads', 'schedule-blocks'] }),
+  });
+}
 
 export function useReceptionAlerts() {
   return useQuery({

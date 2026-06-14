@@ -23,4 +23,16 @@ export interface ReportsSummary {
   topParts: NamedTotal[]; // por quantidade consumida
   deliveredCount: number;
   averageTicket: number;
+  periodDays: number;
+  openedOrders: number;
+  approvalRate: number;
+  conversionRate: number;
+  grossProfit: number;
+  grossMargin: number;
+  partsCost: number;
+  servicesCost: number;
+  revenueByTechnician: NamedTotal[];
+  revenueByCustomer: NamedTotal[];
+  leadFunnel: StatusCount[];
+  dailyRevenue: RevenuePoint[];
 }

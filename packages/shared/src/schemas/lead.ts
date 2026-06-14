@@ -80,6 +80,8 @@ export const scheduleLeadSchema = z
     appointmentEndAt: optionalDateTime,
     appointmentServiceType: optionalString(120),
     appointmentNotes: optionalString(2000),
+    assignedToId: optionalString(40),
+    clearAssignedTo: z.boolean().optional(),
   })
   .refine(
     (value) => {
@@ -95,6 +97,44 @@ export const scheduleLeadSchema = z
     },
   );
 export type ScheduleLeadInput = z.infer<typeof scheduleLeadSchema>;
+
+export const listReceptionScheduleBlocksQuerySchema = z.object({
+  from: z.string().datetime({ offset: true }),
+  to: z.string().datetime({ offset: true }),
+  technicianId: optionalString(40),
+});
+export type ListReceptionScheduleBlocksQuery = z.infer<
+  typeof listReceptionScheduleBlocksQuerySchema
+>;
+
+export const createReceptionScheduleBlockSchema = z
+  .object({
+    technicianId: optionalString(40),
+    title: z.string().trim().min(2, 'Informe o motivo do bloqueio').max(120),
+    notes: optionalString(2000),
+    startAt: z.string().datetime({ offset: true }),
+    endAt: z.string().datetime({ offset: true }),
+  })
+  .refine((value) => new Date(value.endAt).getTime() > new Date(value.startAt).getTime(), {
+    message: 'O fim do bloqueio precisa ser maior que o início',
+    path: ['endAt'],
+  });
+export type CreateReceptionScheduleBlockInput = z.infer<
+  typeof createReceptionScheduleBlockSchema
+>;
+
+export interface ReceptionScheduleBlockDto {
+  id: string;
+  technicianId: string | null;
+  technicianName: string | null;
+  title: string;
+  notes: string | null;
+  startAt: string;
+  endAt: string;
+  createdByName: string | null;
+  createdAt: string;
+}
+
 
 export const appointmentActionSchema = z.object({
   notes: optionalString(2000),
@@ -206,6 +246,9 @@ export interface LeadDto {
   convertedServiceOrderId: string | null;
   conflictLevel: LeadConflictLevel;
   conflictReason: string | null;
+  operationalScore: number;
+  operationalPriority: 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+  operationalReasons: string[];
   nextFollowUpAt: string | null;
   appointmentStartAt: string | null;
   appointmentEndAt: string | null;

@@ -39,9 +39,9 @@ export function useAudit(params: Partial<ListAuditQuery>) {
   });
 }
 
-export function useReports() {
+export function useReports(periodDays = 180) {
   return useQuery({
-    queryKey: ['reports'],
-    queryFn: () => api.get<ReportsSummary>('/reports/summary'),
+    queryKey: ['reports', periodDays],
+    queryFn: () => api.get<ReportsSummary>(`/reports/summary?periodDays=${periodDays}`),
   });
 }

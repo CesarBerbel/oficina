@@ -10,6 +10,7 @@ import {
   Mail,
   MessageCircle,
   Phone,
+  Gauge,
   UserCheck,
   Wrench,
   XCircle,
@@ -86,6 +87,7 @@ export function LeadDetailPanel({ id }: { id?: string }) {
     appointmentEndAt: '',
     appointmentServiceType: '',
     appointmentNotes: '',
+    assignedToId: '',
   });
   const [customerId, setCustomerId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
@@ -150,6 +152,7 @@ export function LeadDetailPanel({ id }: { id?: string }) {
       appointmentEndAt,
       appointmentServiceType: lead.appointmentServiceType ?? '',
       appointmentNotes: lead.appointmentNotes ?? '',
+      assignedToId: lead.assignedToId ?? '',
     });
     setContact({ channel: 'TELEFONE', outcome: 'ATENDEU', notes: '', nextFollowUpAt: '' });
   }, [lead]);
@@ -218,6 +221,8 @@ export function LeadDetailPanel({ id }: { id?: string }) {
           appointmentEndAt: toIsoFromLocalInput(schedule.appointmentEndAt),
           appointmentServiceType: schedule.appointmentServiceType || undefined,
           appointmentNotes: schedule.appointmentNotes || undefined,
+          assignedToId: schedule.assignedToId || undefined,
+          clearAssignedTo: !schedule.assignedToId,
         },
       });
       toast.success(hasAppointment ? 'Agendamento remarcado' : 'Agendamento criado');
@@ -338,6 +343,9 @@ export function LeadDetailPanel({ id }: { id?: string }) {
             <Badge variant={CONFLICT_VARIANT[lead.match.conflictLevel]}>
               {LEAD_CONFLICT_LEVEL_LABELS[lead.match.conflictLevel]}
             </Badge>
+            <Badge variant={lead.operationalPriority === 'CRITICA' ? 'destructive' : lead.operationalPriority === 'ALTA' ? 'warning' : lead.operationalPriority === 'MEDIA' ? 'secondary' : 'outline'}>
+              Prioridade {lead.operationalPriority.toLowerCase()} · {lead.operationalScore}/100
+            </Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Recebido em {formatDateTime(lead.createdAt)} · Jornada da recepção até a abertura da OS.
@@ -355,6 +363,29 @@ export function LeadDetailPanel({ id }: { id?: string }) {
         <JourneyStep active={['AGENDADO', 'CONFIRMADO'].includes(lead.status)} done={Boolean(lead.appointmentStartAt)} icon={CalendarCheck} label="Agenda" />
         <JourneyStep active={lead.status === 'CLIENTE_CHEGOU'} done={Boolean(lead.checkedInAt) || lead.status === 'CONVERTIDO'} icon={UserCheck} label="Chegada" />
         <JourneyStep active={lead.status === 'CONVERTIDO'} done={lead.status === 'CONVERTIDO'} icon={Wrench} label="OS" />
+      </div>
+
+      <div className="rounded-xl border bg-card p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
+              <Gauge className="size-5" />
+            </span>
+            <div>
+              <h3 className="font-semibold">Inteligência da Recepção</h3>
+              <p className="text-sm text-muted-foreground">Score operacional calculado pelo backend para priorizar atendimento, conflito, retorno, chegada e conversão em OS.</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold">{lead.operationalScore}/100</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{lead.operationalPriority}</p>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {lead.operationalReasons.map((reason) => (
+            <Badge key={reason} variant="outline">{reason}</Badge>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
@@ -478,7 +509,20 @@ export function LeadDetailPanel({ id }: { id?: string }) {
                   onChange={(event) => setSchedule((cur) => ({ ...cur, appointmentEndAt: event.target.value }))}
                 />
               </div>
-              <div className="sm:col-span-2">
+              <div>
+                <Label>Técnico responsável</Label>
+                <Select
+                  value={schedule.assignedToId}
+                  disabled={isScheduleReadOnly}
+                  onChange={(event) => setSchedule((cur) => ({ ...cur, assignedToId: event.target.value }))}
+                >
+                  <option value="">Sem técnico definido</option>
+                  {(technicians ?? []).map((technician) => (
+                    <option key={technician.id} value={technician.id}>{technician.name}</option>
+                  ))}
+                </Select>
+              </div>
+              <div>
                 <Label>Tipo de atendimento</Label>
                 <Input
                   value={schedule.appointmentServiceType}

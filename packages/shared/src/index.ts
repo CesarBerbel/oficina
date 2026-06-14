@@ -43,3 +43,4 @@ export * from './schemas/message.js';
 export * from './schemas/ai.js';
 export * from './schemas/audit.js';
 export * from './schemas/reports.js';
+export * from './schemas/crm.js';

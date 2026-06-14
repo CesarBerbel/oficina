@@ -13,6 +13,7 @@ import {
   FileInput,
   Inbox,
   BarChart3,
+  HeartHandshake,
   Newspaper,
   Settings,
   type LucideIcon,
@@ -67,7 +68,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Gestão',
     items: [
-      { label: 'Pré-atendimento', href: '/leads', icon: Inbox, permission: Permission.CUSTOMERS_READ },
+      { label: 'Recepção', href: '/leads', icon: Inbox, permission: Permission.CUSTOMERS_READ },
+      { label: 'CRM Pós-venda', href: '/crm', icon: HeartHandshake, permission: Permission.CUSTOMERS_READ },
       { label: 'Blog', href: '/blog', icon: Newspaper, permission: Permission.BLOG_WRITE },
       { label: 'Relatórios', href: '/relatorios', icon: BarChart3, permission: Permission.DASHBOARD_READ },
     ],
