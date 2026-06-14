@@ -2,7 +2,7 @@
 
 import { api } from '@/lib/api';
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
+let vapidPublicKeyPromise: Promise<string> | null = null;
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
@@ -13,19 +13,42 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return arr;
 }
 
+async function getVapidPublicKey(): Promise<string> {
+  const fallback = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
+
+  if (!vapidPublicKeyPromise) {
+    vapidPublicKeyPromise = api
+      .get<{ publicKey: string }>('/notifications/push/public-key')
+      .then((response) => response.publicKey || fallback)
+      .catch(() => fallback);
+  }
+
+  return vapidPublicKeyPromise;
+}
+
+export function currentNotificationPermission(): NotificationPermission | 'unsupported' {
+  if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
+  return Notification.permission;
+}
+
 export function pushSupported(): boolean {
   return (
     typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
     'PushManager' in window &&
-    'Notification' in window &&
-    !!VAPID_PUBLIC_KEY
+    'Notification' in window
   );
 }
 
 /** Registra o SW, pede permissão, inscreve e envia ao backend. */
 export async function enablePush(): Promise<void> {
   if (!pushSupported()) throw new Error('Push não suportado neste navegador');
+
+  const vapidPublicKey = await getVapidPublicKey();
+  if (!vapidPublicKey) {
+    throw new Error('Chave pública VAPID não configurada');
+  }
+
   const reg = await navigator.serviceWorker.register('/sw.js');
   await navigator.serviceWorker.ready;
   const permission = await Notification.requestPermission();
@@ -35,7 +58,7 @@ export async function enablePush(): Promise<void> {
   if (!sub) {
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
     });
   }
   await api.post('/notifications/push/subscribe', sub.toJSON());

@@ -13,11 +13,11 @@
   },
   "scripts": {
     "dev": "pnpm --filter @oficina/shared build && pnpm prisma:generate && pnpm prisma:deploy && turbo run dev",
-    "build": "turbo run build",
+    "build": "pnpm prisma:generate && turbo run build",
     "start": "turbo run start",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck",
+    "typecheck": "pnpm prisma:generate && turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "prisma:validate": "prisma validate --schema apps/api/prisma/schema.prisma",
@@ -27,7 +27,9 @@
     "prisma:generate": "prisma generate --schema apps/api/prisma/schema.prisma",
     "prepare": "husky || true",
     "dev:turbo": "pnpm --filter @oficina/shared build && turbo run dev",
-    "dev:no-migrate": "pnpm --filter @oficina/shared build && turbo run dev"
+    "dev:no-migrate": "pnpm --filter @oficina/shared build && turbo run dev",
+    "ci:check": "pnpm prisma:validate && pnpm prisma:generate && pnpm --filter @oficina/shared build && pnpm --filter @oficina/api typecheck && pnpm --filter @oficina/web typecheck && pnpm build",
+    "ci:e2e": "pnpm prisma:deploy && pnpm --filter @oficina/api test:e2e"
   },
   "devDependencies": {
     "husky": "^9.1.7",
