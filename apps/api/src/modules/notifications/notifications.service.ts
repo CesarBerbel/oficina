@@ -58,7 +58,7 @@ export class NotificationsService {
     userIds: string[],
     payload: NotifyPayload,
   ): Promise<void> {
-    for (const userId of userIds) {
+    for (const userId of [...new Set(userIds)]) {
       const notif = await this.prisma.notification.create({
         data: {
           tenantId,
@@ -76,21 +76,102 @@ export class NotificationsService {
     }
   }
 
+  /**
+   * Cria notificações sem duplicar alertas ainda não lidos para o mesmo alvo.
+   * Usado por rotinas recorrentes, como lembretes de pré-atendimento, para que
+   * o mesmo lead não gere várias notificações iguais a cada execução do job.
+   */
+  async createForUsersOnce(
+    tenantId: string,
+    userIds: string[],
+    payload: NotifyPayload,
+    dedupeSince?: Date,
+  ): Promise<void> {
+    for (const userId of [...new Set(userIds)]) {
+      const existing = await this.prisma.notification.findFirst({
+        where: this.buildOnceWhere(tenantId, userId, payload, dedupeSince),
+        select: { id: true },
+      });
+
+      if (existing) continue;
+
+      const notif = await this.prisma.notification.create({
+        data: {
+          tenantId,
+          userId,
+          type: payload.type,
+          title: payload.title,
+          body: payload.body ?? null,
+          link: payload.link ?? null,
+          entity: payload.entity ?? null,
+          entityId: payload.entityId ?? null,
+        },
+        select: { id: true },
+      });
+      await this.sendPush(userId, payload, notif.id);
+    }
+  }
+
+  private buildOnceWhere(
+    tenantId: string,
+    userId: string,
+    payload: NotifyPayload,
+    dedupeSince?: Date,
+  ): Prisma.NotificationWhereInput {
+    return {
+      tenantId,
+      userId,
+      type: payload.type,
+      title: payload.title,
+      read: false,
+      ...(dedupeSince ? { createdAt: { gte: dedupeSince } } : {}),
+      ...(payload.entity ? { entity: payload.entity } : {}),
+      ...(payload.entityId ? { entityId: payload.entityId } : {}),
+      ...(payload.link ? { link: payload.link } : {}),
+    };
+  }
+
   /** Notifica todos os usuários ativos do tenant com os perfis informados. */
   async notifyRoles(
     tenantId: string,
     roles: Role[],
     payload: NotifyPayload,
   ): Promise<void> {
-    const users = await this.prisma.user.findMany({
-      where: { tenantId, active: true, role: { in: roles } },
-      select: { id: true },
-    });
+    const users = await this.findActiveUsersByRoles(tenantId, roles);
     await this.createForUsers(
       tenantId,
       users.map((u) => u.id),
       payload,
     );
+  }
+
+  /**
+   * Versão idempotente de notifyRoles. Mantém compatibilidade com serviços que
+   * precisam disparar alertas recorrentes sem gerar duplicidade.
+   */
+  async notifyRolesOnce(
+    tenantId: string,
+    roles: Role[],
+    payload: NotifyPayload,
+    dedupeSince?: Date,
+  ): Promise<void> {
+    const users = await this.findActiveUsersByRoles(tenantId, roles);
+    await this.createForUsersOnce(
+      tenantId,
+      users.map((u) => u.id),
+      payload,
+      dedupeSince,
+    );
+  }
+
+  private findActiveUsersByRoles(
+    tenantId: string,
+    roles: Role[],
+  ): Promise<Array<{ id: string }>> {
+    return this.prisma.user.findMany({
+      where: { tenantId, active: true, role: { in: roles } },
+      select: { id: true },
+    });
   }
 
   private async sendPush(

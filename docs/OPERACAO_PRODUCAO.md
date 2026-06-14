@@ -211,3 +211,36 @@ docker compose -f docker-compose.prod.yml run --rm api pnpm prisma:deploy
 docker compose -f docker-compose.prod.yml up -d
 sh scripts/monitor-prod.sh
 ```
+
+## 11. PWA e notificações push
+
+A área restrita usa `manifest.webmanifest`, `sw.js` e os ícones em `apps/web/public/icons`. O app instalado abre direto em `/dashboard`.
+
+Para ativar Web Push em produção, gere chaves VAPID:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Configure no `.env` do servidor:
+
+```bash
+VAPID_PUBLIC_KEY=CHAVE_PUBLICA
+VAPID_PRIVATE_KEY=CHAVE_PRIVADA
+VAPID_SUBJECT=mailto:admin@seudominio.com.br
+```
+
+Depois faça rebuild/restart da API e do Web:
+
+```bash
+docker compose -f docker-compose.prod.yml build api web
+docker compose -f docker-compose.prod.yml up -d api web nginx
+```
+
+O botão de sino com bloqueio/liberação no topo da área restrita ativa ou desativa o push no dispositivo atual. Navegadores móveis exigem HTTPS e permissão explícita do usuário.
+
+A Recepção também gera push operacional para:
+
+- cliente perto de chegar;
+- cliente atrasado com baixa pendente;
+- cliente que chegou e ainda não virou OS.

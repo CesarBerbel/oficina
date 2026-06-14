@@ -4,6 +4,9 @@ import { getPublicPost, getPublicSite } from '@/lib/public-api';
 import { BLOG_FALLBACK_IMAGE } from '@/lib/blog';
 import { BackButton } from '@/components/back-button';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function generateMetadata({
   params,
 }: {

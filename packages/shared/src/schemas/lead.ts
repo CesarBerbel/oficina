@@ -42,15 +42,6 @@ export const createLeadSchema = z.object({
 });
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
 
-/** Atendimento presencial criado pela recepção quando o cliente chega direto na oficina. */
-export const createDirectReceptionLeadSchema = createLeadSchema.extend({
-  appointmentServiceType: optionalString(120),
-  appointmentNotes: optionalString(2000),
-});
-export type CreateDirectReceptionLeadInput = z.infer<
-  typeof createDirectReceptionLeadSchema
->;
-
 export const updateLeadStatusSchema = z.object({
   status: z.nativeEnum(LeadStatus),
 });
@@ -58,9 +49,6 @@ export type UpdateLeadStatusInput = z.infer<typeof updateLeadStatusSchema>;
 
 export const listLeadsQuerySchema = paginationQuerySchema.extend({
   status: z.nativeEnum(LeadStatus).optional(),
-  search: optionalString(120),
-  appointmentFrom: optionalDateTime,
-  appointmentTo: optionalDateTime,
 });
 export type ListLeadsQuery = z.infer<typeof listLeadsQuerySchema>;
 
@@ -73,33 +61,6 @@ export const registerLeadContactSchema = z.object({
 export type RegisterLeadContactInput = z.infer<
   typeof registerLeadContactSchema
 >;
-
-export const scheduleLeadSchema = z
-  .object({
-    appointmentStartAt: z.string().datetime({ offset: true }),
-    appointmentEndAt: optionalDateTime,
-    appointmentServiceType: optionalString(120),
-    appointmentNotes: optionalString(2000),
-  })
-  .refine(
-    (value) => {
-      if (!value.appointmentEndAt) return true;
-      return (
-        new Date(value.appointmentEndAt).getTime() >=
-        new Date(value.appointmentStartAt).getTime()
-      );
-    },
-    {
-      message: 'O horário final não pode ser menor que o horário inicial',
-      path: ['appointmentEndAt'],
-    },
-  );
-export type ScheduleLeadInput = z.infer<typeof scheduleLeadSchema>;
-
-export const appointmentActionSchema = z.object({
-  notes: optionalString(2000),
-});
-export type AppointmentActionInput = z.infer<typeof appointmentActionSchema>;
 
 export const linkLeadCustomerSchema = z.object({
   customerId: z.string().min(1, 'Informe o cliente'),
@@ -207,14 +168,6 @@ export interface LeadDto {
   conflictLevel: LeadConflictLevel;
   conflictReason: string | null;
   nextFollowUpAt: string | null;
-  appointmentStartAt: string | null;
-  appointmentEndAt: string | null;
-  appointmentServiceType: string | null;
-  appointmentNotes: string | null;
-  appointmentConfirmedAt: string | null;
-  checkedInAt: string | null;
-  noShowAt: string | null;
-  appointmentCanceledAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -224,23 +177,6 @@ export interface LeadMatchSummaryDto {
   vehicle: LeadVehicleMatchDto | null;
   conflictLevel: LeadConflictLevel;
   conflictReason: string | null;
-}
-
-
-export interface ReceptionAlertLeadDto extends LeadDto {
-  minutesUntilAppointment: number | null;
-  minutesLate: number | null;
-  alertReason?: string;
-}
-
-export interface ReceptionAlertsDto {
-  generatedAt: string;
-  arrivalWindowMinutes: number;
-  noShowToleranceMinutes: number;
-  upcomingArrivals: ReceptionAlertLeadDto[];
-  noShowCandidates: ReceptionAlertLeadDto[];
-  overdueFollowUps: ReceptionAlertLeadDto[];
-  checkedInWithoutOs: ReceptionAlertLeadDto[];
 }
 
 export interface LeadDetailDto extends LeadDto {

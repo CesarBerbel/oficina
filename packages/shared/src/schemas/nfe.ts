@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { PartType } from '../enums/part.js';
-import { PART_UNITS } from './part.js';
 
 /** Item lido do XML da NF-e (antes da conferência). */
 export interface NfeParsedItem {
@@ -14,7 +13,7 @@ export interface NfeParsedItem {
   ncm: string | null;
   cest: string | null;
   cfop: string | null;
-  /** Peça já existente localizada por código da peça/EAN. */
+  /** Peça já existente localizada por SKU/EAN. */
   matchedPartId: string | null;
 }
 
@@ -32,21 +31,12 @@ export const nfeConfirmItemSchema = z.object({
   include: z.boolean().default(true),
   partId: z.string().optional(),
   sku: z.string().trim().max(60).optional(),
-  ncm: z
-    .string()
-    .trim()
-    .optional()
-    .transform((v) => {
-      const digits = v?.replace(/\D/g, '') ?? '';
-      return digits === '' ? undefined : digits;
-    })
-    .refine((v) => v === undefined || v.length === 8, 'NCM deve ter 8 dígitos'),
   ean: z.string().trim().max(20).optional(),
   name: z.string().trim().min(1).max(160),
   type: z.nativeEnum(PartType).default(PartType.PECA),
   category: z.string().trim().max(80).optional(),
   brand: z.string().trim().max(80).optional(),
-  unit: z.enum(PART_UNITS).default('UN'),
+  unit: z.string().trim().min(1).max(10).default('UN'),
   quantity: z.coerce.number().min(0).max(9_999_999).default(0),
   costPrice: z.coerce.number().min(0).max(9_999_999).default(0),
   salePrice: z.coerce.number().min(0).max(9_999_999).default(0),

@@ -36,7 +36,6 @@ function toDto(p: PartRow): PartDto {
     id: p.id,
     name: p.name,
     sku: p.sku,
-    ncm: p.ncm,
     ean: p.ean,
     type: p.type,
     category: p.category,
@@ -80,7 +79,6 @@ export class InventoryService {
             OR: [
               { name: { contains: search, mode: 'insensitive' } },
               { sku: { contains: search, mode: 'insensitive' } },
-              { ncm: { contains: search.replace(/\D/g, '') || search } },
               { ean: { contains: search } },
               { brand: { contains: search, mode: 'insensitive' } },
             ],
@@ -145,7 +143,7 @@ export class InventoryService {
       const clash = await this.prisma.part.findFirst({
         where: { tenantId: actor.tenantId, sku: input.sku },
       });
-      if (clash) throw new ConflictException('Já existe uma peça com este código');
+      if (clash) throw new ConflictException('Já existe uma peça com este SKU');
     }
     await this.assertSupplier(actor.tenantId, input.supplierId);
 
@@ -183,7 +181,7 @@ export class InventoryService {
       module: 'inventory',
       entity: 'Part',
       entityId: part.id,
-      after: { name: part.name, code: part.sku, ncm: part.ncm },
+      after: { name: part.name, sku: part.sku },
     });
 
     return toDto(part);
@@ -203,7 +201,7 @@ export class InventoryService {
       const clash = await this.prisma.part.findFirst({
         where: { tenantId: actor.tenantId, sku: input.sku, NOT: { id } },
       });
-      if (clash) throw new ConflictException('Código já usado por outra peça');
+      if (clash) throw new ConflictException('SKU já usado por outra peça');
     }
     await this.assertSupplier(actor.tenantId, input.supplierId);
 

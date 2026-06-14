@@ -126,25 +126,19 @@ export class SiteService {
     return this.normalizeSlug(first);
   }
 
-  private async resolvePublishedTenantId(
-    lookup?: PublicTenantLookup,
-  ): Promise<string | null> {
-    const explicitSlug = this.normalizeSlug(lookup?.tenantSlug);
-    const hostSlug = this.slugFromHost(lookup?.host);
-    const slug = explicitSlug ?? hostSlug;
+  private async findPublishedTenantBySlug(slug: string): Promise<string | null> {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: {
+        slug,
+        active: true,
+        siteSettings: { published: true },
+      },
+      select: { id: true },
+    });
+    return tenant?.id ?? null;
+  }
 
-    if (slug) {
-      const tenant = await this.prisma.tenant.findFirst({
-        where: {
-          slug,
-          active: true,
-          siteSettings: { published: true },
-        },
-        select: { id: true },
-      });
-      return tenant?.id ?? null;
-    }
-
+  private async singlePublishedTenantId(): Promise<string | null> {
     // Compatibilidade com instalações single-tenant: se houver exatamente um
     // site publicado, usa esse tenant. Com múltiplos sites publicados, exige
     // slug/header/host para evitar expor conteúdo da oficina errada.
@@ -155,6 +149,25 @@ export class SiteService {
       take: 2,
     });
     return published.length === 1 ? published[0].tenantId : null;
+  }
+
+  private async resolvePublishedTenantId(
+    lookup?: PublicTenantLookup,
+  ): Promise<string | null> {
+    const explicitSlug = this.normalizeSlug(lookup?.tenantSlug);
+    const hostSlug = this.slugFromHost(lookup?.host);
+
+    // Prioriza o slug explícito configurado no deploy/header/query. Se não
+    // existir, tenta o slug inferido do host. Se nenhum bater, ainda permite
+    // produção single-tenant com domínio próprio que não corresponde ao slug
+    // cadastrado da oficina.
+    const slugs = Array.from(new Set([explicitSlug, hostSlug].filter(Boolean))) as string[];
+    for (const slug of slugs) {
+      const tenantId = await this.findPublishedTenantBySlug(slug);
+      if (tenantId) return tenantId;
+    }
+
+    return this.singlePublishedTenantId();
   }
 
   /** Dados públicos do site resolvendo a oficina por slug/header/host. */

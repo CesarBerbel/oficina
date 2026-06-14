@@ -2,17 +2,17 @@ import type { Metadata } from 'next';
 import { Phone, Mail, Clock } from 'lucide-react';
 import { getPublicSite } from '@/lib/public-api';
 import { maskPhone } from '@/lib/masks';
-import { buildTelHref, buildWhatsAppHref, samePhoneDigits } from '@/lib/contact-links';
 import { LeadForm } from './lead-form';
 import { SiteAddressLinks } from '@/components/site/site-address-links';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export const metadata: Metadata = { title: 'Contato' };
 
 export default async function SiteContato() {
   const data = await getPublicSite();
   const s = data?.settings;
-  const phoneHref = !samePhoneDigits(s?.phone, s?.whatsapp) ? buildTelHref(s?.phone) : null;
-  const waHref = buildWhatsAppHref(s?.whatsapp);
 
   return (
     <div className="container py-16">
@@ -23,18 +23,11 @@ export default async function SiteContato() {
         <div className="space-y-4">
           <LeadForm />
           <div className="space-y-2 rounded-xl border bg-card p-5 text-sm">
-            {phoneHref && s?.phone && (
+            {s?.phone && <p className="flex items-center gap-2"><Phone className="size-4 text-primary" /> {maskPhone(s.phone)}</p>}
+            {s?.whatsapp && (
               <p className="flex items-center gap-2">
                 <Phone className="size-4 text-primary" />
-                <a className="hover:underline" href={phoneHref}>
-                  Telefone: {maskPhone(s.phone)}
-                </a>
-              </p>
-            )}
-            {waHref && s?.whatsapp && (
-              <p className="flex items-center gap-2">
-                <Phone className="size-4 text-primary" />
-                <a className="hover:underline" href={waHref} target="_blank" rel="noopener noreferrer">
+                <a className="hover:underline" href={`https://wa.me/${s.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
                   WhatsApp: {maskPhone(s.whatsapp)}
                 </a>
               </p>

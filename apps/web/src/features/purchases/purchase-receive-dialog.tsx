@@ -79,7 +79,7 @@ export function PurchaseReceiveDialog({
         <div className="mb-3 rounded-lg border bg-muted/40 p-3">
           <p className="text-sm font-medium">Receber pela NF-e</p>
           <p className="mb-2 text-xs text-muted-foreground">
-            Envie o XML (ou ZIP) da nota; os itens são casados por código da peça/EAN e a
+            Envie o XML (ou ZIP) da nota; os itens são casados por SKU/EAN e a
             entrada é dada automaticamente.
           </p>
           <input

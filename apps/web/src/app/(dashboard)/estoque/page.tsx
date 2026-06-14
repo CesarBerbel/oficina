@@ -76,7 +76,7 @@ export default function InventoryPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nome, código da peça, NCM, barras ou marca..."
+            placeholder="Buscar por nome, SKU, código ou marca..."
             className="pl-9"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -100,8 +100,7 @@ export default function InventoryPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead>Código</TableHead>
-              <TableHead>NCM</TableHead>
+              <TableHead>SKU</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead className="text-right">Estoque</TableHead>
               <TableHead className="text-right">Venda</TableHead>
@@ -110,9 +109,9 @@ export default function InventoryPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
             ) : parts.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="h-24 text-center text-muted-foreground">Nenhuma peça encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Nenhuma peça encontrada.</TableCell></TableRow>
             ) : (
               parts.map((p) => (
                 <TableRow key={p.id}>
@@ -121,7 +120,6 @@ export default function InventoryPage() {
                     {p.brand && <span className="block text-xs text-muted-foreground">{p.brand}</span>}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{p.sku ?? '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.ncm ?? '—'}</TableCell>
                   <TableCell><Badge variant="secondary">{PART_TYPE_LABELS[p.type]}</Badge></TableCell>
                   <TableCell className="text-right">
                     <span className={p.lowStock ? 'font-semibold text-destructive' : ''}>
@@ -162,7 +160,6 @@ export default function InventoryPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{p.name}</p>
                   <p className="text-sm text-muted-foreground">{p.sku ?? p.brand ?? '—'}</p>
-                  {p.ncm && <p className="text-xs text-muted-foreground">NCM {p.ncm}</p>}
                 </div>
                 <RowActions
                   p={p} canWrite={canWrite} canMove={canMove}

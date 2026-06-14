@@ -42,7 +42,7 @@ export class NfeImportService {
       matchedSupplierId = supplier?.id ?? null;
     }
 
-    // Localiza peças existentes por código da peça (cProd) ou EAN.
+    // Localiza peças existentes por SKU (cProd) ou EAN.
     const skus = raw.items.map((i) => i.cProd).filter(Boolean) as string[];
     const eans = raw.items.map((i) => i.ean).filter(Boolean) as string[];
     const existing = await this.prisma.part.findMany({
@@ -98,7 +98,7 @@ export class NfeImportService {
 
     await this.prisma.$transaction(async (tx) => {
       for (const item of items) {
-        // Resolve a peça: por id, depois código da peça, senão cria.
+        // Resolve a peça: por id, depois SKU, senão cria.
         let partId = item.partId ?? null;
         if (!partId && item.sku) {
           const found = await tx.part.findFirst({
@@ -111,7 +111,6 @@ export class NfeImportService {
         const data = {
           name: item.name,
           sku: item.sku ?? null,
-          ncm: item.ncm ?? null,
           ean: item.ean ?? null,
           type: item.type,
           category: item.category ?? null,

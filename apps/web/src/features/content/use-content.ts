@@ -5,7 +5,15 @@ import type {
   BlogPostDto,
   BlogStatus,
   CreateBlogPostInput,
+  ConvertLeadToServiceOrderInput,
+  LeadDetailDto,
+  LeadDto,
+  LeadStatus,
+  LinkLeadCustomerInput,
+  LinkLeadVehicleInput,
+  RegisterLeadContactInput,
   ListBlogPostsQuery,
+  ListLeadsQuery,
   Paginated,
   SiteSettingsDto,
   UpdateBlogPostInput,
@@ -81,19 +89,72 @@ export function useSetBlogPostStatus() {
   });
 }
 
-export {
-  useCancelLeadAppointment,
-  useCheckInLead,
-  useConfirmLeadAppointment,
-  useCreateDirectReceptionLead,
-  useConvertLeadToServiceOrder,
-  useLead,
-  useLeads,
-  useLinkLeadCustomer,
-  useLinkLeadVehicle,
-  useNoShowLead,
-  useReceptionAlerts,
-  useRegisterLeadContact,
-  useScheduleLead,
-  useUpdateLeadStatus,
-} from '@/features/leads/use-leads';
+// ─── Leads ───
+export function useLeads(params: Partial<ListLeadsQuery>) {
+  return useQuery({
+    queryKey: ['leads', params],
+    queryFn: () => api.get<Paginated<LeadDto>>(`/leads${qs(params)}`),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useUpdateLeadStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
+      api.post<LeadDetailDto>(`/leads/${id}/status`, { status }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.setQueryData(['lead', data.id], data);
+    },
+  });
+}
+
+export function useLead(id?: string) {
+  return useQuery({
+    queryKey: ['lead', id],
+    queryFn: () => api.get<LeadDetailDto>(`/leads/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+function refreshLeadQueries(qc: ReturnType<typeof useQueryClient>, data: LeadDetailDto) {
+  qc.invalidateQueries({ queryKey: ['leads'] });
+  qc.setQueryData(['lead', data.id], data);
+}
+
+export function useRegisterLeadContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: RegisterLeadContactInput }) =>
+      api.post<LeadDetailDto>(`/leads/${id}/contact-attempts`, input),
+    onSuccess: (data) => refreshLeadQueries(qc, data),
+  });
+}
+
+export function useLinkLeadCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: LinkLeadCustomerInput }) =>
+      api.post<LeadDetailDto>(`/leads/${id}/link-customer`, input),
+    onSuccess: (data) => refreshLeadQueries(qc, data),
+  });
+}
+
+export function useLinkLeadVehicle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: LinkLeadVehicleInput }) =>
+      api.post<LeadDetailDto>(`/leads/${id}/link-vehicle`, input),
+    onSuccess: (data) => refreshLeadQueries(qc, data),
+  });
+}
+
+export function useConvertLeadToServiceOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ConvertLeadToServiceOrderInput }) =>
+      api.post<LeadDetailDto>(`/leads/${id}/convert-to-os`, input),
+    onSuccess: (data) => refreshLeadQueries(qc, data),
+  });
+}

@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import { getPublicSite } from '@/lib/public-api';
 import { SiteAddressLinks } from '@/components/site/site-address-links';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = { title: 'Sobre' };
 
 export default async function SiteSobre() {

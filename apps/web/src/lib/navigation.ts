@@ -11,7 +11,7 @@ import {
   Package,
   ShoppingCart,
   FileInput,
-  ConciergeBell,
+  Inbox,
   BarChart3,
   Newspaper,
   Settings,
@@ -67,7 +67,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Gestão',
     items: [
-      { label: 'Recepção', href: '/leads', icon: ConciergeBell, permission: Permission.CUSTOMERS_READ },
+      { label: 'Pré-atendimento', href: '/leads', icon: Inbox, permission: Permission.CUSTOMERS_READ },
       { label: 'Blog', href: '/blog', icon: Newspaper, permission: Permission.BLOG_WRITE },
       { label: 'Relatórios', href: '/relatorios', icon: BarChart3, permission: Permission.DASHBOARD_READ },
     ],

@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   NotFoundException,
   Param,
@@ -18,6 +19,8 @@ import { BlogService } from '../blog/blog.service';
 import { LeadsService } from '../leads/leads.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { Public } from '../../common/decorators/public.decorator';
+
+const NO_STORE = 'no-store, no-cache, must-revalidate, proxy-revalidate';
 
 @Controller('public')
 @Public()
@@ -49,6 +52,9 @@ export class PublicSiteController {
   }
 
   @Get('site')
+  @Header('Cache-Control', NO_STORE)
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
   async site_(@Req() req: Request) {
     const data = await this.site.publicSite(this.lookup(req));
     if (!data) throw new NotFoundException('Site não publicado');
@@ -56,6 +62,9 @@ export class PublicSiteController {
   }
 
   @Get('site/by-slug/:tenantSlug')
+  @Header('Cache-Control', NO_STORE)
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
   async siteBySlug(@Req() req: Request, @Param('tenantSlug') tenantSlug: string) {
     const data = await this.site.publicSite(this.lookup(req, tenantSlug));
     if (!data) throw new NotFoundException('Site não publicado');
@@ -63,6 +72,9 @@ export class PublicSiteController {
   }
 
   @Get('blog')
+  @Header('Cache-Control', NO_STORE)
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
   async blog_(@Req() req: Request) {
     const tenantId = await this.site.publishedTenantId(this.lookup(req));
     if (!tenantId) return [];
@@ -70,6 +82,9 @@ export class PublicSiteController {
   }
 
   @Get('blog/:slug')
+  @Header('Cache-Control', NO_STORE)
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
   async post(@Req() req: Request, @Param('slug') slug: string) {
     const tenantId = await this.site.publishedTenantId(this.lookup(req));
     if (!tenantId) throw new NotFoundException('Artigo não encontrado');

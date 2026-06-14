@@ -324,8 +324,8 @@ export class DashboardService {
       actions.push({
         key: 'leads-novos',
         type: 'lead',
-        title: 'Novos atendimentos do site',
-        description: 'Contatos aguardando primeira ação na Recepção.',
+        title: 'Novos pré-atendimentos do site',
+        description: 'Contatos recebidos pelo formulário do site público.',
         priority: 'alta',
         count: newLeads,
         link: '/leads',

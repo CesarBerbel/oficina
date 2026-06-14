@@ -31,9 +31,9 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Categorias e marcas</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Categorias</h1>
         <p className="text-muted-foreground">
-          Categorias de clientes, serviços, peças e marcas usadas nos cadastros.
+          Categorias de clientes, serviços e peças usadas nos cadastros.
         </p>
       </div>
 
@@ -72,7 +72,7 @@ function KindTab({ kind, canManage }: { kind: CategoryKind; canManage: boolean }
     try {
       await create.mutateAsync({ kind, name: value, active: true });
       setName('');
-      toast.success(kind === 'BRAND' ? 'Marca adicionada' : 'Categoria adicionada');
+      toast.success('Categoria adicionada');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Erro ao adicionar');
     }
@@ -85,7 +85,7 @@ function KindTab({ kind, canManage }: { kind: CategoryKind; canManage: boolean }
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={kind === 'BRAND' ? 'Nova marca' : `Nova categoria de ${CATEGORY_KIND_LABELS[kind].toLowerCase()}`}
+            placeholder={`Nova categoria de ${CATEGORY_KIND_LABELS[kind].toLowerCase()}`}
             maxLength={60}
             className="max-w-sm"
           />
@@ -103,7 +103,7 @@ function KindTab({ kind, canManage }: { kind: CategoryKind; canManage: boolean }
           </div>
         ) : items.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            {kind === 'BRAND' ? 'Nenhuma marca cadastrada.' : 'Nenhuma categoria cadastrada.'}
+            Nenhuma categoria cadastrada.
           </p>
         ) : (
           items.map((c) => <CategoryRow key={c.id} category={c} canManage={canManage} />)

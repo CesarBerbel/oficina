@@ -3,9 +3,11 @@ import type { Metadata } from 'next';
 import { Wrench, Phone, Mail, Clock, Lock } from 'lucide-react';
 import { getPublicSite } from '@/lib/public-api';
 import { maskCnpj, maskPhone } from '@/lib/masks';
-import { buildTelHref, buildWhatsAppHref, samePhoneDigits } from '@/lib/contact-links';
 import { MobileSiteMenu } from '@/components/site/mobile-site-menu';
 import { SiteAddressLinks } from '@/components/site/site-address-links';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function generateMetadata(): Promise<Metadata> {
   const data = await getPublicSite();
@@ -21,7 +23,7 @@ const NAV = [
   { href: '/site/servicos', label: 'Serviços' },
   { href: '/site/sobre', label: 'Sobre' },
   { href: '/site/blog', label: 'Blog' },
-  { href: '/site/consulta', label: 'Consultar OS' },
+  { href: '/site/consulta', label: 'Consultar veículo' },
   { href: '/site/contato', label: 'Contato' },
 ];
 
@@ -33,31 +35,31 @@ export default async function SiteLayout({
   const data = await getPublicSite();
   const s = data?.settings;
   const name = s?.shopName ?? 'Oficina';
-  const waHref = buildWhatsAppHref(s?.whatsapp);
-  const phoneHref = !samePhoneDigits(s?.phone, s?.whatsapp) ? buildTelHref(s?.phone) : null;
+  const waNumber = s?.whatsapp?.replace(/\D/g, '') || '';
+  const waHref = waNumber ? `https://wa.me/${waNumber}` : null;
 
   return (
     <div className="theme-dark flex min-h-dvh flex-col bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur">
-        <div className="container flex h-16 items-center justify-between">
+        <div className="container flex h-20 items-center justify-between">
           <Link href="/site" className="flex items-center gap-2 font-semibold">
             {s?.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={s.logoUrl}
                 alt={name}
-                className="h-9 w-auto max-w-[170px] object-contain sm:h-10 sm:max-w-[200px]"
+                className="h-11 w-auto max-w-[210px] object-contain sm:h-12 sm:max-w-[250px]"
               />
             ) : (
               <>
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Wrench className="size-4" />
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <Wrench className="size-5" />
                 </span>
                 {name}
               </>
             )}
           </Link>
-          <nav className="hidden gap-6 text-sm font-medium md:flex">
+          <nav className="hidden gap-6 text-base font-semibold md:ml-8 md:flex lg:ml-12">
             {NAV.map((n) => (
               <Link key={n.href} href={n.href} className="text-muted-foreground hover:text-foreground">
                 {n.label}
@@ -96,21 +98,7 @@ export default async function SiteLayout({
             {s?.cnpj && <p className="mt-2 text-xs text-muted-foreground">CNPJ: {maskCnpj(s.cnpj)}</p>}
           </div>
           <div className="space-y-1 text-sm text-muted-foreground">
-            {phoneHref && s?.phone && (
-              <a href={phoneHref} className="flex items-center gap-2 hover:text-foreground">
-                <Phone className="size-4" /> Telefone: {maskPhone(s.phone)}
-              </a>
-            )}
-            {waHref && s?.whatsapp && (
-              <a
-                href={waHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 hover:text-foreground"
-              >
-                <WhatsappIcon className="size-4" /> WhatsApp: {maskPhone(s.whatsapp)}
-              </a>
-            )}
+            {s?.phone && <p className="flex items-center gap-2"><Phone className="size-4" /> {maskPhone(s.phone)}</p>}
             {s?.email && <p className="flex items-center gap-2"><Mail className="size-4" /> {s.email}</p>}
             {s?.address && (
               <SiteAddressLinks
