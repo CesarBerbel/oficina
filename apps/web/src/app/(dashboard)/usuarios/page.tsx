@@ -139,19 +139,20 @@ export default function UsersPage() {
               <TableHead>E-mail</TableHead>
               <TableHead>Perfil</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Senha</TableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   <CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   Nenhum usuário encontrado.
                 </TableCell>
               </TableRow>
@@ -175,6 +176,13 @@ export default function UsersPage() {
                       <Badge variant="success">Ativo</Badge>
                     ) : (
                       <Badge variant="destructive">Inativo</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {u.forcePasswordChange ? (
+                      <Badge variant="warning">Troca pendente</Badge>
+                    ) : (
+                      <Badge variant="secondary">Definida</Badge>
                     )}
                   </TableCell>
                   <TableCell>
@@ -215,6 +223,11 @@ export default function UsersPage() {
                   <Badge variant="success">Ativo</Badge>
                 ) : (
                   <Badge variant="destructive">Inativo</Badge>
+                )}
+                {u.forcePasswordChange ? (
+                  <Badge variant="warning">Troca pendente</Badge>
+                ) : (
+                  <Badge variant="secondary">Senha definida</Badge>
                 )}
               </div>
             </div>

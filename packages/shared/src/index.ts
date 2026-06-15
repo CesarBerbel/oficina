@@ -13,6 +13,7 @@ export * from './enums/lead.js';
 export * from './enums/ai.js';
 export * from './enums/checkin.js';
 export * from './enums/category.js';
+export * from './enums/financial.js';
 
 // RBAC
 export * from './rbac/permissions.js';
@@ -46,3 +47,4 @@ export * from './schemas/reports.js';
 export * from './schemas/crm.js';
 export * from './schemas/global-search.js';
 export * from './schemas/operational.js';
+export * from './schemas/financial.js';

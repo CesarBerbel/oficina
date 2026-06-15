@@ -39,6 +39,7 @@ const FIELD_LABELS = {
   email: 'E-mail',
   password: 'Senha',
   role: 'Perfil',
+  forcePasswordChange: 'Trocar senha no próximo login',
 };
 
 export function UserFormDialog({ open, onOpenChange, user }: Props) {
@@ -47,6 +48,7 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('ATENDENTE');
+  const [forcePasswordChange, setForcePasswordChange] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const create = useCreateUser();
@@ -59,6 +61,7 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
       setEmail(user?.email ?? '');
       setRole((user?.role as UserRole) ?? 'ATENDENTE');
       setPassword('');
+      setForcePasswordChange(user?.forcePasswordChange ?? true);
       setErrors({});
     }
   }, [open, user]);
@@ -67,8 +70,14 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
     e.preventDefault();
     const schema = isEdit ? updateUserSchema : createUserSchema;
     const payload = isEdit
-      ? { name, email, role, ...(password ? { password } : {}) }
-      : { name, email, role, password };
+      ? {
+          name,
+          email,
+          role,
+          forcePasswordChange,
+          ...(password ? { password } : {}),
+        }
+      : { name, email, role, password, forcePasswordChange };
 
     const parsed = schema.safeParse(payload);
     if (!parsed.success) {
@@ -145,6 +154,25 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
             {errors.password && (
               <p className="text-xs text-destructive">{errors.password}</p>
             )}
+          </div>
+
+          <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-3">
+            <input
+              id="u-force-password-change"
+              type="checkbox"
+              className="mt-1 size-4"
+              checked={forcePasswordChange}
+              onChange={(e) => setForcePasswordChange(e.target.checked)}
+            />
+            <div className="space-y-1">
+              <Label htmlFor="u-force-password-change">
+                Exigir nova senha no próximo login
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Use para onboarding de novos usuários ou quando uma senha
+                provisória for definida pelo administrador.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-1.5">

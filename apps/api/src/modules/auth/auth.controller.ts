@@ -11,7 +11,17 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import { loginSchema, type LoginInput, type LoginResponse } from '@oficina/shared';
+import {
+  changePasswordSchema,
+  forgotPasswordSchema,
+  loginSchema,
+  resetPasswordSchema,
+  type ChangePasswordInput,
+  type ForgotPasswordInput,
+  type LoginInput,
+  type LoginResponse,
+  type ResetPasswordInput,
+} from '@oficina/shared';
 import { AuthService, type IssuedSession } from './auth.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { Public } from '../../common/decorators/public.decorator';
@@ -82,6 +92,37 @@ export class AuthController {
     const session = await this.auth.refresh(raw, this.meta(req));
     this.setRefreshCookie(res, session);
     return { accessToken: session.accessToken, user: session.user };
+  }
+
+
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @Post('forgot-password')
+  @HttpCode(200)
+  forgotPassword(
+    @Body(new ZodValidationPipe(forgotPasswordSchema)) body: ForgotPasswordInput,
+    @Req() req: Request,
+  ) {
+    return this.auth.requestPasswordReset(body.tenantSlug, body.email, this.meta(req));
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('reset-password')
+  @HttpCode(200)
+  resetPassword(
+    @Body(new ZodValidationPipe(resetPasswordSchema)) body: ResetPasswordInput,
+  ) {
+    return this.auth.resetPassword(body.token, body.password);
+  }
+
+  @Post(['change-password', 'me/change-password'])
+  @HttpCode(200)
+  changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(changePasswordSchema)) body: ChangePasswordInput,
+  ) {
+    return this.auth.changePassword(user.id, body.password, body.currentPassword);
   }
 
   @Post('logout')

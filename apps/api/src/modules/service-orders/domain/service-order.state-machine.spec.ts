@@ -172,4 +172,25 @@ describe('ServiceOrderStateMachine', () => {
     expect(actions).not.toContain('ORCAMENTO');
     expect(actions).toContain('CANCELADA');
   });
+
+
+  it('bloqueia aprovação manual de orçamento enviado sem itens na OS', () => {
+    expect(() =>
+      SM.assertManualTransition(
+        context({ status: 'ORCAMENTO', quoteStatus: 'ENVIADO', itemCount: 0 }),
+        'ORCAMENTO_APROVADO',
+      ),
+    ).toThrow(ServiceOrderDomainError);
+  });
+
+  it('mantém aprovação parcial como decisão sistêmica e não como ação manual direta', () => {
+    expect(() =>
+      SM.assertTransition('ORCAMENTO', 'ORCAMENTO_APROVADO'),
+    ).not.toThrow();
+    expect(
+      SM.availableTransitions(
+        context({ status: 'ORCAMENTO', quoteStatus: 'APROVADO_PARCIAL' }),
+      ).find((item) => item.status === 'ORCAMENTO_APROVADO')?.disabledReason,
+    ).toContain('Gere e envie o orçamento');
+  });
 });

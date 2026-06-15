@@ -27,6 +27,7 @@ export const createUserSchema = z.object({
     .min(8, 'Mínimo de 8 caracteres')
     .max(72, 'Máximo de 72 caracteres'),
   role: z.enum(USER_ROLES as [string, ...string[]]),
+  forcePasswordChange: z.boolean().optional().default(true),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
@@ -45,6 +46,49 @@ export const listUsersQuerySchema = paginationQuerySchema.extend({
     .optional(),
 });
 
+
+export const forgotPasswordSchema = z.object({
+  tenantSlug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(2, 'Informe a oficina')
+    .max(80, 'Identificador da oficina muito longo')
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      'Use apenas letras minúsculas, números e hífens',
+    ),
+  email: z.string().trim().toLowerCase().email('E-mail inválido'),
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z.string().trim().min(32, 'Token inválido'),
+  password: z
+    .string()
+    .min(8, 'Mínimo de 8 caracteres')
+    .max(72, 'Máximo de 72 caracteres'),
+});
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Informe a senha atual').optional(),
+    password: z
+      .string()
+      .min(8, 'Mínimo de 8 caracteres')
+      .max(72, 'Máximo de 72 caracteres'),
+    confirmPassword: z.string().min(1, 'Confirme a nova senha'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'As senhas não conferem',
+  });
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
 
 /** Usuário retornado pela API (sem dados sensíveis). */
@@ -55,6 +99,7 @@ export interface UserDto {
   role: string;
   active: boolean;
   lastLoginAt: string | null;
+  forcePasswordChange: boolean;
   createdAt: string;
 }
 
@@ -66,6 +111,7 @@ export interface AuthUser {
   email: string;
   role: string;
   permissions: string[];
+  forcePasswordChange: boolean;
 }
 
 export interface LoginResponse {

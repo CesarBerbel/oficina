@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import {
-  Plus, MoreHorizontal, PackageCheck, Send, XCircle, Sparkles, Pencil, Package2 } from 'lucide-react';
+  Plus, MoreHorizontal, PackageCheck, Send, XCircle, Sparkles, Pencil, Package2, CircleDollarSign } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/auth-context';
 import {
   usePurchases, usePurchase, useCreateFromShortages, useSetPurchaseStatus, useSuppliers,
 } from '@/features/purchases/use-purchases';
+import { useSyncPurchaseFinancial } from '@/features/financial/use-financial';
 import { PurchaseFormDialog } from '@/features/purchases/purchase-form-dialog';
 import { PurchaseReceiveDialog } from '@/features/purchases/purchase-receive-dialog';
 import { PurchaseItemsDialog } from '@/features/purchases/purchase-items-dialog';
@@ -42,6 +43,7 @@ const STATUS_VARIANT: Record<PurchaseOrderStatus, BadgeProps['variant']> = {
 export default function PurchasesPage() {
   const { hasPermission } = useAuth();
   const canWrite = hasPermission('purchases:write');
+  const canFinance = hasPermission('finance:write');
   const [tab, setTab] = useState<'pedidos' | 'fornecedores'>('pedidos');
 
   return (
@@ -66,12 +68,12 @@ export default function PurchasesPage() {
         ))}
       </div>
 
-      {tab === 'pedidos' ? <PedidosTab canWrite={canWrite} /> : <FornecedoresTab canWrite={canWrite} />}
+      {tab === 'pedidos' ? <PedidosTab canWrite={canWrite} canFinance={canFinance} /> : <FornecedoresTab canWrite={canWrite} />}
     </div>
   );
 }
 
-function PedidosTab({ canWrite }: { canWrite: boolean }) {
+function PedidosTab({ canWrite, canFinance }: { canWrite: boolean; canFinance: boolean }) {
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [receiveId, setReceiveId] = useState<string | null>(null);
@@ -147,6 +149,7 @@ function PedidosTab({ canWrite }: { canWrite: boolean }) {
                     <RowActions
                       o={o}
                       canWrite={canWrite}
+                      canFinance={canFinance}
                       onReceive={() => setReceiveId(o.id)}
                       onView={() => setViewId(o.id)}
                     />
@@ -184,14 +187,19 @@ function PedidosTab({ canWrite }: { canWrite: boolean }) {
   );
 }
 
-function RowActions({ o, canWrite, onReceive, onView }: {
-  o: PurchaseOrderSummaryDto; canWrite: boolean; onReceive: () => void; onView: () => void;
+function RowActions({ o, canWrite, canFinance, onReceive, onView }: {
+  o: PurchaseOrderSummaryDto; canWrite: boolean; canFinance: boolean; onReceive: () => void; onView: () => void;
 }) {
   const setStatus = useSetPurchaseStatus(o.id);
+  const syncFinancial = useSyncPurchaseFinancial();
   const finalized = o.status === 'RECEBIDO' || o.status === 'CANCELADO';
   async function change(status: 'ENVIADO' | 'CANCELADO') {
     try { await setStatus.mutateAsync(status); toast.success('Status atualizado'); }
     catch (err) { toast.error(err instanceof ApiError ? err.message : 'Erro'); }
+  }
+  async function generatePayable() {
+    try { await syncFinancial.mutateAsync({ purchaseOrderId: o.id }); toast.success('Conta a pagar gerada/atualizada'); }
+    catch (err) { toast.error(err instanceof ApiError ? err.message : 'Erro ao gerar financeiro'); }
   }
   return (
     <DropdownMenu>
@@ -199,6 +207,7 @@ function RowActions({ o, canWrite, onReceive, onView }: {
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={onView}><Package2 className="size-4" /> Ver produtos</DropdownMenuItem>
         {canWrite && !finalized && <DropdownMenuItem onClick={onReceive}><PackageCheck className="size-4" /> Receber</DropdownMenuItem>}
+        {canFinance && <DropdownMenuItem onClick={generatePayable}><CircleDollarSign className="size-4" /> Gerar conta a pagar</DropdownMenuItem>}
         {canWrite && o.status === 'ABERTO' && <DropdownMenuItem onClick={() => change('ENVIADO')}><Send className="size-4" /> Marcar enviado</DropdownMenuItem>}
         {canWrite && !finalized && <DropdownMenuItem onClick={() => change('CANCELADO')}><XCircle className="size-4" /> Cancelar</DropdownMenuItem>}
       </DropdownMenuContent>

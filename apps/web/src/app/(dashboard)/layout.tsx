@@ -15,14 +15,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { status } = useAuth();
+  const { status, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/login');
-  }, [status, router]);
+    if (status === 'authenticated' && user?.forcePasswordChange) {
+      router.replace('/trocar-senha?obrigatoria=1');
+    }
+  }, [status, router, user?.forcePasswordChange]);
 
-  if (status !== 'authenticated') {
+  if (status !== 'authenticated' || user?.forcePasswordChange) {
     return (
       <div className="grid min-h-dvh place-items-center">
         <CarLoader className="size-6 animate-spin text-muted-foreground" />

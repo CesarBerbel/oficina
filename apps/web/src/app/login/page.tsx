@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Wrench } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
@@ -14,8 +15,6 @@ import { Label } from '@/components/ui/label';
 
 const DEFAULT_TENANT_SLUG =
   process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG ?? 'oficina-modelo';
-const DEMO_ADMIN_EMAIL = 'admin@oficina.local';
-const DEMO_ADMIN_PASSWORD = 'Admin@123';
 
 const FIELD_LABELS = {
   tenantSlug: 'Oficina',
@@ -36,12 +35,6 @@ export default function LoginPage() {
     if (status === 'authenticated') router.replace('/dashboard');
   }, [status, router]);
 
-  function fillDemoCredentials() {
-    setTenantSlug(DEFAULT_TENANT_SLUG);
-    setEmail(DEMO_ADMIN_EMAIL);
-    setPassword(DEMO_ADMIN_PASSWORD);
-    setErrors({});
-  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,39 +76,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="mb-6 rounded-lg border bg-muted/50 p-3 text-sm">
-          <p className="font-medium">Dados de acesso da seed</p>
-          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-muted-foreground">
-            <dt>Oficina:</dt>
-            <dd>
-              <code className="font-mono text-foreground">
-                {DEFAULT_TENANT_SLUG}
-              </code>
-            </dd>
-            <dt>E-mail:</dt>
-            <dd>
-              <code className="font-mono text-foreground">
-                {DEMO_ADMIN_EMAIL}
-              </code>
-            </dd>
-            <dt>Senha:</dt>
-            <dd>
-              <code className="font-mono text-foreground">
-                {DEMO_ADMIN_PASSWORD}
-              </code>
-            </dd>
-          </dl>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-3 w-full"
-            onClick={fillDemoCredentials}
-          >
-            Preencher dados de demonstração
-          </Button>
-        </div>
-
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="tenantSlug" required>Oficina</Label>
@@ -126,16 +86,8 @@ export default function LoginPage() {
               autoComplete="organization"
               value={tenantSlug}
               onChange={(e) => setTenantSlug(e.target.value)}
-              placeholder="oficina-modelo"
-              aria-describedby="tenantSlug-help"
+              placeholder="slug-da-oficina"
             />
-            <p id="tenantSlug-help" className="text-xs text-muted-foreground">
-              Para a base criada pelo seed, use{' '}
-              <code className="font-mono text-foreground">
-                {DEFAULT_TENANT_SLUG}
-              </code>
-              .
-            </p>
             {errors.tenantSlug && (
               <p className="text-xs text-destructive">{errors.tenantSlug}</p>
             )}
@@ -150,7 +102,7 @@ export default function LoginPage() {
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@oficina.local"
+              placeholder="seu@email.com"
             />
             {errors.email && (
               <p className="text-xs text-destructive">{errors.email}</p>
@@ -166,11 +118,20 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Admin@123"
+              placeholder="Digite sua senha"
             />
             {errors.password && (
               <p className="text-xs text-destructive">{errors.password}</p>
             )}
+          </div>
+
+          <div className="text-right">
+            <Link
+              href="/esqueci-minha-senha"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Esqueci minha senha
+            </Link>
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting}>

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Menu, Moon, Sun, LogOut } from 'lucide-react';
+import { KeyRound, Menu, Moon, Sun, LogOut } from 'lucide-react';
 import { USER_ROLE_LABELS, type UserRole } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
 import { NotificationBell } from '@/features/notifications/notification-bell';
@@ -86,6 +86,10 @@ export function AppTopbar({ onMenu }: { onMenu?: () => void }) {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => router.push('/trocar-senha')}>
+            <KeyRound className="size-4" />
+            Trocar senha
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleLogout}>
             <LogOut className="size-4" />
             Sair

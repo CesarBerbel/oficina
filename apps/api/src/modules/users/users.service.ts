@@ -24,6 +24,7 @@ const userSelect = {
   email: true,
   role: true,
   active: true,
+  forcePasswordChange: true,
   lastLoginAt: true,
   createdAt: true,
 } satisfies Prisma.UserSelect;
@@ -38,6 +39,7 @@ function toDto(u: UserRow): UserDto {
     role: u.role,
     active: u.active,
     lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
+    forcePasswordChange: u.forcePasswordChange,
     createdAt: u.createdAt.toISOString(),
   };
 }
@@ -125,6 +127,7 @@ export class UsersService {
         email,
         passwordHash,
         role: input.role as Role,
+        forcePasswordChange: input.forcePasswordChange ?? true,
       },
       select: userSelect,
     });
@@ -166,8 +169,14 @@ export class UsersService {
       ...(input.email ? { email: input.email.toLowerCase() } : {}),
       ...(input.role ? { role: input.role as Role } : {}),
       ...(input.active !== undefined ? { active: input.active } : {}),
+      ...(input.forcePasswordChange !== undefined
+        ? { forcePasswordChange: input.forcePasswordChange }
+        : {}),
       ...(input.password
-        ? { passwordHash: await this.passwords.hash(input.password) }
+        ? {
+            passwordHash: await this.passwords.hash(input.password),
+            forcePasswordChange: input.forcePasswordChange ?? true,
+          }
         : {}),
     };
 

@@ -10,8 +10,15 @@ import {
   Clock,
   Star,
   Search,
+  Instagram,
+  ExternalLink,
+  PlayCircle,
 } from 'lucide-react';
 import { getPublicSite, getPublicBlog } from '@/lib/public-api';
+import {
+  getInstagramProfileUrl,
+  getLatestInstagramPosts,
+} from '@/lib/instagram';
 import { BLOG_FALLBACK_IMAGE } from '@/lib/blog';
 import { formatCurrency } from '@/lib/utils';
 import { maskPhone } from '@/lib/masks';
@@ -129,9 +136,10 @@ const BLOG_PLACEHOLDERS = [
 ];
 
 export default async function SiteHome() {
-  const [data, posts] = await Promise.all([
+  const [data, posts, instagramPosts] = await Promise.all([
     getPublicSite(),
     getPublicBlog().then((p) => p ?? []),
+    getLatestInstagramPosts(6),
   ]);
   if (!data) {
     return (
@@ -145,6 +153,7 @@ export default async function SiteHome() {
   const waHref = waNumber ? `https://wa.me/${waNumber}` : null;
   const phones = Array.from(new Set([s.phone, s.whatsapp].filter(Boolean))) as string[];
   const featuredServices = data.services.length > 0 ? data.services.slice(0, 6) : FALLBACK_SERVICES;
+  const instagramProfileUrl = getInstagramProfileUrl();
 
   return (
     <>
@@ -344,6 +353,83 @@ export default async function SiteHome() {
           ))}
         </div>
       </section>
+
+      {/* Instagram */}
+      {(instagramPosts.length > 0 || instagramProfileUrl) && (
+        <section className="container py-12 sm:py-16" id="instagram">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="mb-2 inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+                <Instagram className="size-3.5" /> Instagram
+              </p>
+              <h2 className="text-2xl font-bold tracking-tight">Últimas postagens</h2>
+              <p className="text-sm text-muted-foreground sm:text-base">
+                Acompanhe novidades, bastidores e dicas rápidas da oficina.
+              </p>
+            </div>
+            {instagramProfileUrl && (
+              <a
+                href={instagramProfileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              >
+                Ver perfil <ExternalLink className="size-4" />
+              </a>
+            )}
+          </div>
+
+          {instagramPosts.length > 0 ? (
+            <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
+              {instagramPosts.map((post) => {
+                const imageUrl =
+                  post.mediaType === 'VIDEO' ? post.thumbnailUrl : post.mediaUrl;
+
+                return (
+                  <a
+                    key={post.id}
+                    href={post.permalink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group min-w-[78%] snap-start overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary sm:min-w-0"
+                  >
+                    <div className="relative aspect-square bg-muted">
+                      {imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={imageUrl}
+                          alt={post.caption ?? 'Postagem recente no Instagram'}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                        />
+                      ) : (
+                        <div className="grid h-full place-items-center text-muted-foreground">
+                          <Instagram className="size-10" />
+                        </div>
+                      )}
+                      {post.mediaType === 'VIDEO' && (
+                        <span className="absolute right-3 top-3 rounded-full bg-background/80 p-2 text-foreground shadow-sm backdrop-blur">
+                          <PlayCircle className="size-5" />
+                        </span>
+                      )}
+                    </div>
+                    {post.caption && (
+                      <div className="p-4">
+                        <p className="line-clamp-2 text-sm text-muted-foreground">
+                          {post.caption}
+                        </p>
+                      </div>
+                    )}
+                  </a>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
+              Configure o token da API do Instagram para exibir automaticamente as últimas postagens aqui.
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Blog */}
       <section className="border-t bg-muted/30" id="blog">

@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Save, User, Car, AlertTriangle, XCircle, CheckCircle2, FileDown, ClipboardCheck } from 'lucide-react';
+import { Save, User, Car, AlertTriangle, XCircle, CheckCircle2, FileDown, ClipboardCheck, CircleDollarSign } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BackButton } from '@/components/back-button';
+import { useSyncServiceOrderFinancial } from '@/features/financial/use-financial';
 
 export default function ServiceOrderDetailPage({
   params,
@@ -45,11 +46,13 @@ export default function ServiceOrderDetailPage({
   const canStatus = hasPermission('os:status');
   const canQuote = hasPermission('quotes:write');
   const canCheckin = hasPermission('checkins:write');
+  const canFinance = hasPermission('finance:write');
 
   const { data: os, isLoading } = useServiceOrder(id);
   const update = useUpdateServiceOrder(id);
   const diagnose = useDiagnoseServiceOrder(id);
   const changeStatus = useChangeStatus(id);
+  const syncFinancial = useSyncServiceOrderFinancial();
 
   const [diagnosis, setDiagnosis] = useState('');
   const [notes, setNotes] = useState('');
@@ -72,7 +75,8 @@ export default function ServiceOrderDetailPage({
   }
   if (!os) return <p className="text-muted-foreground">OS não encontrada.</p>;
 
-  const nextTransitions = os.availableTransitions ?? [];
+  const serviceOrder = os;
+  const nextTransitions = serviceOrder.availableTransitions ?? [];
   const canEditDiagnosis = os.editable && (canWrite || canDiagnose);
   const dirtyText =
     diagnosis !== (os.diagnosis ?? '') || notes !== (os.notes ?? '');
@@ -93,6 +97,15 @@ export default function ServiceOrderDetailPage({
       toast.success('Alterações salvas');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Erro ao salvar');
+    }
+  }
+
+  async function generateReceivable() {
+    try {
+      await syncFinancial.mutateAsync({ serviceOrderId: serviceOrder.id });
+      toast.success('Conta a receber gerada/atualizada');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao gerar financeiro');
     }
   }
 
@@ -153,6 +166,12 @@ export default function ServiceOrderDetailPage({
                 </Link>
               </Button>
             )
+          )}
+          {canFinance && (
+            <Button variant="outline" disabled={syncFinancial.isPending} onClick={generateReceivable}>
+              {syncFinancial.isPending ? <CarLoader className="size-4 animate-spin" /> : <CircleDollarSign className="size-4" />}
+              Gerar financeiro
+            </Button>
           )}
           <Button
             variant="outline"

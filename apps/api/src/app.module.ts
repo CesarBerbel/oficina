@@ -37,6 +37,7 @@ import { CrmModule } from './modules/crm/crm.module';
 import { GlobalSearchModule } from './modules/global-search/global-search.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { HealthModule } from './modules/health/health.module';
+import { FinancialModule } from './modules/financial/financial.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 
@@ -102,6 +103,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     PdfModule,
     SuppliersModule,
     PurchasesModule,
+    FinancialModule,
     NfeImportModule,
     HealthModule,
   ],

@@ -12,6 +12,7 @@ import {
   PackageCheck,
   Package,
   ShoppingCart,
+  CircleDollarSign,
   FileInput,
   Inbox,
   BarChart3,
@@ -67,6 +68,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Estoque', href: '/estoque', icon: Package, permission: Permission.INVENTORY_READ },
       { label: 'Importar NF-e', href: '/nfe-import', icon: FileInput, permission: Permission.NFE_IMPORT },
       { label: 'Compras', href: '/compras', icon: ShoppingCart, permission: Permission.PURCHASES_READ },
+      { label: 'Financeiro', href: '/financeiro', icon: CircleDollarSign, permission: Permission.FINANCE_READ },
     ],
   },
   {

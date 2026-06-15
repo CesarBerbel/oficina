@@ -102,6 +102,35 @@ enum PurchaseOrderStatus {
   CANCELADO
 }
 
+enum FinancialEntryType {
+  RECEIVABLE
+  PAYABLE
+}
+
+enum FinancialEntryStatus {
+  OPEN
+  PARTIAL
+  PAID
+  CANCELED
+}
+
+enum FinancialPaymentMethod {
+  DINHEIRO
+  PIX
+  CARTAO_DEBITO
+  CARTAO_CREDITO
+  BOLETO
+  TRANSFERENCIA
+  CHEQUE
+  OUTRO
+}
+
+enum FinancialEntryOrigin {
+  MANUAL
+  SERVICE_ORDER
+  PURCHASE_ORDER
+}
+
 enum MessageEvent {
   OS_OPENED
   DIAGNOSIS_READY
@@ -230,6 +259,7 @@ model Tenant {
   stockMovements StockMovement[]
   suppliers      Supplier[]
   purchaseOrders PurchaseOrder[]
+  financialEntries FinancialEntry[]
   siteSettings   SiteSettings?
   blogPosts      BlogPost[]
   leads          Lead[]
@@ -256,12 +286,14 @@ model User {
   passwordHash String
   role         Role     @default(ATENDENTE)
   active       Boolean  @default(true)
+  forcePasswordChange Boolean @default(false)
   lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   tenant            Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   refreshTokens     RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
   auditLogs         AuditLog[]
   serviceOrders     ServiceOrder[]              @relation("TechnicianOrders")
   osStatusChanges   ServiceOrderStatusHistory[]
@@ -295,6 +327,21 @@ model RefreshToken {
 }
 
 /// Registro de tentativas de login (sucesso/falha) para auditoria e rate limit.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
 model LoginAttempt {
   id        String   @id @default(cuid())
   tenantId  String?
@@ -363,6 +410,7 @@ model Customer {
   messageLogs   MessageLog[]
   checkins      VehicleCheckin[]
   garageCodes   GarageAccessCode[]
+  financialEntries FinancialEntry[]
 
   @@index([tenantId])
   @@index([tenantId, name])
@@ -437,6 +485,7 @@ model ServiceOrder {
   checkins   VehicleCheckin[]
   purchaseOrders PurchaseOrder[]
   events     ServiceOrderEvent[]
+  financialEntries FinancialEntry[]
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
@@ -661,6 +710,7 @@ model Supplier {
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   purchaseOrders PurchaseOrder[]
   parts          Part[]
+  financialEntries FinancialEntry[]
 
   @@index([tenantId])
   @@index([tenantId, document])
@@ -686,6 +736,7 @@ model PurchaseOrder {
   supplier     Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   serviceOrder ServiceOrder?       @relation(fields: [serviceOrderId], references: [id], onDelete: SetNull)
   items        PurchaseOrderItem[]
+  financialEntries FinancialEntry[]
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
@@ -707,6 +758,64 @@ model PurchaseOrderItem {
 
   @@index([purchaseOrderId])
   @@map("purchase_order_items")
+}
+
+
+/// Lançamento financeiro: contas a receber e contas a pagar.
+model FinancialEntry {
+  id              String                 @id @default(cuid())
+  tenantId        String
+  type            FinancialEntryType
+  status          FinancialEntryStatus   @default(OPEN)
+  origin          FinancialEntryOrigin   @default(MANUAL)
+  description     String
+  category        String?
+  customerId      String?
+  supplierId      String?
+  serviceOrderId  String?
+  purchaseOrderId String?
+  issueDate       DateTime               @default(now())
+  dueDate         DateTime
+  amount          Decimal                @db.Decimal(12, 2)
+  paidAmount      Decimal                @default(0) @db.Decimal(12, 2)
+  remainingAmount Decimal                @default(0) @db.Decimal(12, 2)
+  notes           String?
+  canceledAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer      Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  supplier      Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  serviceOrder  ServiceOrder?       @relation(fields: [serviceOrderId], references: [id], onDelete: SetNull)
+  purchaseOrder PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  payments      FinancialPayment[]
+
+  @@unique([tenantId, serviceOrderId, type])
+  @@unique([tenantId, purchaseOrderId, type])
+  @@index([tenantId, type, status])
+  @@index([tenantId, dueDate])
+  @@index([tenantId, customerId])
+  @@index([tenantId, supplierId])
+  @@map("financial_entries")
+}
+
+/// Baixa/pagamento de um lançamento financeiro.
+model FinancialPayment {
+  id        String                 @id @default(cuid())
+  tenantId  String
+  entryId   String
+  amount    Decimal                @db.Decimal(12, 2)
+  method    FinancialPaymentMethod
+  paidAt    DateTime               @default(now())
+  notes     String?
+  createdAt DateTime               @default(now())
+
+  entry FinancialEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, paidAt])
+  @@index([entryId])
+  @@map("financial_payments")
 }
 
 /// Notificação interna para um usuário.

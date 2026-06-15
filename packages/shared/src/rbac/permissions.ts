@@ -36,6 +36,8 @@ export const Permission = {
   STOCK_MOVE: 'stock:move',
   PURCHASES_READ: 'purchases:read',
   PURCHASES_WRITE: 'purchases:write',
+  FINANCE_READ: 'finance:read',
+  FINANCE_WRITE: 'finance:write',
   NFE_IMPORT: 'nfe:import',
 
   // Orçamento
@@ -80,6 +82,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.SERVICES_READ,
     Permission.INVENTORY_READ,
     Permission.PURCHASES_READ,
+    Permission.FINANCE_READ,
     Permission.MESSAGES_READ,
     Permission.MESSAGES_WRITE,
   ],
@@ -105,6 +108,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.STOCK_MOVE,
     Permission.PURCHASES_READ,
     Permission.PURCHASES_WRITE,
+    Permission.FINANCE_READ,
+    Permission.FINANCE_WRITE,
     Permission.NFE_IMPORT,
     Permission.SERVICES_READ,
   ],
