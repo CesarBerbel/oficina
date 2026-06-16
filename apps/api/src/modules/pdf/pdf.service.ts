@@ -48,6 +48,13 @@ export class PdfService {
       whatsapp: settings?.whatsapp || null,
       email: settings?.email || null,
       address: settings?.address || null,
+      addressZip: settings?.addressZip || null,
+      addressStreet: settings?.addressStreet || null,
+      addressNumber: settings?.addressNumber || null,
+      addressComplement: settings?.addressComplement || null,
+      addressDistrict: settings?.addressDistrict || null,
+      addressCity: settings?.addressCity || null,
+      addressState: settings?.addressState || null,
       pdfFooterText: settings?.pdfFooterText || null,
     };
     const logo = await this.fetchLogo(settings?.logoPdfUrl || settings?.logoUrl || null);
@@ -82,6 +89,13 @@ export class PdfService {
       whatsapp: settings?.whatsapp || null,
       email: settings?.email || null,
       address: settings?.address || null,
+      addressZip: settings?.addressZip || null,
+      addressStreet: settings?.addressStreet || null,
+      addressNumber: settings?.addressNumber || null,
+      addressComplement: settings?.addressComplement || null,
+      addressDistrict: settings?.addressDistrict || null,
+      addressCity: settings?.addressCity || null,
+      addressState: settings?.addressState || null,
       pdfFooterText: settings?.pdfFooterText || null,
     };
     const logo = await this.fetchLogo(

@@ -44,14 +44,22 @@ export const updateSiteSettingsSchema = z.object({
   whatsapp: optionalText(40),
   email: optionalText(160),
   cnpj: optionalCnpj,
-  address: optionalText(300),
+  address: optionalText(400),
+  addressZip: optionalText(12),
+  addressStreet: optionalText(160),
+  addressNumber: optionalText(20),
+  addressComplement: optionalText(120),
+  addressDistrict: optionalText(80),
+  addressCity: optionalText(80),
+  addressState: optionalText(2),
   hours: optionalText(300),
   mapsEmbed: optionalText(2000),
   instagram: optionalText(200),
   facebook: optionalText(200),
   logoUrl: optionalText(500),
   logoPdfUrl: optionalText(500),
-  pdfFooterText: optionalText(2000),
+  // Rodapé do PDF: HTML simples (negrito/itálico/sublinhado/listas).
+  pdfFooterText: optionalText(8000),
   blogFallbackImageUrl: optionalText(500),
   serviceCardImageUrl: optionalText(500),
   heroImageUrl: optionalText(500),
@@ -72,6 +80,13 @@ export interface SiteSettingsDto {
   email: string | null;
   cnpj: string | null;
   address: string | null;
+  addressZip: string | null;
+  addressStreet: string | null;
+  addressNumber: string | null;
+  addressComplement: string | null;
+  addressDistrict: string | null;
+  addressCity: string | null;
+  addressState: string | null;
   hours: string | null;
   mapsEmbed: string | null;
   instagram: string | null;
@@ -98,4 +113,64 @@ export interface PublicServiceDto {
 export interface PublicSiteDto {
   settings: SiteSettingsDto;
   services: PublicServiceDto[];
+}
+
+/** Tags permitidas no rodapé do PDF (editor rich text simples). */
+const ALLOWED_RICH_TAGS = new Set([
+  'b',
+  'strong',
+  'i',
+  'em',
+  'u',
+  'br',
+  'p',
+  'div',
+  'ul',
+  'ol',
+  'li',
+]);
+
+/**
+ * Sanitiza o HTML do rodapé do PDF: remove comentários, script/style, atributos
+ * e quaisquer tags fora da lista permitida (mantendo o texto).
+ */
+export function sanitizeRichHtml(html: string | null | undefined): string {
+  if (!html) return '';
+  const noComments = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, '');
+  return noComments
+    .replace(/<\/?([a-zA-Z0-9]+)[^>]*>/g, (match, tagRaw: string) => {
+      const tag = tagRaw.toLowerCase();
+      if (!ALLOWED_RICH_TAGS.has(tag)) return '';
+      return match.startsWith('</') ? `</${tag}>` : `<${tag}>`;
+    })
+    .trim();
+}
+
+/** Monta o endereço composto (para exibição) a partir dos campos estruturados. */
+export function composeAddress(parts: {
+  addressStreet?: string | null;
+  addressNumber?: string | null;
+  addressComplement?: string | null;
+  addressDistrict?: string | null;
+  addressCity?: string | null;
+  addressState?: string | null;
+  addressZip?: string | null;
+}): string | null {
+  const v = (s?: string | null) => (s ?? '').trim();
+  const streetLine = [v(parts.addressStreet), v(parts.addressNumber)]
+    .filter(Boolean)
+    .join(', ');
+  const withComplement = [streetLine, v(parts.addressComplement)]
+    .filter(Boolean)
+    .join(' - ');
+  const cityUf = [v(parts.addressCity), v(parts.addressState)]
+    .filter(Boolean)
+    .join('/');
+  const cep = v(parts.addressZip) ? `CEP ${v(parts.addressZip)}` : '';
+  const composed = [withComplement, v(parts.addressDistrict), cityUf, cep]
+    .filter(Boolean)
+    .join(' - ');
+  return composed || null;
 }

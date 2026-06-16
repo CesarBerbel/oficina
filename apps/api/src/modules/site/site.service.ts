@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type {
-  PublicSiteDto,
-  SiteSettingsDto,
-  UpdateSiteSettingsInput,
+import {
+  composeAddress,
+  sanitizeRichHtml,
+  type PublicSiteDto,
+  type SiteSettingsDto,
+  type UpdateSiteSettingsInput,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -37,6 +39,13 @@ export class SiteService {
       email: s.email,
       cnpj: s.cnpj,
       address: s.address,
+      addressZip: s.addressZip,
+      addressStreet: s.addressStreet,
+      addressNumber: s.addressNumber,
+      addressComplement: s.addressComplement,
+      addressDistrict: s.addressDistrict,
+      addressCity: s.addressCity,
+      addressState: s.addressState,
       hours: s.hours,
       mapsEmbed: s.mapsEmbed,
       instagram: s.instagram,
@@ -82,12 +91,47 @@ export class SiteService {
     actor: AuthenticatedUser,
     input: UpdateSiteSettingsInput,
   ): Promise<SiteSettingsDto> {
-    await this.getOrCreate(actor.tenantId);
+    const current = await this.getOrCreate(actor.tenantId);
+
+    // Rodapé do PDF: HTML simples sanitizado (negrito/itálico/sublinhado/listas).
+    const footer =
+      input.pdfFooterText !== undefined
+        ? sanitizeRichHtml(input.pdfFooterText) || null
+        : undefined;
+
+    // `address` (exibição) é recomposto sempre que algum campo estruturado vem
+    // no payload, mesclando com o que já está salvo (campos não enviados).
+    const addressKeys = [
+      'addressZip',
+      'addressStreet',
+      'addressNumber',
+      'addressComplement',
+      'addressDistrict',
+      'addressCity',
+      'addressState',
+    ] as const;
+    const addressTouched = addressKeys.some((k) => input[k] !== undefined);
+    const pick = (k: (typeof addressKeys)[number]): string | null =>
+      input[k] !== undefined ? input[k] ?? null : current[k];
+    const composedAddress = addressTouched
+      ? composeAddress({
+          addressZip: pick('addressZip'),
+          addressStreet: pick('addressStreet'),
+          addressNumber: pick('addressNumber'),
+          addressComplement: pick('addressComplement'),
+          addressDistrict: pick('addressDistrict'),
+          addressCity: pick('addressCity'),
+          addressState: pick('addressState'),
+        })
+      : undefined;
+
     const data = {
       ...input,
       ...(input.mapsEmbed !== undefined
         ? { mapsEmbed: this.sanitizeMapsEmbed(input.mapsEmbed) }
         : {}),
+      ...(footer !== undefined ? { pdfFooterText: footer } : {}),
+      ...(composedAddress !== undefined ? { address: composedAddress } : {}),
     };
     const updated = await this.prisma.siteSettings.update({
       where: { tenantId: actor.tenantId },

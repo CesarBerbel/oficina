@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { SERVICE_ORDER_STATUS_LABELS } from '@oficina/shared';
 import PDFDocument from 'pdfkit';
 
 const dec = (v: Prisma.Decimal | number | null | undefined): number =>
@@ -41,6 +42,13 @@ export interface ShopInfo {
   whatsapp: string | null;
   email: string | null;
   address: string | null;
+  addressZip: string | null;
+  addressStreet: string | null;
+  addressNumber: string | null;
+  addressComplement: string | null;
+  addressDistrict: string | null;
+  addressCity: string | null;
+  addressState: string | null;
   pdfFooterText: string | null;
 }
 
@@ -65,20 +73,29 @@ export function renderServiceOrderPdf(
 
     const pageW = doc.page.width;
     const pageH = doc.page.height;
-    const left = 42;
-    const right = pageW - 42;
+    const left = 40;
+    const right = pageW - 40;
     const width = right - left;
-    const ink = '#111111';
-    const softInk = '#333333';
-    const muted = '#666666';
-    const light = '#e5e5e5';
-    const pale = '#f6f6f6';
+
+    // Paleta profissional (slate) com um único tom de destaque.
+    const ink = '#0f172a';
+    const softInk = '#334155';
+    const muted = '#64748b';
+    const line = '#e2e8f0';
+    const zebra = '#f1f5f9';
+    const accent = '#1f2937';
     const white = '#ffffff';
 
     const compact = (value: string | null | undefined): string =>
       (value ?? '').replace(/\s+/g, ' ').trim();
 
-    const money = (value: Prisma.Decimal | number | null | undefined): string => brl(dec(value));
+    const money = (value: Prisma.Decimal | number | null | undefined): string =>
+      brl(dec(value));
+
+    const statusLabel = String(
+      (SERVICE_ORDER_STATUS_LABELS as Record<string, string>)[order.status] ??
+        order.status,
+    );
 
     const fitText = (text: string, maxWidth: number): string => {
       if (doc.widthOfString(text) <= maxWidth) return text;
@@ -90,40 +107,22 @@ export function renderServiceOrderPdf(
       return `${out.trimEnd()}${suffix}`;
     };
 
-
     const sanitizePrintText = (text: string): string =>
       text
         .replace(/\r/g, '')
         .replace(/\*\*/g, '')
         .replace(/\t/g, ' ')
-        .replace(/\uFFFD/g, '?')
-        .replace(/transpar\?+ncia/gi, 'transparencia')
-        .replace(/servi\?+os/gi, 'servicos')
-        .replace(/condi\?+\?+es/gi, 'condicoes')
-        .replace(/Mec\?+nica/gi, 'Mecanica')
-        .replace(/N\?+o/g, 'Nao')
-        .replace(/n\?+o/g, 'nao')
-        .replace(/pe\?+as/gi, 'pecas')
-        .replace(/necess\?+rio/gi, 'necessario')
-        .replace(/raz\?+o/gi, 'razao')
-        .replace(/ve\?+culo/gi, 'veiculo')
-        .replace(/dever\?+/gi, 'devera')
-        .replace(/an\?+lise/gi, 'analise')
-        .replace(/poss\?+vel/gi, 'possivel')
-        .replace(/poss\?+veis/gi, 'possiveis')
-        .replace(/t\?+cnica/gi, 'tecnica')
-        .replace(/per\?+odo/gi, 'periodo')
-        .replace(/manuten\?+\?+o/gi, 'manutencao')
-        .replace(/interven\?+\?+o/gi, 'intervencao')
-        .replace(/realiza\?+\?+o/gi, 'realizacao')
-        .replace(/confian\?+a/gi, 'confianca')
-        .replace(/direito \?+ garantia/gi, 'direito a garantia')
-        .replace(/ser\?+/gi, 'sera')
-        .replace(/\?{2,}/g, '')
-        .replace(/[ \u00A0]+/g, ' ')
+        .replace(/�/g, '')
+        .replace(/[  ]+/g, ' ')
         .trim();
 
-    const strokeLine = (x1: number, y1: number, x2: number, y2: number, color = light): void => {
+    const strokeLine = (
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      color = line,
+    ): void => {
       doc.moveTo(x1, y1).lineTo(x2, y2).lineWidth(0.6).strokeColor(color).stroke();
       doc.lineWidth(1);
     };
@@ -136,331 +135,659 @@ export function renderServiceOrderPdf(
       value: string | number | null | undefined,
     ): void => {
       const text = value == null || value === '' ? '-' : String(value);
-      doc.font('Helvetica-Bold').fontSize(7).fillColor(muted).text(label.toUpperCase(), x, yy, {
-        width: w,
-        lineBreak: false,
-      });
-      doc.font('Helvetica').fontSize(9).fillColor(ink).text(fitText(text, w), x, yy + 10, {
-        width: w,
-        lineBreak: false,
-      });
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(6)
+        .fillColor(muted)
+        .text(label.toUpperCase(), x, yy, {
+          width: w,
+          lineBreak: false,
+          characterSpacing: 0.3,
+        });
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(ink)
+        .text(fitText(text, w), x, yy + 8, { width: w, lineBreak: false });
     };
 
     const sectionTitle = (title: string, yy: number): number => {
-      doc.font('Helvetica-Bold').fontSize(9.5).fillColor(ink).text(title.toUpperCase(), left, yy, {
-        width,
-        characterSpacing: 0.4,
-      });
-      strokeLine(left, yy + 15, right, yy + 15, '#bdbdbd');
-      return yy + 25;
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(8)
+        .fillColor(accent)
+        .text(title.toUpperCase(), left, yy, { width, characterSpacing: 0.6 });
+      strokeLine(left, yy + 12, right, yy + 12, line);
+      return yy + 20;
     };
 
     const drawHeader = (): number => {
       doc.rect(0, 0, pageW, pageH).fillColor(white).fill();
+      // Faixa de destaque no topo.
+      doc.rect(0, 0, pageW, 5).fillColor(accent).fill();
 
-      const top = 34;
-      const logoW = 105;
-      const logoH = 52;
+      const top = 24;
+      const numberBoxW = 128;
+      const numberBoxH = 46;
+      const logoW = 58;
+      const logoH = 44;
       let textX = left;
       if (logo) {
         try {
-          doc.save();
-          doc.rect(left, top, logoW, logoH).strokeColor('#d4d4d4').lineWidth(0.5).stroke();
-          doc.image(logo, left + 8, top + 7, {
-            fit: [logoW - 16, logoH - 14],
-            align: 'center',
-            valign: 'center',
-          });
-          doc.restore();
-          textX = left + logoW + 18;
+          doc.image(logo, left, top, { fit: [logoW, logoH], valign: 'center' });
+          textX = left + logoW + 12;
         } catch {
           textX = left;
         }
       }
 
-      const numberBoxW = 150;
-      const textW = right - textX - numberBoxW - 20;
-      doc.font('Helvetica-Bold').fontSize(14.5).fillColor(ink).text(fitText(shop.name, textW), textX, top + 1, {
-        width: textW,
-        lineBreak: false,
-      });
-
-      const contactLine = [
-        compact(shop.address),
-        compact(shop.cnpj) ? `CNPJ: ${maskCpfCnpj(shop.cnpj)}` : null,
-        compact(shop.phone) ? `Tel.: ${maskPhone(shop.phone)}` : null,
-        compact(shop.whatsapp) && compact(shop.whatsapp) !== compact(shop.phone)
-          ? `WhatsApp: ${maskPhone(shop.whatsapp)}`
-          : null,
-        compact(shop.email) || null,
-      ]
-        .filter(Boolean)
-        .join('  |  ');
-
-      doc.font('Helvetica').fontSize(7.5).fillColor(muted).text(contactLine || '-', textX, top + 20, {
-        width: textW,
-        lineGap: 2,
-      });
-
       const boxX = right - numberBoxW;
-      doc.rect(boxX, top, numberBoxW, 58).strokeColor('#999999').lineWidth(0.8).stroke();
-      doc.font('Helvetica-Bold').fontSize(8).fillColor(muted).text('ORDEM DE SERVIÇO', boxX + 10, top + 10, {
-        width: numberBoxW - 20,
-        align: 'right',
-      });
-      doc.font('Helvetica-Bold').fontSize(20).fillColor(ink).text(`Nº ${order.number}`, boxX + 10, top + 24, {
-        width: numberBoxW - 20,
-        align: 'right',
-      });
-      doc.font('Helvetica').fontSize(7.5).fillColor(muted).text(`Emissão: ${dt(new Date())}`, boxX + 10, top + 46, {
-        width: numberBoxW - 20,
-        align: 'right',
-      });
+      const textW = boxX - textX - 14;
 
-      strokeLine(left, top + 72, right, top + 72, '#111111');
-      doc.font('Helvetica').fontSize(7.2).fillColor(muted).text(
-        'Documento para autorização, acompanhamento técnico, conferência de valores, garantia e assinatura do cliente.',
-        left,
-        top + 79,
-        { width, align: 'center' },
-      );
-      strokeLine(left, top + 95, right, top + 95, light);
-      return top + 112;
+      // Nome da oficina + contatos (alinhados à esquerda, em 4 linhas).
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(13)
+        .fillColor(ink)
+        .text(fitText(shop.name, textW), textX, top, { width: textW, lineBreak: false });
+
+      // Endereço em duas linhas a partir das partes (fallback: campo composto).
+      const addrLine1 =
+        [
+          [compact(shop.addressStreet), compact(shop.addressNumber)]
+            .filter(Boolean)
+            .join(', '),
+          compact(shop.addressComplement),
+          compact(shop.addressDistrict),
+        ]
+          .filter(Boolean)
+          .join(', ') || null;
+      const addrLine2 =
+        [
+          compact(shop.addressZip) ? `CEP ${compact(shop.addressZip)}` : null,
+          [compact(shop.addressCity), compact(shop.addressState)]
+            .filter(Boolean)
+            .join('/'),
+        ]
+          .filter(Boolean)
+          .join(' - ') || null;
+      const addressLines =
+        addrLine1 || addrLine2 ? [addrLine1, addrLine2] : [compact(shop.address) || '-'];
+
+      let cy = top + 17;
+      for (const ln of addressLines.filter(Boolean)) {
+        doc
+          .font('Helvetica')
+          .fontSize(7)
+          .fillColor(muted)
+          .text(ln as string, textX, cy, { width: textW, lineBreak: false });
+        cy = doc.y + 1.5;
+      }
+
+      const telLine =
+        [
+          compact(shop.phone) ? `Tel.: ${maskPhone(shop.phone)}` : null,
+          compact(shop.whatsapp) ? `WhatsApp: ${maskPhone(shop.whatsapp)}` : null,
+        ]
+          .filter(Boolean)
+          .join('   ·   ') || '-';
+      doc
+        .font('Helvetica')
+        .fontSize(7)
+        .fillColor(muted)
+        .text(telLine, textX, cy, { width: textW, lineBreak: false });
+      cy = doc.y + 1.5;
+
+      const docLine =
+        [
+          compact(shop.cnpj) ? `CNPJ: ${maskCpfCnpj(shop.cnpj)}` : null,
+          compact(shop.email) || null,
+        ]
+          .filter(Boolean)
+          .join('   ·   ') || '-';
+      doc
+        .font('Helvetica')
+        .fontSize(7)
+        .fillColor(muted)
+        .text(docLine, textX, cy, { width: textW, lineBreak: false });
+      cy = doc.y;
+
+      // Caixa da OS (menor).
+      doc.roundedRect(boxX, top, numberBoxW, numberBoxH, 4).fillColor(accent).fill();
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(6.5)
+        .fillColor('#cbd5e1')
+        .text('ORDEM DE SERVIÇO', boxX + 10, top + 7, {
+          width: numberBoxW - 20,
+          align: 'right',
+          characterSpacing: 0.4,
+        });
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(16)
+        .fillColor(white)
+        .text(`Nº ${order.number}`, boxX + 10, top + 17, {
+          width: numberBoxW - 20,
+          align: 'right',
+        });
+      doc
+        .font('Helvetica')
+        .fontSize(6.2)
+        .fillColor('#cbd5e1')
+        .text(`Emissão: ${dt(new Date())}`, boxX + 10, top + 35, {
+          width: numberBoxW - 20,
+          align: 'right',
+        });
+
+      let hy = Math.max(cy, top + numberBoxH, top + (logo ? logoH : 0)) + 12;
+
+      // Tira de metadados (abertura / previsão / status).
+      const metaH = 20;
+      doc.roundedRect(left, hy, width, metaH, 4).fillColor(zebra).fill();
+      const metaItems: Array<[string, string]> = [
+        ['Abertura', dt(order.openedAt)],
+        ['Previsão', dt(order.dueDate)],
+        ['Status', statusLabel],
+      ];
+      const metaColW = width / metaItems.length;
+      metaItems.forEach(([label, value], i) => {
+        const mx = left + i * metaColW + 12;
+        if (i > 0) {
+          strokeLine(
+            left + i * metaColW,
+            hy + 4,
+            left + i * metaColW,
+            hy + metaH - 4,
+            '#cbd5e1',
+          );
+        }
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(6)
+          .fillColor(muted)
+          .text(label.toUpperCase(), mx, hy + 5, {
+            lineBreak: false,
+            characterSpacing: 0.3,
+          });
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(8)
+          .fillColor(ink)
+          .text(fitText(value, metaColW - 66), mx + 48, hy + 5.5, { lineBreak: false });
+      });
+      hy += metaH + 12;
+      return hy;
     };
 
     let y = drawHeader();
 
     const ensure = (needed = 80): void => {
-      if (y + needed <= pageH - 58) return;
+      if (y + needed <= pageH - 46) return;
       doc.addPage();
       y = drawHeader();
     };
 
-    const twoColumnBlock = (
+    // ─── Rodapé rich text (HTML simples: b/i/u, br, p, ul/ol/li) ───
+    const decodeEntities = (s: string): string =>
+      s
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#3?9;/g, "'")
+        .replace(/&apos;/g, "'")
+        .replace(/&amp;/g, '&');
+
+    type RichRun = { text: string; bold: boolean; italic: boolean; underline: boolean };
+    type RichLine = { runs: RichRun[]; prefix?: string };
+
+    const parseRichHtml = (html: string): RichLine[] => {
+      const lines: RichLine[] = [];
+      let runs: RichRun[] = [];
+      let bold = 0;
+      let italic = 0;
+      let underline = 0;
+      let listType: 'ul' | 'ol' | null = null;
+      let listIndex = 0;
+      let inLi = false;
+      const flush = (asItem = false): void => {
+        // Limpa cada trecho SEM trim (preserva os espaços entre trechos com
+        // formatações diferentes); só apara o início/fim da linha inteira.
+        let clean = runs
+          .map((r) => ({
+            ...r,
+            text: r.text.replace(/\r/g, '').replace(/�/g, '').replace(/[  ]+/g, ' '),
+          }))
+          .filter((r) => r.text !== '');
+        if (clean.length) {
+          clean[0] = { ...clean[0], text: clean[0].text.replace(/^ +/, '') };
+          const last = clean.length - 1;
+          clean[last] = { ...clean[last], text: clean[last].text.replace(/ +$/, '') };
+          clean = clean.filter((r) => r.text !== '');
+        }
+        if (clean.length === 0 && !asItem) {
+          runs = [];
+          return;
+        }
+        lines.push({
+          runs: clean.length
+            ? clean
+            : [{ text: '', bold: false, italic: false, underline: false }],
+          prefix: asItem ? (listType === 'ol' ? `${listIndex}.` : '•') : undefined,
+        });
+        runs = [];
+      };
+      const re = /<\/?([a-z0-9]+)[^>]*>|([^<]+)/gi;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(html))) {
+        if (m[2] != null) {
+          const text = decodeEntities(m[2]);
+          if (text) {
+            runs.push({ text, bold: bold > 0, italic: italic > 0, underline: underline > 0 });
+          }
+          continue;
+        }
+        const tag = m[1].toLowerCase();
+        const closing = m[0].startsWith('</');
+        if (tag === 'b' || tag === 'strong') bold = Math.max(0, bold + (closing ? -1 : 1));
+        else if (tag === 'i' || tag === 'em') italic = Math.max(0, italic + (closing ? -1 : 1));
+        else if (tag === 'u') underline = Math.max(0, underline + (closing ? -1 : 1));
+        else if (tag === 'br' || tag === 'p' || tag === 'div') flush();
+        else if (tag === 'ul' || tag === 'ol') {
+          flush();
+          if (!closing) {
+            listType = tag;
+            listIndex = 0;
+          } else {
+            listType = null;
+          }
+        } else if (tag === 'li') {
+          if (!closing) {
+            flush();
+            inLi = true;
+            if (listType === 'ol') listIndex += 1;
+          } else {
+            flush(true);
+            inLi = false;
+          }
+        }
+      }
+      flush(inLi);
+      return lines;
+    };
+
+    const richFont = (r: RichRun): string =>
+      r.bold && r.italic
+        ? 'Helvetica-BoldOblique'
+        : r.bold
+          ? 'Helvetica-Bold'
+          : r.italic
+            ? 'Helvetica-Oblique'
+            : 'Helvetica';
+
+    const renderRichFooter = (html: string, fs: number): void => {
+      for (const lineItem of parseRichHtml(html)) {
+        const hasPrefix = !!lineItem.prefix;
+        const startX = hasPrefix ? left + 14 : left;
+        const availW = right - startX;
+        let sumW = 0;
+        for (const r of lineItem.runs) {
+          sumW += doc.font(richFont(r)).fontSize(fs).widthOfString(r.text);
+        }
+        const wrap = Math.max(1, Math.ceil(sumW / availW || 1));
+        ensure(wrap * (fs + 1) + 3);
+        if (hasPrefix) {
+          doc
+            .font('Helvetica')
+            .fontSize(fs)
+            .fillColor(muted)
+            .text(lineItem.prefix as string, left, y, { width: 12, lineBreak: false });
+        }
+        if (lineItem.runs.length === 1 && lineItem.runs[0].text === '') {
+          y += fs * 0.6;
+          continue;
+        }
+        lineItem.runs.forEach((r, i) => {
+          const isLast = i === lineItem.runs.length - 1;
+          doc.font(richFont(r)).fontSize(fs).fillColor(softInk);
+          if (i === 0) {
+            doc.text(r.text, startX, y, {
+              width: availW,
+              continued: !isLast,
+              underline: r.underline,
+              lineGap: 0,
+            });
+          } else {
+            doc.text(r.text, { continued: !isLast, underline: r.underline, lineGap: 0 });
+          }
+        });
+        y = doc.y + 0.5;
+      }
+    };
+
+    // ─── Cliente / Veículo (dois cards) ───
+    const infoBlock = (
       titleLeft: string,
       leftRows: Array<[string, string | number | null | undefined]>,
       titleRight: string,
       rightRows: Array<[string, string | number | null | undefined]>,
     ): void => {
-      ensure(120);
-      const colGap = 20;
+      const boxH = 74;
+      ensure(boxH + 12);
+      const colGap = 12;
       const colW = (width - colGap) / 2;
-      y = sectionTitle(`${titleLeft} / ${titleRight}`, y);
-      doc.rect(left, y, width, 100).strokeColor(light).lineWidth(0.7).stroke();
-      strokeLine(left + colW + colGap / 2, y, left + colW + colGap / 2, y + 100, light);
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(ink).text(titleLeft.toUpperCase(), left + 12, y + 12);
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(ink).text(titleRight.toUpperCase(), left + colW + colGap + 12, y + 12);
 
-      const drawRows = (x: number, rows: Array<[string, string | number | null | undefined]>) => {
-        const rowW = colW - 24;
-        let rowY = y + 30;
+      const drawCard = (
+        x: number,
+        title: string,
+        rows: Array<[string, string | number | null | undefined]>,
+      ) => {
+        doc.roundedRect(x, y, colW, boxH, 4).strokeColor(line).lineWidth(0.8).stroke();
+        doc.roundedRect(x, y, colW, 16, 4).fillColor(zebra).fill();
+        doc.rect(x, y + 8, colW, 8).fillColor(zebra).fill();
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(7.5)
+          .fillColor(accent)
+          .text(title.toUpperCase(), x + 10, y + 4.5, { characterSpacing: 0.5 });
+        const innerW = colW - 20;
+        const cellW = (innerW - 10) / 2;
+        let rowY = y + 22;
         rows.forEach(([label, value], index) => {
-          const w = index % 2 === 0 ? rowW * 0.57 : rowW * 0.43;
-          const xx = index % 2 === 0 ? x : x + rowW * 0.57 + 10;
-          labelValue(xx, rowY, w - 10, label, value);
-          if (index % 2 === 1) rowY += 30;
+          const xx = index % 2 === 0 ? x + 10 : x + 10 + cellW + 10;
+          labelValue(xx, rowY, cellW, label, value);
+          if (index % 2 === 1) rowY += 24;
         });
       };
-      drawRows(left + 12, leftRows);
-      drawRows(left + colW + colGap + 12, rightRows);
-      y += 116;
+
+      drawCard(left, titleLeft, leftRows);
+      drawCard(left + colW + colGap, titleRight, rightRows);
+      y += boxH + 12;
     };
 
-    const customerRows: Array<[string, string]> = [
-      ['Nome', order.customer.name],
-      ['CPF/CNPJ', maskCpfCnpj(order.customer.document) || '-'],
-      ['Telefone', maskPhone(order.customer.phone ?? order.customer.whatsapp) || '-'],
-      ['E-mail', order.customer.email ?? '-'],
-      ['Cadastro', dt(order.customer.createdAt)],
-      ['Código', order.customer.id.slice(0, 8)],
-    ];
-    const vehicleRows: Array<[string, string | number | null | undefined]> = [
-      ['Placa', order.vehicle.plate],
-      ['KM', order.km ?? order.vehicle.currentKm ?? '-'],
-      ['Marca', order.vehicle.manufacturer],
-      ['Modelo', order.vehicle.model],
-      ['Ano', order.vehicle.modelYear ?? '-'],
-      ['Cor', order.vehicle.color ?? '-'],
-    ];
-    twoColumnBlock('Cliente', customerRows, 'Veículo', vehicleRows);
+    infoBlock(
+      'Cliente',
+      [
+        ['Nome', order.customer.name],
+        ['CPF / CNPJ', maskCpfCnpj(order.customer.document) || '-'],
+        ['Telefone', maskPhone(order.customer.phone ?? order.customer.whatsapp) || '-'],
+        ['E-mail', order.customer.email ?? '-'],
+      ],
+      'Veículo',
+      [
+        ['Placa', order.vehicle.plate],
+        ['KM', order.km ?? order.vehicle.currentKm ?? '-'],
+        ['Marca / Modelo', `${order.vehicle.manufacturer} ${order.vehicle.model}`],
+        ['Ano / Cor', `${order.vehicle.modelYear ?? '-'} · ${order.vehicle.color ?? '-'}`],
+      ],
+    );
 
-    const textPanel = (title: string, text: string | null, minHeight = 74): void => {
+    // ─── Relato / Diagnóstico (sem moldura) ───
+    const textPanel = (title: string, text: string | null): void => {
       const value = compact(text) || '-';
-      const textH = doc.heightOfString(value, { width: width - 26, lineGap: 2 });
-      const h = Math.max(minHeight, textH + 44);
-      ensure(h + 12);
-      y = sectionTitle(title, y);
-      doc.rect(left, y, width, h).strokeColor(light).lineWidth(0.7).stroke();
-      doc.font('Helvetica').fontSize(9.2).fillColor(softInk).text(value, left + 13, y + 13, {
-        width: width - 26,
-        lineGap: 2,
-      });
-      y += h + 16;
+      doc.font('Helvetica').fontSize(8);
+      const textH = doc.heightOfString(value, { width, lineGap: 1.5 });
+      ensure(textH + 22);
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(7)
+        .fillColor(accent)
+        .text(title.toUpperCase(), left, y, { characterSpacing: 0.5 });
+      y += 11;
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(softInk)
+        .text(value, left, y, { width, lineGap: 1.5 });
+      y += textH + 10;
     };
 
-    textPanel('Relato do cliente', order.reportedProblem, 78);
-    textPanel('Diagnóstico técnico', order.diagnosis, 78);
+    textPanel('Diagnóstico técnico', order.diagnosis);
 
-    const services = order.items.filter((i) => i.kind === 'SERVICE');
-    const parts = order.items.filter((i) => i.kind === 'PART');
-
-    const drawTableHeader = (title: string): void => {
-      y = sectionTitle(title, y);
-      doc.rect(left, y, width, 22).fillColor(pale).fill();
-      doc.rect(left, y, width, 22).strokeColor('#cfcfcf').lineWidth(0.7).stroke();
-      doc.font('Helvetica-Bold').fontSize(7.5).fillColor(ink);
-      doc.text('ITEM', left + 8, y + 7, { width: 30 });
-      doc.text('DESCRIÇÃO', left + 42, y + 7, { width: 280 });
-      doc.text('QTD', left + 330, y + 7, { width: 38, align: 'right' });
-      doc.text('UNITÁRIO', left + 378, y + 7, { width: 70, align: 'right' });
-      doc.text('TOTAL', left + 458, y + 7, { width: right - left - 466, align: 'right' });
-      y += 22;
-    };
-
-    const itemTable = (title: string, rows: typeof order.items): void => {
-      ensure(72);
-      drawTableHeader(title);
-      if (rows.length === 0) {
-        doc.rect(left, y, width, 28).strokeColor(light).lineWidth(0.6).stroke();
-        doc.font('Helvetica').fontSize(8.8).fillColor(muted).text('Nenhum item informado.', left + 10, y + 9);
-        y += 44;
-        return;
+    // ─── Itens: serviços com suas peças vinculadas logo abaixo ───
+    const allItems = order.items;
+    const services = allItems.filter((i) => i.kind === 'SERVICE');
+    const parts = allItems.filter((i) => i.kind === 'PART');
+    const serviceIds = new Set(services.map((s) => s.id));
+    const partsByParent = new Map<string, typeof parts>();
+    const looseParts: typeof parts = [];
+    for (const p of parts) {
+      if (p.parentItemId && serviceIds.has(p.parentItemId)) {
+        const arr = partsByParent.get(p.parentItemId) ?? [];
+        arr.push(p);
+        partsByParent.set(p.parentItemId, arr);
+      } else {
+        looseParts.push(p);
       }
-      rows.forEach((it, index) => {
-        const description = compact(it.description) || '-';
-        const descH = doc.heightOfString(description, { width: 280, lineGap: 1 });
-        const rowH = Math.max(28, descH + 15);
-        ensure(rowH + 48);
-        if (y < 160) drawTableHeader(`${title} - continuação`);
-        doc.rect(left, y, width, rowH).strokeColor(light).lineWidth(0.5).stroke();
-        doc.font('Helvetica').fontSize(8.5).fillColor(ink).text(String(index + 1).padStart(2, '0'), left + 8, y + 9, {
-          width: 30,
-        });
-        doc.font('Helvetica').fontSize(8.7).fillColor(ink).text(description, left + 42, y + 8, {
-          width: 280,
-          lineGap: 1,
-        });
-        doc.font('Helvetica').fontSize(8.7).fillColor(softInk);
-        doc.text(String(dec(it.quantity)), left + 330, y + 8, { width: 38, align: 'right' });
-        doc.text(money(it.unitPrice), left + 378, y + 8, { width: 70, align: 'right' });
-        doc.font('Helvetica-Bold').fillColor(ink).text(money(it.total), left + 458, y + 8, {
-          width: right - left - 466,
-          align: 'right',
-        });
-        y += rowH;
-      });
-      y += 16;
-    };
+    }
+    const ordered: Array<{ it: (typeof allItems)[number]; linked: boolean }> = [];
+    for (const s of services) {
+      ordered.push({ it: s, linked: false });
+      for (const p of partsByParent.get(s.id) ?? []) ordered.push({ it: p, linked: true });
+    }
+    for (const p of looseParts) ordered.push({ it: p, linked: false });
 
-    itemTable('Serviços autorizados / executados', services);
-    itemTable('Peças e materiais aplicados', parts);
+    const colItem = left + 6;
+    const colDesc = left + 28;
+    const descW = 256;
+    const colType = left + 290;
+    const colQtd = left + 336;
+    const colUnit = left + 372;
+    const colTotal = left + 442;
+    const totalW = right - colTotal - 4;
+
+    const drawItemsHeader = (): void => {
+      doc.rect(left, y, width, 18).fillColor(accent).fill();
+      doc.font('Helvetica-Bold').fontSize(6.5).fillColor(white);
+      doc.text('#', colItem, y + 6, { width: 18 });
+      doc.text('DESCRIÇÃO', colDesc, y + 6, { width: descW });
+      doc.text('TIPO', colType, y + 6, { width: 44 });
+      doc.text('QTD', colQtd, y + 6, { width: 32, align: 'right' });
+      doc.text('UNITÁRIO', colUnit, y + 6, { width: 62, align: 'right' });
+      doc.text('TOTAL', colTotal, y + 6, { width: totalW, align: 'right' });
+      y += 18;
+    };
 
     ensure(80);
-    y = sectionTitle('Condições e garantia', y);
-    const footerText = sanitizePrintText(
-      shop.pdfFooterText ||
-        `CARO CLIENTE,
+    y = sectionTitle('Serviços e peças', y);
+    drawItemsHeader();
 
-Prezando pelo bom relacionamento e pela transparencia em nossos servicos, informamos abaixo algumas condicoes importantes sobre garantia e atendimento:
-
-* A Auto Mecanica Bandeirantes oferece garantia de 90 dias para todos os servicos executados pela oficina;
-* Nao fornecemos garantia para pecas adquiridas diretamente pelo cliente;
-* Caso seja necessario executar um novo servico em razao de defeito ou problema em peca fornecida pelo cliente, o servico sera cobrado;
-* Pecas adquiridas diretamente na oficina possuem garantia de 90 dias;
-* Em caso de necessidade de acionamento da garantia, o cliente devera entrar em contato conosco para agendar a analise e o possivel reparo;
-* Para assegurar o direito a garantia, o veiculo passara por uma analise tecnica, a fim de identificar as possiveis causas do problema relatado;
-* A realizacao de manutencao, reparo ou intervencao no veiculo por outro profissional ou oficina durante o periodo de garantia podera invalidar a garantia concedida.
-
-Agradecemos a confianca em nosso trabalho.
-
-AUTO MECANICA BANDEIRANTES`,
-    );
-
-    const drawParagraphText = (text: string): void => {
-      const paragraphs = text.split('\n').map((line) => line.trim()).filter(Boolean);
-      doc.font('Helvetica').fontSize(8.2).fillColor(softInk);
-      paragraphs.forEach((paragraph) => {
-        const isBullet = paragraph.startsWith('*');
-        const clean = isBullet ? paragraph.replace(/^\*\s*/, '') : paragraph;
-        const x = isBullet ? left + 15 : left;
-        const w = isBullet ? width - 15 : width;
-        const prefixW = isBullet ? 9 : 0;
-        const h = doc.heightOfString(clean, { width: w - prefixW, lineGap: 2 });
-        ensure(h + 12);
-        if (isBullet) {
-          doc.font('Helvetica').fontSize(8.2).fillColor(softInk).text('-', x, y, {
-            width: prefixW,
-            lineBreak: false,
-          });
-          doc.text(clean, x + prefixW, y, { width: w - prefixW, lineGap: 2 });
-        } else {
-          doc.text(clean, x, y, { width: w, lineGap: 2 });
-        }
-        y += h + 7;
+    if (ordered.length === 0) {
+      doc.rect(left, y, width, 24).strokeColor(line).lineWidth(0.6).stroke();
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(muted)
+        .text('Nenhum item informado.', colDesc, y + 7);
+      y += 24;
+    } else {
+      ordered.forEach(({ it, linked }, index) => {
+        const prefix = linked ? '» ' : '';
+        const dX = linked ? colDesc + 12 : colDesc;
+        const dW = linked ? descW - 12 : descW;
+        const description = `${prefix}${compact(it.description) || '-'}`;
+        doc.font('Helvetica').fontSize(8);
+        const descH = doc.heightOfString(description, { width: dW, lineGap: 0.5 });
+        const rowH = Math.max(16, descH + 7);
+        ensure(rowH + 4);
+        if (index % 2 === 1) doc.rect(left, y, width, rowH).fillColor(zebra).fill();
+        const ty = y + 4;
+        doc
+          .font('Helvetica')
+          .fontSize(7.5)
+          .fillColor(muted)
+          .text(String(index + 1).padStart(2, '0'), colItem, ty, { width: 18 });
+        doc
+          .font('Helvetica')
+          .fontSize(8)
+          .fillColor(linked ? softInk : ink)
+          .text(description, dX, ty, { width: dW, lineGap: 0.5 });
+        doc
+          .font('Helvetica')
+          .fontSize(7)
+          .fillColor(muted)
+          .text(it.kind === 'SERVICE' ? 'Serviço' : 'Peça', colType, ty, { width: 44 });
+        doc.font('Helvetica').fontSize(8).fillColor(softInk);
+        doc.text(String(dec(it.quantity)), colQtd, ty, { width: 32, align: 'right' });
+        doc.text(money(it.unitPrice), colUnit, ty, { width: 62, align: 'right' });
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(8)
+          .fillColor(ink)
+          .text(money(it.total), colTotal, ty, { width: totalW, align: 'right' });
+        y += rowH;
       });
-    };
+    }
+    strokeLine(left, y, right, y, line);
+    y += 14;
 
-    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(ink).text('TERMO DE GARANTIA E AUTORIZAÇÃO', left, y, {
-      width,
+    // ─── Resumo financeiro (horizontal) ───
+    const sumH = 32;
+    ensure(sumH + 12);
+    const sTop = y;
+    const totalBoxW = 170;
+    const leftAreaW = width - totalBoxW;
+    doc
+      .roundedRect(left, sTop, width, sumH, 4)
+      .strokeColor('#cbd5e1')
+      .lineWidth(0.9)
+      .stroke();
+
+    const cells: Array<[string, string]> = [
+      ['Serviços', money(order.totalServices)],
+      ['Peças', money(order.totalParts)],
+      ['Desconto', dec(order.discount) > 0 ? `- ${money(order.discount)}` : money(0)],
+    ];
+    const cellW = leftAreaW / cells.length;
+    cells.forEach(([label, value], i) => {
+      const cx = left + i * cellW + 12;
+      if (i > 0) {
+        strokeLine(left + i * cellW, sTop + 6, left + i * cellW, sTop + sumH - 6, line);
+      }
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(6)
+        .fillColor(muted)
+        .text(label.toUpperCase(), cx, sTop + 7, { lineBreak: false, characterSpacing: 0.3 });
+      doc
+        .font('Helvetica')
+        .fontSize(9.5)
+        .fillColor(ink)
+        .text(value, cx, sTop + 17, { lineBreak: false });
     });
-    y += 16;
-    drawParagraphText(footerText);
-    y += 8;
 
-    ensure(92);
-    y = sectionTitle('Resumo financeiro', y);
-    const summaryH = 86;
-    doc.rect(left, y, width, summaryH).strokeColor('#999999').lineWidth(0.8).stroke();
-    const rowLeft = left + 14;
-    const rowValueX = right - 170;
-    const totalRow = (label: string, value: string, yy: number, strong = false): void => {
-      doc.font(strong ? 'Helvetica-Bold' : 'Helvetica').fontSize(strong ? 12 : 9).fillColor(ink).text(label, rowLeft, yy, {
-        width: 160,
-      });
-      doc.font('Helvetica-Bold').fontSize(strong ? 12 : 9).fillColor(ink).text(value, rowValueX, yy, {
-        width: 156,
+    // Caixa do total (preenchida) à direita.
+    const tboxX = left + leftAreaW;
+    doc
+      .roundedRect(tboxX, sTop + 1.5, totalBoxW - 2.5, sumH - 3, 3)
+      .fillColor(accent)
+      .fill();
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(8.5)
+      .fillColor('#cbd5e1')
+      .text('TOTAL', tboxX + 12, sTop + 12, { lineBreak: false });
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(13)
+      .fillColor(white)
+      .text(money(order.total), tboxX + 12, sTop + 10, {
+        width: totalBoxW - 24,
         align: 'right',
       });
-    };
-    totalRow('Serviços', money(order.totalServices), y + 13);
-    totalRow('Peças', money(order.totalParts), y + 31);
-    totalRow('Desconto', dec(order.discount) > 0 ? `- ${money(order.discount)}` : money(0), y + 49);
-    strokeLine(left + 14, y + 65, right - 14, y + 65, '#999999');
-    totalRow('TOTAL', money(order.total), y + 69, true);
-    y += summaryH + 20;
+    y = sTop + sumH + 16;
 
-    ensure(104);
-    y = sectionTitle('Assinaturas', y);
-    doc.rect(left, y, width, 82).strokeColor(light).lineWidth(0.7).stroke();
-    strokeLine(left + 45, y + 47, left + width / 2 - 28, y + 47, '#777777');
-    strokeLine(left + width / 2 + 28, y + 47, right - 45, y + 47, '#777777');
-    doc.font('Helvetica').fontSize(8).fillColor(muted).text('Cliente ou responsável', left + 45, y + 54, {
-      width: width / 2 - 73,
-      align: 'center',
-    });
-    doc.font('Helvetica').fontSize(8).fillColor(muted).text('Responsável técnico / oficina', left + width / 2 + 28, y + 54, {
-      width: width / 2 - 73,
-      align: 'center',
-    });
-    doc.font('Helvetica').fontSize(7.3).fillColor(muted).text(
-      'Declaro estar ciente dos serviços, valores, condições de garantia e informações registradas nesta ordem de serviço.',
-      left + 14,
-      y + 68,
-      { width: width - 28, align: 'center' },
-    );
+    // ─── Condições e garantia ───
+    // O rodapé pode ser HTML simples (editor rich text) ou texto puro (legado).
+    const footerRaw = (shop.pdfFooterText ?? '').trim();
+    const footerIsHtml = /<\/?(b|strong|i|em|u|br|p|div|ul|ol|li)\b/i.test(footerRaw);
+    const FS = 7.2;
+
+    ensure(28);
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(7)
+      .fillColor(accent)
+      .text('CONDIÇÕES E GARANTIA', left, y, { characterSpacing: 0.5 });
+    y += 12;
+
+    if (footerIsHtml) {
+      renderRichFooter(footerRaw, FS);
+    } else {
+      const conditionsText = sanitizePrintText(
+        footerRaw ||
+          `Autorizo a execução dos serviços e a aplicação das peças relacionadas nesta ordem de serviço, conforme os valores apresentados.
+
+Garantia de 90 dias para os serviços executados pela oficina. As peças têm garantia conforme o fabricante. Peças fornecidas pelo próprio cliente não possuem garantia da oficina. A garantia poderá ser invalidada por intervenção de terceiros durante o período de cobertura.`,
+      );
+      conditionsText
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .forEach((paragraph) => {
+          const isBullet = paragraph.startsWith('*') || paragraph.startsWith('-');
+          const clean = paragraph.replace(/^[*-]\s*/, '');
+          const textX = isBullet ? left + 10 : left;
+          const w = isBullet ? width - 10 : width;
+          doc.font('Helvetica').fontSize(FS).fillColor(softInk);
+          const h = doc.heightOfString(clean, { width: w, lineGap: 0 });
+          ensure(h + 3);
+          if (isBullet) {
+            doc.font('Helvetica').fontSize(FS).fillColor(muted).text('•', left, y, {
+              width: 8,
+              lineBreak: false,
+            });
+          }
+          doc.font('Helvetica').fontSize(FS).fillColor(softInk).text(clean, textX, y, {
+            width: w,
+            lineGap: 0,
+          });
+          y += h + 1;
+        });
+    }
+    y += 8;
+
+    // ─── Assinaturas ───
+    ensure(60);
+    const sigY = y + 24;
+    const sigW = width / 2 - 40;
+    strokeLine(left + 20, sigY, left + 20 + sigW, sigY, '#94a3b8');
+    strokeLine(right - 20 - sigW, sigY, right - 20, sigY, '#94a3b8');
+    doc
+      .font('Helvetica')
+      .fontSize(7.5)
+      .fillColor(muted)
+      .text('Cliente ou responsável', left + 20, sigY + 5, { width: sigW, align: 'center' });
+    doc
+      .font('Helvetica')
+      .fontSize(7.5)
+      .fillColor(muted)
+      .text('Responsável técnico / oficina', right - 20 - sigW, sigY + 5, {
+        width: sigW,
+        align: 'center',
+      });
 
     const addFooters = (): void => {
       const range = doc.bufferedPageRange();
       for (let i = range.start; i < range.start + range.count; i += 1) {
         doc.switchToPage(i);
-        strokeLine(left, pageH - 36, right, pageH - 36, light);
-        doc.font('Helvetica').fontSize(7.2).fillColor(muted).text(`OS Nº ${order.number} - ${shop.name}`, left, pageH - 25, {
-          width: width / 2,
-        });
-        doc.font('Helvetica').fontSize(7.2).fillColor(muted).text(`Página ${i + 1} de ${range.count}`, left + width / 2, pageH - 25, {
-          width: width / 2,
-          align: 'right',
-        });
+        strokeLine(left, pageH - 30, right, pageH - 30, line);
+        doc
+          .font('Helvetica')
+          .fontSize(6.8)
+          .fillColor(muted)
+          .text(`OS Nº ${order.number} · ${shop.name}`, left, pageH - 22, {
+            width: width / 2,
+          });
+        doc
+          .font('Helvetica')
+          .fontSize(6.8)
+          .fillColor(muted)
+          .text(`Página ${i + 1} de ${range.count}`, left + width / 2, pageH - 22, {
+            width: width / 2,
+            align: 'right',
+          });
       }
     };
 
@@ -468,4 +795,3 @@ AUTO MECANICA BANDEIRANTES`,
     doc.end();
   });
 }
-

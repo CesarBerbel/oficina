@@ -869,7 +869,15 @@ model SiteSettings {
   whatsapp     String?
   email        String?
   cnpj         String?
-  address      String?
+  // Endereço: campos estruturados; `address` guarda a versão composta p/ exibição.
+  address           String?
+  addressZip        String?
+  addressStreet     String?
+  addressNumber     String?
+  addressComplement String?
+  addressDistrict   String?
+  addressCity       String?
+  addressState      String?
   hours        String?
   mapsEmbed    String?
   instagram    String?

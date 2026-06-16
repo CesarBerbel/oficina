@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, Save } from 'lucide-react';
+import { ExternalLink, Save, Search } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { updateSiteSettingsSchema } from '@oficina/shared';
@@ -12,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageUpload } from '@/components/image-upload';
-import { maskCnpj, maskPhone } from '@/lib/masks';
+import { maskCep, maskCnpj, maskPhone, onlyDigits } from '@/lib/masks';
 
 const FIELDS: { key: string; label: string; area?: boolean; full?: boolean; required?: boolean }[] = [
   { key: 'shopName', label: 'Nome da oficina', required: true },
@@ -27,7 +28,6 @@ const FIELDS: { key: string; label: string; area?: boolean; full?: boolean; requ
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'email', label: 'E-mail' },
   { key: 'cnpj', label: 'CNPJ (opcional)' },
-  { key: 'address', label: 'Endereço', full: true },
   { key: 'hours', label: 'Horários' },
   { key: 'instagram', label: 'Instagram (URL)' },
   { key: 'facebook', label: 'Facebook (URL)' },
@@ -35,13 +35,33 @@ const FIELDS: { key: string; label: string; area?: boolean; full?: boolean; requ
   { key: 'logoPdfUrl', label: 'Logo para PDF (URL)' },
   { key: 'blogFallbackImageUrl', label: 'Imagem padrão do blog (artigos sem imagem)', full: true },
   { key: 'serviceCardImageUrl', label: 'Imagem dos cards de serviço (site público)', full: true },
-  { key: 'pdfFooterText', label: 'Rodapé do PDF', area: true, full: true },
   { key: 'capacity', label: 'Capacidade da oficina (OS simultâneas)' },
   { key: 'mapsEmbed', label: 'Google Maps (código embed)', area: true, full: true },
 ];
 
+const ADDRESS_FIELDS: { key: string; label: string; className?: string }[] = [
+  { key: 'addressStreet', label: 'Rua / Logradouro', className: 'sm:col-span-4' },
+  { key: 'addressNumber', label: 'Número', className: 'sm:col-span-2' },
+  { key: 'addressComplement', label: 'Complemento', className: 'sm:col-span-3' },
+  { key: 'addressDistrict', label: 'Bairro', className: 'sm:col-span-3' },
+  { key: 'addressCity', label: 'Cidade', className: 'sm:col-span-4' },
+  { key: 'addressState', label: 'UF', className: 'sm:col-span-2' },
+];
+
+const ALL_KEYS = [
+  ...FIELDS.map((f) => f.key),
+  'addressZip',
+  ...ADDRESS_FIELDS.map((f) => f.key),
+  'pdfFooterText',
+];
+
 const FIELD_LABELS = Object.fromEntries(
-  FIELDS.map((field) => [field.key, field.label.replace(' (opcional)', '')]),
+  [
+    ...FIELDS.map((f) => [f.key, f.label.replace(' (opcional)', '')] as const),
+    ['addressZip', 'CEP'] as const,
+    ...ADDRESS_FIELDS.map((f) => [f.key, f.label] as const),
+    ['pdfFooterText', 'Rodapé do PDF'] as const,
+  ],
 ) as Record<string, string>;
 
 export default function SiteConfigPage() {
@@ -50,16 +70,18 @@ export default function SiteConfigPage() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [published, setPublished] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [cepLoading, setCepLoading] = useState(false);
 
   useEffect(() => {
     if (data) {
       const f: Record<string, string> = {};
       const rec = data as unknown as Record<string, unknown>;
-      for (const fld of FIELDS) {
-        const value = rec[fld.key]?.toString() ?? '';
-        if (fld.key === 'phone' || fld.key === 'whatsapp') f[fld.key] = maskPhone(value);
-        else if (fld.key === 'cnpj') f[fld.key] = maskCnpj(value);
-        else f[fld.key] = value;
+      for (const key of ALL_KEYS) {
+        const value = rec[key]?.toString() ?? '';
+        if (key === 'phone' || key === 'whatsapp') f[key] = maskPhone(value);
+        else if (key === 'cnpj') f[key] = maskCnpj(value);
+        else if (key === 'addressZip') f[key] = maskCep(value);
+        else f[key] = value;
       }
       setForm(f);
       setPublished(data.published);
@@ -73,15 +95,53 @@ export default function SiteConfigPage() {
         ? maskPhone(value)
         : key === 'cnpj'
           ? maskCnpj(value)
-          : value;
+          : key === 'addressZip'
+            ? maskCep(value)
+            : value;
     setForm((current) => ({ ...current, [key]: masked }));
   }
 
+  async function lookupCep() {
+    const cep = onlyDigits(form.addressZip);
+    if (cep.length !== 8) {
+      setErrors((c) => ({ ...c, addressZip: 'CEP: informe um CEP com 8 dígitos' }));
+      return;
+    }
+    setCepLoading(true);
+    setErrors((c) => ({ ...c, addressZip: '' }));
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      if (!res.ok) throw new Error('CEP inválido');
+      const d = (await res.json()) as {
+        erro?: boolean;
+        cep?: string;
+        logradouro?: string;
+        bairro?: string;
+        localidade?: string;
+        uf?: string;
+      };
+      if (d.erro) {
+        setErrors((c) => ({ ...c, addressZip: 'CEP: CEP não encontrado' }));
+        return;
+      }
+      setForm((current) => ({
+        ...current,
+        addressZip: maskCep(d.cep ?? cep),
+        addressStreet: d.logradouro || current.addressStreet || '',
+        addressDistrict: d.bairro || current.addressDistrict || '',
+        addressCity: d.localidade || current.addressCity || '',
+        addressState: d.uf || current.addressState || '',
+      }));
+      toast.success('Endereço preenchido pelo CEP');
+    } catch {
+      setErrors((c) => ({ ...c, addressZip: 'CEP: não foi possível consultar o CEP' }));
+    } finally {
+      setCepLoading(false);
+    }
+  }
+
   async function save() {
-    const payload = {
-      ...form,
-      published,
-    };
+    const payload = { ...form, published };
     const parsed = updateSiteSettingsSchema.safeParse(payload);
     if (!parsed.success) {
       const fieldErrors = zodFieldErrors(parsed.error, FIELD_LABELS);
@@ -157,6 +217,66 @@ export default function SiteConfigPage() {
             {errors[f.key] && <p className="text-xs text-destructive">{errors[f.key]}</p>}
           </div>
         ))}
+      </div>
+
+      {/* Endereço estruturado */}
+      <div className="space-y-3 rounded-xl border bg-card p-5">
+        <h2 className="text-sm font-semibold">Endereço</h2>
+        <div className="grid gap-4 sm:grid-cols-6">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>CEP</Label>
+            <div className="flex gap-2">
+              <Input
+                value={form.addressZip ?? ''}
+                onChange={(e) => setField('addressZip', e.target.value)}
+                inputMode="numeric"
+                maxLength={9}
+                placeholder="00000-000"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => void lookupCep()}
+                disabled={cepLoading}
+                aria-label="Buscar CEP"
+              >
+                {cepLoading ? <CarLoader className="size-4 animate-spin" /> : <Search className="size-4" />}
+              </Button>
+            </div>
+            {errors.addressZip && <p className="text-xs text-destructive">{errors.addressZip}</p>}
+          </div>
+
+          {ADDRESS_FIELDS.map((f) => (
+            <div key={f.key} className={`space-y-1.5 ${f.className ?? ''}`}>
+              <Label>{f.label}</Label>
+              <Input
+                value={form[f.key] ?? ''}
+                onChange={(e) => setField(f.key, e.target.value)}
+                maxLength={f.key === 'addressState' ? 2 : undefined}
+                style={f.key === 'addressState' ? { textTransform: 'uppercase' } : undefined}
+              />
+              {errors[f.key] && <p className="text-xs text-destructive">{errors[f.key]}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Rodapé do PDF (rich text) */}
+      <div className="space-y-2 rounded-xl border bg-card p-5">
+        <div>
+          <Label>Rodapé do PDF</Label>
+          <p className="text-xs text-muted-foreground">
+            Texto de condições/garantia impresso no fim da OS. Use a barra para
+            negrito, itálico, sublinhado e listas.
+          </p>
+        </div>
+        <RichTextEditor
+          value={form.pdfFooterText ?? ''}
+          onChange={(html) => setForm((c) => ({ ...c, pdfFooterText: html }))}
+          placeholder="Ex.: Garantia de 90 dias para os serviços executados..."
+        />
+        {errors.pdfFooterText && <p className="text-xs text-destructive">{errors.pdfFooterText}</p>}
       </div>
 
       <Button onClick={save} disabled={update.isPending}>
