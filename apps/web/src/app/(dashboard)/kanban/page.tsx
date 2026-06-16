@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { CarLoader } from '@/components/car-loader';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { ApiError, api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
@@ -96,7 +97,7 @@ export default function KanbanPage() {
   return (
     <div className="flex h-[calc(100dvh-6rem)] min-h-0 flex-col overflow-hidden sm:h-[calc(100dvh-7rem)]">
       <div className="mb-4 shrink-0 space-y-3">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
               Kanban técnico
@@ -111,7 +112,7 @@ export default function KanbanPage() {
           </div>
         </div>
 
-        <div className="xl:hidden">
+        <div className="lg:hidden">
           <label
             htmlFor="kanban-column"
             className="mb-1 block text-xs font-medium text-muted-foreground"
@@ -141,7 +142,7 @@ export default function KanbanPage() {
         </div>
       ) : (
         <>
-          <div className="hidden min-h-0 flex-1 grid-cols-7 gap-3 overflow-hidden xl:grid">
+          <div className="hidden min-h-0 flex-1 grid-cols-7 gap-3 overflow-hidden lg:grid">
             {COLUMNS.map((column) => (
               <KanbanColumn
                 key={column.label}
@@ -155,7 +156,7 @@ export default function KanbanPage() {
             ))}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden xl:hidden">
+          <div className="min-h-0 flex-1 overflow-hidden lg:hidden">
             <KanbanColumn
               label={selectedColumn.label}
               orders={ordersFor(selectedColumn.statuses)}
@@ -246,6 +247,7 @@ function KanbanOrderCard({
   onDragOrder: (id: string | null) => void;
 }) {
   const changeStatus = useChangeStatus(order.id);
+  const confirm = useConfirm();
   const enabledTransitions = order.availableTransitions.filter(
     (transition) =>
       !transition.disabledReason &&
@@ -257,11 +259,14 @@ function KanbanOrderCard({
       toast.error(transition.disabledReason);
       return;
     }
-    if (
-      transition.requiresConfirmation &&
-      !confirm(`${transition.label}? ${transition.description}`)
-    ) {
-      return;
+    if (transition.requiresConfirmation) {
+      const ok = await confirm({
+        title: transition.label,
+        description: transition.description,
+        destructive: transition.destructive,
+        confirmLabel: transition.label,
+      });
+      if (!ok) return;
     }
 
     try {
@@ -285,7 +290,7 @@ function KanbanOrderCard({
       onDragEnd={() => onDragOrder(null)}
     >
       <Link
-        href={`/os/${order.id}?returnTo=${encodeURIComponent('/kanban')}`}
+        href={`/os/${order.id}/tecnico?returnTo=${encodeURIComponent('/kanban')}`}
         className="block min-w-0 space-y-1"
       >
         <div className="flex min-w-0 items-start justify-between gap-2">

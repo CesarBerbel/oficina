@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useCombos, useDeleteCombo } from '@/features/catalog/use-catalog';
 import { ComboFormDialog } from '@/features/catalog/combo-form-dialog';
 import { CatalogTabs } from '@/features/catalog/catalog-tabs';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,10 +26,17 @@ export default function CombosPage() {
 
   const { data, isLoading } = useCombos({ page: 1, pageSize: 50 });
   const del = useDeleteCombo();
+  const confirm = useConfirm();
   const combos = data?.data ?? [];
 
   async function handleDelete(c: ComboDto) {
-    if (!confirm(`Excluir o combo "${c.name}"?`)) return;
+    const ok = await confirm({
+      title: 'Excluir combo',
+      description: `Excluir o combo "${c.name}"? Esta ação não pode ser desfeita.`,
+      destructive: true,
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
     try { await del.mutateAsync(c.id); toast.success('Combo excluído'); }
     catch (err) { toast.error(err instanceof ApiError ? err.message : 'Erro'); }
   }

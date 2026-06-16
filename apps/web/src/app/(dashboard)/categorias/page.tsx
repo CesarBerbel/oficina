@@ -19,6 +19,7 @@ import {
   useDeleteCategory,
 } from '@/features/categories/use-categories';
 import { cn } from '@/lib/utils';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -116,6 +117,7 @@ function KindTab({ kind, canManage }: { kind: CategoryKind; canManage: boolean }
 function CategoryRow({ category, canManage }: { category: CategoryDto; canManage: boolean }) {
   const update = useUpdateCategory(category.id);
   const del = useDeleteCategory();
+  const confirm = useConfirm();
   const [name, setName] = useState(category.name);
   const dirty = name.trim() !== category.name && name.trim().length > 0;
 
@@ -137,7 +139,13 @@ function CategoryRow({ category, canManage }: { category: CategoryDto; canManage
   }
 
   async function remove() {
-    if (!confirm(`Excluir a categoria "${category.name}"?`)) return;
+    const ok = await confirm({
+      title: 'Excluir categoria',
+      description: `Excluir a categoria "${category.name}"? Esta ação não pode ser desfeita.`,
+      destructive: true,
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
     try {
       await del.mutateAsync(category.id);
       toast.success('Categoria excluída');

@@ -17,6 +17,7 @@ import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useVehicles, useDeleteVehicle } from '@/features/vehicles/use-vehicles';
 import { VehicleFormDialog } from '@/features/vehicles/vehicle-form-dialog';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -56,12 +57,19 @@ function VehiclesContent() {
     customerId,
   });
   const del = useDeleteVehicle();
+  const confirm = useConfirm();
 
   const vehicles = data?.data ?? [];
   const meta = data?.meta;
 
   async function handleDelete(v: VehicleDto) {
-    if (!confirm(`Excluir o veículo ${v.plate}?`)) return;
+    const ok = await confirm({
+      title: 'Excluir veículo',
+      description: `Excluir o veículo ${v.plate}? Esta ação não pode ser desfeita.`,
+      destructive: true,
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
     try {
       await del.mutateAsync(v.id);
       toast.success('Veículo excluído');

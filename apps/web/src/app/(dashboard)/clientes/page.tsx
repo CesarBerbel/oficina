@@ -16,6 +16,7 @@ import { maskCpfCnpj, maskPhone } from '@/lib/masks';
 import { useAuth } from '@/lib/auth-context';
 import { useCustomers, useDeleteCustomer } from '@/features/customers/use-customers';
 import { CustomerFormDialog } from '@/features/customers/customer-form-dialog';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -52,12 +53,19 @@ export default function CustomersPage() {
     type: (type || undefined) as CustomerType | undefined,
   });
   const del = useDeleteCustomer();
+  const confirm = useConfirm();
 
   const customers = data?.data ?? [];
   const meta = data?.meta;
 
   async function handleDelete(c: CustomerDto) {
-    if (!confirm(`Excluir o cliente "${c.name}"?`)) return;
+    const ok = await confirm({
+      title: 'Excluir cliente',
+      description: `Excluir o cliente "${c.name}"? Esta ação não pode ser desfeita.`,
+      destructive: true,
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
     try {
       await del.mutateAsync(c.id);
       toast.success('Cliente excluído');

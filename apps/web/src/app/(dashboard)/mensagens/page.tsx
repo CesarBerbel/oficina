@@ -20,6 +20,7 @@ import {
   useTemplates, useDeleteTemplate, useMessageLogs, useSendMessage, useSendTestEmail, useMailStatus,
 } from '@/features/messaging/use-messaging';
 import { TemplateFormDialog } from '@/features/messaging/template-form-dialog';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatDate, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,6 +97,7 @@ function MailStatusBanner() {
 function TemplatesTab({ canWrite }: { canWrite: boolean }) {
   const { data: templates, isLoading } = useTemplates();
   const del = useDeleteTemplate();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<MessageTemplateDto | null>(null);
 
@@ -124,7 +126,8 @@ function TemplatesTab({ canWrite }: { canWrite: boolean }) {
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => { setEditing(t); setOpen(true); }}><Pencil className="size-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={async () => {
-                      if (!confirm('Excluir template?')) return;
+                      const ok = await confirm({ title: 'Excluir template', description: `Excluir o template "${t.name}"?`, destructive: true, confirmLabel: 'Excluir' });
+                      if (!ok) return;
                       try { await del.mutateAsync(t.id); toast.success('Excluído'); } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro'); }
                     }}><Trash2 className="size-4" /></Button>
                   </div>

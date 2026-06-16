@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useServices, useDeleteService } from '@/features/catalog/use-catalog';
 import { ServiceFormDialog } from '@/features/catalog/service-form-dialog';
 import { CatalogTabs } from '@/features/catalog/catalog-tabs';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,11 +32,18 @@ export default function ServicesPage() {
 
   const { data, isLoading } = useServices({ page, pageSize: 10, search: search || undefined });
   const del = useDeleteService();
+  const confirm = useConfirm();
   const services = data?.data ?? [];
   const meta = data?.meta;
 
   async function handleDelete(s: ServiceDto) {
-    if (!confirm(`Excluir o serviço "${s.name}"?`)) return;
+    const ok = await confirm({
+      title: 'Excluir serviço',
+      description: `Excluir o serviço "${s.name}"? Esta ação não pode ser desfeita.`,
+      destructive: true,
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
     try { await del.mutateAsync(s.id); toast.success('Serviço excluído'); }
     catch (err) { toast.error(err instanceof ApiError ? err.message : 'Erro'); }
   }

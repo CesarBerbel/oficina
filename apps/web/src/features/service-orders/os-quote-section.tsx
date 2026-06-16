@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatCurrency } from '@/lib/utils';
 
 const STATUS_VARIANT: Record<string, BadgeProps['variant']> = {
@@ -57,6 +58,7 @@ export function OsQuoteSection({
   const sendEmail = useSendQuoteEmail(osId);
   const reopen = useReopenQuote(osId);
   const generatePurchase = useGeneratePurchase(osId);
+  const confirm = useConfirm();
   const [notes, setNotes] = useState(quote?.publicNotes ?? '');
 
   const canGenerate = GENERATE_STATUSES.includes(osStatus);
@@ -106,12 +108,13 @@ export function OsQuoteSection({
   }
 
   async function onReopen() {
-    if (
-      !confirm(
-        'Reabrir o orçamento? A OS volta a ser editável para adicionar serviços, combos e peças e gerar um novo orçamento.',
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: 'Reabrir orçamento',
+      description:
+        'A OS volta a ser editável para adicionar serviços, combos e peças e gerar um novo orçamento.',
+      confirmLabel: 'Reabrir',
+    });
+    if (!ok) return;
     try {
       await reopen.mutateAsync();
       toast.success('Orçamento reaberto. Edite a OS e gere um novo orçamento.');

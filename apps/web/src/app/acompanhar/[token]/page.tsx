@@ -1,10 +1,10 @@
 'use client';
 
 import { use, useState } from 'react';
-import { Wrench, Car, CheckCircle2, FileText, Clock } from 'lucide-react';
+import { Wrench, Car, CheckCircle2, FileText } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import { SERVICE_ORDER_STATUS_LABELS, cpfCnpjSchema, type QuoteItemDto } from '@oficina/shared';
+import { cpfCnpjSchema, type QuoteItemDto } from '@oficina/shared';
 import { usePublicTracking, useQuoteDecision } from '@/features/public/use-tracking';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +47,21 @@ export default function PublicTrackingPage({
 
   const quote = data.quote;
   const canDecide = quote && quote.status === 'ENVIADO';
+
+  // Totais recalculados ao vivo conforme o cliente marca/desmarca itens.
+  const approvedItems = quote ? quote.items.filter((it) => isApproved(it)) : [];
+  const liveServices = approvedItems
+    .filter((it) => it.kind === 'SERVICE')
+    .reduce((sum, it) => sum + it.total, 0);
+  const liveParts = approvedItems
+    .filter((it) => it.kind === 'PART')
+    .reduce((sum, it) => sum + it.total, 0);
+  const liveTotal = Math.max(0, liveServices + liveParts - data.discount);
+
+  // Na decisão usa os totais ao vivo; caso contrário, os totais do orçamento.
+  const shownServices = canDecide ? liveServices : data.totalServices;
+  const shownParts = canDecide ? liveParts : data.totalParts;
+  const shownTotal = canDecide ? liveTotal : data.total;
 
   // Só permite aprovar/recusar com nome preenchido e CPF/CNPJ válido.
   const nameOk = signature.trim().length > 0;
@@ -153,63 +168,6 @@ export default function PublicTrackingPage({
           </CardContent>
         </Card>
 
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Clock className="size-4" /> Linha do tempo
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.timeline.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Ainda não há atualizações públicas.
-              </p>
-            ) : (
-              <ol className="relative space-y-4 border-l pl-4">
-                {data.timeline.map((event, index) => (
-                  <li key={`${event.createdAt}-${index}`} className="relative">
-                    <span className="absolute -left-[1.36rem] top-1 size-2.5 rounded-full bg-primary" />
-                    <p className="text-sm font-medium">
-                      {event.status
-                        ? SERVICE_ORDER_STATUS_LABELS[event.status]
-                        : event.title}
-                    </p>
-                    {event.description && (
-                      <p className="mt-0.5 whitespace-pre-wrap text-sm text-muted-foreground">
-                        {event.description}
-                      </p>
-                    )}
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {new Date(event.createdAt).toLocaleString('pt-BR')}
-                    </p>
-                    {event.photos.length > 0 && (
-                      <div className="mt-2 grid grid-cols-3 gap-2">
-                        {event.photos.map((url) => (
-                          <a
-                            key={url}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="overflow-hidden rounded-md border bg-muted"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={url}
-                              alt="Foto da OS"
-                              className="aspect-square w-full object-cover"
-                            />
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Orçamento / itens */}
         <Card>
           <CardHeader className="pb-2">
@@ -225,29 +183,36 @@ export default function PublicTrackingPage({
                 {data.items.map((it, i) => {
                   const quoteItem = quote?.items[i];
                   const linked = !!quoteItem?.parentItemId;
+                  const rejected = canDecide && quoteItem && !isApproved(quoteItem);
                   return (
                     <div
                       key={i}
-                      className={`flex items-center justify-between gap-3 py-2 text-sm ${linked ? 'pl-6' : ''}`}
+                      className={`flex items-start justify-between gap-3 px-2 py-2.5 text-sm transition-opacity ${it.kind === 'SERVICE' ? 'bg-muted/60' : ''} ${linked ? 'pl-8' : ''} ${rejected ? 'opacity-45' : ''}`}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-start gap-2">
                         {canDecide && quoteItem && (
                           <input
                             type="checkbox"
-                            className="size-4"
+                            className="mt-0.5 size-4 shrink-0"
                             checked={isApproved(quoteItem)}
                             onChange={(e) => toggleItem(quoteItem, e.target.checked)}
                           />
                         )}
-                        <span>
-                          {linked && (
-                            <span className="mr-1 text-muted-foreground">↳</span>
-                          )}
-                          {it.description}
-                          <span className="text-muted-foreground"> ×{it.quantity}</span>
-                        </span>
+                        <div className="min-w-0">
+                          <p className={rejected ? 'line-through' : ''}>
+                            {linked && (
+                              <span className="mr-1 text-muted-foreground">↳</span>
+                            )}
+                            {it.description}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {it.quantity.toLocaleString('pt-BR')} × {formatCurrency(it.unitPrice)}
+                          </p>
+                        </div>
                       </div>
-                      <span className="font-medium">{formatCurrency(it.total)}</span>
+                      <span className="shrink-0 font-medium tabular-nums">
+                        {formatCurrency(it.total)}
+                      </span>
                     </div>
                   );
                 })}
@@ -255,13 +220,18 @@ export default function PublicTrackingPage({
             )}
 
             <div className="space-y-1 border-t pt-2 text-sm">
-              <Row label="Serviços" value={formatCurrency(data.totalServices)} />
-              <Row label="Peças" value={formatCurrency(data.totalParts)} />
+              <Row label="Serviços" value={formatCurrency(shownServices)} />
+              <Row label="Peças" value={formatCurrency(shownParts)} />
               {data.discount > 0 && <Row label="Desconto" value={`- ${formatCurrency(data.discount)}`} />}
               <div className="flex justify-between pt-1 text-base font-semibold">
                 <span>Total</span>
-                <span>{formatCurrency(data.total)}</span>
+                <span className="tabular-nums">{formatCurrency(shownTotal)}</span>
               </div>
+              {canDecide && (
+                <p className="pt-1 text-xs text-muted-foreground">
+                  O total acima reflete os itens selecionados.
+                </p>
+              )}
             </div>
 
             {canDecide ? (

@@ -10,6 +10,7 @@ import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useBlogPosts, useDeleteBlogPost, useSetBlogPostStatus } from '@/features/content/use-content';
 import { BlogFormDialog } from '@/features/content/blog-form-dialog';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
@@ -34,11 +35,18 @@ export default function BlogAdminPage() {
   const { data, isLoading } = useBlogPosts({ page, pageSize: 10 });
   const del = useDeleteBlogPost();
   const setStatus = useSetBlogPostStatus();
+  const confirm = useConfirm();
   const posts = data?.data ?? [];
   const meta = data?.meta;
 
   async function handleDelete(p: BlogPostDto) {
-    if (!confirm(`Excluir "${p.title}"?`)) return;
+    const ok = await confirm({
+      title: 'Excluir artigo',
+      description: `Excluir "${p.title}"? Esta ação não pode ser desfeita.`,
+      destructive: true,
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
     try { await del.mutateAsync(p.id); toast.success('Artigo excluído'); }
     catch (err) { toast.error(err instanceof ApiError ? err.message : 'Erro'); }
   }

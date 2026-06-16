@@ -11,7 +11,9 @@ const nextConfig = {
   // Build "standalone": o Next rastreia (file-tracing) só os arquivos realmente
   // usados em runtime e gera apps/web/.next/standalone com um node_modules mínimo.
   // Evita copiar o node_modules hoisted inteiro do monorepo para a imagem.
-  output: 'standalone',
+  // Opt-in via env (ligado no Dockerfile): o tracing usa symlinks, que o Windows
+  // bloqueia (EPERM) sem modo desenvolvedor — então `pnpm build` local segue normal.
+  output: process.env.NEXT_OUTPUT_STANDALONE === 'true' ? 'standalone' : undefined,
   // Raiz do monorepo: garante que o tracing inclua workspace deps (@oficina/shared).
   outputFileTracingRoot: path.join(__dirname, '../../'),
   eslint: {
