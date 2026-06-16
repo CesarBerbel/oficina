@@ -18,6 +18,10 @@ build/
 .env.*.local
 !.env.example
 
+# certificados TLS (não versionar)
+docker/nginx/certs/
+docker/nginx/certbot-webroot/
+
 # logs
 *.log
 npm-debug.log*

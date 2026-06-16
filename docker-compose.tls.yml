@@ -1,0 +1,22 @@
+# Override de HTTPS/TLS para produção.
+# Uso: docker compose -f docker-compose.prod.yml -f docker-compose.tls.yml up -d
+#
+# Pré-requisitos:
+#   - Certificados em ./docker/nginx/certs/{fullchain.pem,privkey.pem}
+#     (ex.: gerados com certbot — ver docs/DEPLOY.md §6).
+#   - Domínio apontando para o servidor (portas 80 e 443 públicas).
+services:
+  api:
+    environment:
+      # Cookies de autenticação só por HTTPS.
+      AUTH_COOKIE_SECURE: 'true'
+
+  nginx:
+    # Publica 80 (redirect + ACME) e 443 (HTTPS) nas interfaces públicas.
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./docker/nginx/default-tls.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+      - ./docker/nginx/certbot-webroot:/var/www/certbot
