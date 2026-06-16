@@ -146,7 +146,18 @@ itens de configuração ficam só dentro do hub `/configuracoes`.
 - Multi-oficina (SaaS): o **login já é por slug de oficina**; falta o **cadastro/
   onboarding de novas oficinas**, a **resolução automática por domínio/subdomínio**
   e a UI de gestão de tenants (o `tenantId` já está em todas as tabelas).
-- Otimizar imagens Docker (hoje copiam node_modules cheio).
+- ~~Otimizar imagens Docker~~ **feito**. Tamanhos: **API 1.61GB→443MB**, **Web 1.94GB→334MB**.
+  - **Deps de produção**: API usa `pnpm deploy --prod` (árvore self-contained, só
+    dependencies, Prisma Client regerado); Web usa Next.js `output: 'standalone'` (file-tracing).
+  - **Runtime distroless + nonroot** (`gcr.io/distroless/nodejs22-debian12:nonroot`,
+    uid 65532): glibc para os prebuilds nativos (argon2) e o engine do Prisma (libssl).
+    Como distroless não tem shell, a API roda via `docker/api-entrypoint.mjs` (migrate
+    deploy + boot); o Web usa o `server.js` do standalone. Validado end-to-end contra
+    Postgres (migrate + health `db:up`).
+  - **Atenção**: o runtime da API é prod-only, sem `ts-node`/`typescript` — o seed de
+    produção (`prisma db seed`, que usa ts-node) **não roda no container final**; rode-o
+    a partir de uma imagem de build/dev ou compile o seed para JS. `prisma` passou de
+    devDependency para dependency (usado no `migrate deploy` em runtime).
 
 ---
 

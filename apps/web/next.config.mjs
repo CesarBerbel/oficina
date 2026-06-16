@@ -1,8 +1,19 @@
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const disableLintDuringBuild = process.env.NEXT_DISABLE_ESLINT_DURING_BUILD === 'true';
 
 const nextConfig = {
   reactStrictMode: true,
+  // Build "standalone": o Next rastreia (file-tracing) só os arquivos realmente
+  // usados em runtime e gera apps/web/.next/standalone com um node_modules mínimo.
+  // Evita copiar o node_modules hoisted inteiro do monorepo para a imagem.
+  output: 'standalone',
+  // Raiz do monorepo: garante que o tracing inclua workspace deps (@oficina/shared).
+  outputFileTracingRoot: path.join(__dirname, '../../'),
   eslint: {
     // Em produção o lint não deve bloquear o deploy.
     // O typecheck continua sendo executado pelo Next.js/CI.

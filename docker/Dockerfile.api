@@ -26,18 +26,29 @@ RUN pnpm --filter @oficina/shared build \
  && pnpm --filter @oficina/api prisma:generate \
  && pnpm --filter @oficina/api build
 
-# ---- runtime ----
-FROM base AS runtime
+# ---- deploy: árvore self-contained só com deps de produção ----
+# `pnpm deploy --prod` resolve apenas as dependencies (sem devDeps) e injeta o
+# workspace @oficina/shared como cópia real, num diretório único e sem symlinks.
+FROM build AS deploy
+RUN pnpm --filter @oficina/api deploy --prod /app/deploy
+# Garante dist + schema/migrations no diretório final e regenera o Prisma Client
+# dentro do node_modules podado (o client gerado não é carregado pelo deploy).
+# Cria também o diretório de uploads para o volume nomeado herdar o dono nonroot.
+RUN rm -rf /app/deploy/dist /app/deploy/prisma /app/deploy/src \
+ && cp -r /app/apps/api/dist /app/deploy/dist \
+ && cp -r /app/apps/api/prisma /app/deploy/prisma \
+ && mkdir -p /app/deploy/apps/api/uploads \
+ && cd /app/deploy && npx prisma generate --schema prisma/schema.prisma
+
+# ---- runtime: distroless glibc + nonroot ----
+# Sem shell, sem gerenciador de pacotes e roda como usuário não-root (uid 65532).
+# glibc (debian12) é necessário p/ os prebuilds nativos (argon2) e o engine do
+# Prisma (libssl). O migrate roda via entrypoint JS, pois não há shell p/ `sh -c`.
+FROM gcr.io/distroless/nodejs22-debian12:nonroot AS runtime
 ENV NODE_ENV=production
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
-COPY --from=build /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=build /app/apps/api/dist ./apps/api/dist
-COPY --from=build /app/apps/api/package.json ./apps/api/package.json
-COPY --from=build /app/apps/api/prisma ./apps/api/prisma
-WORKDIR /app/apps/api
+WORKDIR /app
+COPY --from=deploy --chown=65532:65532 /app/deploy ./
+COPY --chown=65532:65532 docker/api-entrypoint.mjs ./api-entrypoint.mjs
 EXPOSE 3333
-# Aplica migrations e sobe a API.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+# A ENTRYPOINT da imagem distroless já é o `node`; passamos o script como argumento.
+CMD ["/app/api-entrypoint.mjs"]
