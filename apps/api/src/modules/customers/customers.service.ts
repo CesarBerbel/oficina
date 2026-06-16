@@ -39,6 +39,7 @@ function toDto(c: CustomerRow): CustomerDto {
     state: c.state,
     categories: c.categories,
     notes: c.notes,
+    birthDate: c.birthDate ? c.birthDate.toISOString().slice(0, 10) : null,
     vehiclesCount: c._count.vehicles,
     createdAt: c.createdAt.toISOString(),
   };
@@ -550,8 +551,13 @@ export class CustomersService {
         throw new ConflictException('Já existe um cliente com este CPF/CNPJ');
     }
 
+    const { birthDate, ...rest } = input;
     const created = await this.prisma.customer.create({
-      data: { tenantId: actor.tenantId, ...input },
+      data: {
+        tenantId: actor.tenantId,
+        ...rest,
+        ...(birthDate ? { birthDate: new Date(birthDate) } : {}),
+      },
       ...withCount,
     });
 
@@ -590,9 +596,13 @@ export class CustomersService {
         throw new ConflictException('CPF/CNPJ já cadastrado em outro cliente');
     }
 
+    const { birthDate, ...rest } = input;
     const updated = await this.prisma.customer.update({
       where: { id },
-      data: input,
+      data: {
+        ...rest,
+        ...(birthDate !== undefined ? { birthDate: new Date(birthDate) } : {}),
+      },
       ...withCount,
     });
 

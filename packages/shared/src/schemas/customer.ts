@@ -32,6 +32,13 @@ const customerBaseSchema = z.object({
   state: optionalString(2),
   categories: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
   notes: optionalString(2000),
+  /** Data de nascimento (YYYY-MM-DD) — usada no disparo de aniversário. */
+  birthDate: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data de nascimento inválida')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
 });
 
 export const createCustomerSchema = customerBaseSchema.superRefine((data, ctx) => {
@@ -95,6 +102,7 @@ export interface CustomerDto {
   state: string | null;
   categories: string[];
   notes: string | null;
+  birthDate: string | null;
   vehiclesCount: number;
   createdAt: string;
 }

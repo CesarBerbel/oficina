@@ -401,6 +401,7 @@ model Customer {
   state      String?
   categories String[]     @default([])
   notes      String?
+  birthDate  DateTime?    @db.Date
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 

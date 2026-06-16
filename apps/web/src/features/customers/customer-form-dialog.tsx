@@ -52,6 +52,7 @@ interface CustomerFormState {
   state: string;
   categories: string[];
   notes: string;
+  birthDate: string;
 }
 
 type TextField = Exclude<keyof CustomerFormState, 'categories'>;
@@ -72,6 +73,7 @@ const empty: CustomerFormState = {
   state: '',
   categories: [],
   notes: '',
+  birthDate: '',
 };
 
 const FIELD_LABELS = {
@@ -90,6 +92,7 @@ const FIELD_LABELS = {
   state: 'UF',
   categories: 'Categorias',
   notes: 'Observações',
+  birthDate: 'Data de nascimento',
 };
 
 interface ViaCepResponse {
@@ -148,6 +151,7 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: Props) {
         state: customer.state ?? '',
         categories: customer.categories ?? [],
         notes: customer.notes ?? '',
+        birthDate: customer.birthDate ?? '',
       });
     } else {
       setForm(empty);
@@ -320,6 +324,14 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: Props) {
 
           <Field label="E-mail" error={errors.email}>
             <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
+          </Field>
+
+          <Field label="Data de nascimento" error={errors.birthDate}>
+            <Input
+              type="date"
+              value={form.birthDate}
+              onChange={(e) => set('birthDate', e.target.value)}
+            />
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-4">

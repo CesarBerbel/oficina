@@ -17,6 +17,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
+    "prisma:seed:templates": "ts-node prisma/seed-templates.ts",
     "prisma:studio": "prisma studio",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma"
   },
@@ -30,6 +31,7 @@
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.4",
+    "@nestjs/schedule": "^4.1.2",
     "@nestjs/throttler": "^6.2.1",
     "@oficina/shared": "workspace:*",
     "@prisma/client": "^5.20.0",

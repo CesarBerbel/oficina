@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { validateEnv } from './infra/config/env';
 import { PrismaModule } from './infra/prisma/prisma.module';
@@ -49,6 +50,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
       envFilePath: ['../../.env', '.env'],
       validate: validateEnv,
     }),
+    ScheduleModule.forRoot(),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

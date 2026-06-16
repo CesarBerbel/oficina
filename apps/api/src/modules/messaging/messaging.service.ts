@@ -206,6 +206,75 @@ export class MessagingService {
     }
   }
 
+  /** Dispara a mensagem de aniversário (CUSTOMER_BIRTHDAY) para um cliente. */
+  async dispatchCustomerBirthday(
+    tenantId: string,
+    customerId: string,
+  ): Promise<void> {
+    const templates = await this.prisma.messageTemplate.findMany({
+      where: { tenantId, event: 'CUSTOMER_BIRTHDAY', active: true, autoSend: true },
+    });
+    if (templates.length === 0) return;
+
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, tenantId },
+      select: { id: true, name: true, phone: true, whatsapp: true, email: true },
+    });
+    if (!customer) return;
+
+    // Idempotência: não reenvia se já houve disparo de aniversário hoje.
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const already = await this.prisma.messageLog.findFirst({
+      where: {
+        tenantId,
+        customerId,
+        event: 'CUSTOMER_BIRTHDAY',
+        createdAt: { gte: startOfDay },
+      },
+    });
+    if (already) return;
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true },
+    });
+    const ctx = {
+      cliente: {
+        nome: customer.name,
+        telefone: customer.phone ?? customer.whatsapp ?? '',
+      },
+      oficina: { nome: tenant?.name ?? 'Oficina' },
+    };
+
+    for (const t of templates) {
+      const body = this.render(t.body, ctx);
+      const to =
+        t.channel === 'EMAIL'
+          ? (customer.email ?? '')
+          : (customer.phone ?? customer.whatsapp ?? '');
+      const res = await this.deliver(
+        t.channel,
+        to,
+        body,
+        `${ctx.oficina.nome} — Feliz aniversário!`,
+      );
+      await this.prisma.messageLog.create({
+        data: {
+          tenantId,
+          templateId: t.id,
+          customerId: customer.id,
+          channel: t.channel,
+          event: 'CUSTOMER_BIRTHDAY',
+          status: res.status,
+          to,
+          body,
+          error: res.error,
+        },
+      });
+    }
+  }
+
   /**
    * Envia o link do orçamento para o e-mail do cliente da OS. Usa um template
    * de e-mail ativo para QUOTE_SENT, se houver; caso contrário, um corpo padrão.
