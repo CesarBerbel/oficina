@@ -66,6 +66,17 @@ docker run --rm --network oficina_default -v "$PWD:/repo" -w /repo \
 Login: `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` (definidos no `.env`).
 **Troque a senha do admin após o primeiro acesso.**
 
+> O seed principal já cria os **templates de mensagem** (WhatsApp + E-mail) de todos
+> os eventos, incluindo o de **aniversário** (`CUSTOMER_BIRTHDAY`, ativo e com
+> *autoSend*). Para (re)semear **apenas os templates** numa instalação existente
+> (ex.: adicionar templates novos sem mexer no resto), o script é idempotente:
+> ```bash
+> docker run --rm --network oficina_default -v "$PWD:/repo" -w /repo \
+>   -e DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB?schema=public" \
+>   node:22-slim sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm prisma:generate && pnpm --filter @oficina/api prisma:seed:templates"
+> ```
+> Em dev: `pnpm --filter @oficina/api prisma:seed:templates` (semeia todos os tenants).
+
 ## 5. Verificação
 ```bash
 curl http://localhost/api/health      # {"status":"ok","db":"up"}
@@ -73,9 +84,30 @@ curl -I http://localhost/             # 200 (frontend)
 ```
 
 ## 6. HTTPS (recomendado)
-Coloque um terminador TLS na frente (Caddy/Traefik) ou configure certificados no
-Nginx (`docker/nginx/default.conf`) montando os certs e adicionando um `server`
-na porta 443. Com HTTPS, defina `AUTH_COOKIE_SECURE=true`.
+
+Já existe um override pronto: `docker-compose.tls.yml` (HTTP→HTTPS, HTTPS na 443 com
+HSTS, `AUTH_COOKIE_SECURE=true` automático). Precisa apenas dos certificados.
+
+1. **Gerar os certificados** (Let's Encrypt via certbot, com a porta 80 livre):
+   ```bash
+   sudo certbot certonly --standalone -d suaoficina.com
+   # copie para a pasta lida pelo Nginx:
+   mkdir -p docker/nginx/certs
+   sudo cp /etc/letsencrypt/live/suaoficina.com/fullchain.pem docker/nginx/certs/
+   sudo cp /etc/letsencrypt/live/suaoficina.com/privkey.pem  docker/nginx/certs/
+   ```
+2. **Subir com TLS** (combina os dois arquivos de compose):
+   ```bash
+   docker compose -f docker-compose.prod.yml -f docker-compose.tls.yml up -d
+   ```
+3. **Renovação**: renove com `certbot renew`, recopie os `.pem` para
+   `docker/nginx/certs/` e rode `docker compose ... restart nginx`.
+
+> Alternativa: um terminador TLS automático na frente (Caddy/Traefik) — nesse caso
+> mantenha o `docker-compose.prod.yml` puro e exponha o app só para o proxy.
+>
+> Com HTTPS, `AUTH_COOKIE_SECURE=true` (o override já define) — os cookies de
+> autenticação passam a exigir conexão segura.
 
 ## 7. Backup
 Backup do banco (cron sugerido, diário):

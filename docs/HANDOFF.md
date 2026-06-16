@@ -278,3 +278,21 @@ A tela `/leads` foi evoluída para Central de Pré-atendimento: busca cliente po
 - **Healthcheck corrigido**: distroless não tem shell → `docker-compose.prod.yml` usa
   `CMD` (exec) com `/nodejs/bin/node`, não `CMD-SHELL`. Sem isso, api/web ficavam
   `unhealthy` e a stack não subia.
+
+**Segurança (HTTPS), Aniversário e Testes**
+- **HTTPS/TLS**: `docker/nginx/default-tls.conf` (HTTP→HTTPS + 443 com HSTS) +
+  override `docker-compose.tls.yml` (publica 80/443, monta `docker/nginx/certs`,
+  `AUTH_COOKIE_SECURE=true`). Subir com `-f docker-compose.prod.yml -f docker-compose.tls.yml`.
+  Passos de certbot em `docs/DEPLOY.md` §6. Rota `/healthz` adicionada ao Nginx.
+- **Aniversário (cron)**: campo `Customer.birthDate` (migration
+  `20260616180000_customer_birthdate` + form de cliente). `@nestjs/schedule` +
+  `BirthdayCronService` roda diário (08:00 America/Sao_Paulo), busca aniversariantes
+  e dispara `CUSTOMER_BIRTHDAY` via `MessagingService.dispatchCustomerBirthday`
+  (idempotente no dia). A remoção automática de itens recusados no orçamento **já
+  existia** (quotes.service).
+- **Seed de templates dedicado**: `apps/api/prisma/seed-templates.ts`
+  (`seedMessageTemplates(prisma, tenantId)`, idempotente) com todos os eventos +
+  **template de aniversário** (ativo, autoSend). O `seed.ts` principal chama essa
+  função. Standalone: `pnpm --filter @oficina/api prisma:seed:templates` (todos os tenants).
+- **Testes novos**: `composeAddress`, `sanitizeRichHtml`, `aiFieldDefault`
+  (`apps/api/src/modules/{site,ai}/*.spec.ts`). Suíte da API: 11 suites / 53 testes.
