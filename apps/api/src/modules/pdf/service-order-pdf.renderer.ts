@@ -357,7 +357,7 @@ export function renderServiceOrderPdf(
         let clean = runs
           .map((r) => ({
             ...r,
-            text: r.text.replace(/\r/g, '').replace(/�/g, '').replace(/[  ]+/g, ' '),
+            text: r.text.replace(/\r/g, '').replace(/�/g, '').replace(/[  ]+/g, ' '),
           }))
           .filter((r) => r.text !== '');
         if (clean.length) {
