@@ -3,6 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   AiConfigDto,
+  AiUsageSummaryDto,
   AuditLogDto,
   ListAuditQuery,
   Paginated,
@@ -22,7 +23,17 @@ export function useUpdateAiConfig() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: UpdateAiConfigInput) => api.put<AiConfigDto>('/ai-config', input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-config'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ai-config'] });
+      qc.invalidateQueries({ queryKey: ['ai-usage'] });
+    },
+  });
+}
+
+export function useAiUsage() {
+  return useQuery({
+    queryKey: ['ai-usage'],
+    queryFn: () => api.get<AiUsageSummaryDto>('/ai-config/usage'),
   });
 }
 

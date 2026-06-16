@@ -16,17 +16,20 @@ export function AiAssistButton({
   content,
   onResult,
   label = 'IA',
+  field,
 }: {
   instruction: string;
   content?: string;
   onResult: (text: string) => void;
   label?: string;
+  /** Campo/contexto (AiFieldKey) — aplica a instrução específica configurada. */
+  field?: string;
 }) {
   const assist = useAiAssist();
 
   async function run() {
     try {
-      const res = await assist.mutateAsync({ instruction, content: content || undefined });
+      const res = await assist.mutateAsync({ instruction, content: content || undefined, field });
       if (res.text) {
         onResult(res.text);
         toast.success('Texto gerado pela IA');

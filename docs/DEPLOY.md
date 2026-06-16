@@ -33,18 +33,36 @@ docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Isso sobe `postgres`, `api`, `web` e `nginx` (porta 80). A API aplica as
-migrations automaticamente no boot (`prisma migrate deploy`) e persiste uploads no volume `oficina_uploads`.
+migrations automaticamente no boot (`prisma migrate deploy`, via `docker/api-entrypoint.mjs`)
+e persiste uploads no volume `oficina_uploads`.
 
-Para aplicar migrations manualmente (ex.: deploy sem rebuild da API):
+> **Imagens enxutas (distroless + non-root).** Os runtimes da API e do Web são
+> `gcr.io/distroless/nodejs22-debian12:nonroot` (uid 65532): só dependências de
+> produção, **sem shell, sem `npm`/`npx`, sem `ts-node`**. A API roda via entrypoint
+> JS; o Web usa o `server.js` do build *standalone* do Next. O healthcheck do compose
+> usa `node` (exec), não shell. Comandos manuais que dependiam de `npx`/`pnpm`/shell
+> mudaram — veja abaixo.
+
+Para aplicar migrations manualmente (ex.: sem reiniciar a API), chame o Prisma
+pelo `node` (não há `npx` na imagem):
 ```bash
-docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml exec api \
+  /nodejs/bin/node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma
 ```
+Na prática, basta `up -d` (ou `restart api`): o entrypoint aplica as migrations no boot.
 
 ## 4. Seed inicial (primeira vez)
-Cria a oficina e o usuário administrador:
+Cria a oficina e o usuário administrador. **Atenção:** a imagem final da API é
+prod-only (sem `ts-node`), então o seed **não roda dentro do container `api`**.
+Rode-o num container `node` descartável anexado à rede do compose, a partir do
+código-fonte (a rede padrão é `oficina_default`; o host do banco é `postgres`):
+
 ```bash
-docker compose -f docker-compose.prod.yml exec api npx prisma db seed
+docker run --rm --network oficina_default -v "$PWD:/repo" -w /repo \
+  -e DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB?schema=public" \
+  node:22-slim sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm prisma:generate && pnpm prisma:seed"
 ```
+
 Login: `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` (definidos no `.env`).
 **Troque a senha do admin após o primeiro acesso.**
 
@@ -73,6 +91,14 @@ gunzip -c backups/oficina_AAAAMMDD_HHMMSS.sql.gz | \
 
 ## 8. Uploads
 Em produção os uploads vão para o volume Docker `oficina_uploads`, montado em `/app/apps/api/uploads` no container da API e exposto pelo Nginx em `/uploads`. Para escala/HA, implemente o adapter S3/R2 antes de rodar múltiplas réplicas da API.
+
+> **Volume + non-root.** A API roda como uid **65532**. Em um volume novo o dono é
+> herdado da imagem (já correto). Mas se você está **migrando de um deploy antigo**
+> (volume criado como root), ajuste o dono uma vez para o usuário não-root conseguir
+> gravar:
+> ```bash
+> docker run --rm -v oficina_uploads:/u busybox chown -R 65532:65532 /u
+> ```
 
 ## 9. Logs e operação
 ```bash

@@ -272,8 +272,10 @@ daqui você acessa as telas das subseções a seguir.
 
 ### 7.2 Site público
 
-Dados da oficina exibidos no site: nome, endereço, contatos, capacidade, logo e
-textos institucionais.
+Dados da oficina exibidos no site: nome, contatos, capacidade, logo e textos
+institucionais. O **endereço** é cadastrado em campos separados (CEP, rua, número,
+complemento, bairro, cidade, UF) com **busca automática por CEP**. O **rodapé do
+PDF** tem um editor com formatação (negrito, itálico, sublinhado e listas).
 
 ![Configuração do site](imgs/21-site-config.png)
 
@@ -314,8 +316,11 @@ perfil define o que o usuário enxerga no menu e pode executar.
 ### 7.8 Assistente de IA
 
 Configuração do provedor de IA (OpenAI/Gemini), a **chave de API** (armazenada
-criptografada) e as instruções. A IA auxilia em diagnóstico/observações da OS,
-corpo de mensagens e geração de artigos do blog.
+criptografada) e as instruções. Além da instrução geral, há **instruções por campo**
+(relato/diagnóstico/observações da OS, corpo de mensagens e artigo do blog) — deixe
+em branco para usar o padrão. A página também mostra o **uso recente da IA** (chamadas
+e tokens dos últimos 30 dias). A IA auxilia em diagnóstico/observações da OS, corpo
+de mensagens e geração de artigos do blog.
 
 ![Assistente de IA](imgs/27-ia.png)
 

@@ -41,12 +41,19 @@ cd /caminho/do/projeto
 git pull origin main
 
 docker compose -f docker-compose.prod.yml build
-docker compose -f docker-compose.prod.yml run --rm api pnpm prisma:deploy
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d   # entrypoint aplica as migrations no boot
 
 docker compose -f docker-compose.prod.yml ps
 sh scripts/monitor-prod.sh
 ```
+
+> A imagem da API é distroless (sem `pnpm`/`npx`/shell): **as migrations são
+> aplicadas automaticamente no boot** pelo `docker/api-entrypoint.mjs`. Para forçar
+> manualmente, sem reiniciar:
+> ```bash
+> docker compose -f docker-compose.prod.yml exec api \
+>   /nodejs/bin/node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma
+> ```
 
 Se sua branch for `master`, troque `main` por `master`.
 
@@ -207,10 +214,15 @@ ls -lh backups | tail
 
 ```bash
 sh scripts/backup.sh
-docker compose -f docker-compose.prod.yml run --rm api pnpm prisma:deploy
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d   # migrations aplicadas no boot da api
 sh scripts/monitor-prod.sh
 ```
+
+> Se precisar aplicar migrations sem reiniciar a api (imagem distroless, sem `pnpm`/`npx`):
+> ```bash
+> docker compose -f docker-compose.prod.yml exec api \
+>   /nodejs/bin/node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma
+> ```
 
 ## 11. PWA e notificações push
 

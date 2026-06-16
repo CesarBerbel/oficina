@@ -325,9 +325,12 @@ Padrões visuais:
 ## 9. Integrações e serviços transversais
 
 - **Storage adapter**: `StoragePort` → `LocalStorage` (dev) / `S3Storage` (R2/S3).
-- **PDF**: serviço `PdfService` usa pdfkit. Logo: usa `logoPdfUrl` se houver,
-  senão `logoUrl`; cabeçalho usa nome, endereço, telefones/e-mail da oficina e
-  rodapé configurável em `SiteSettings.pdfFooterText`.
+- **PDF**: serviço `PdfService` usa pdfkit (layout profissional, alvo de 1 página).
+  Logo: `logoPdfUrl` se houver, senão `logoUrl`. Cabeçalho usa o **endereço
+  estruturado** da oficina (CEP, rua, número, complemento, bairro, cidade/UF) +
+  contatos; tabela de itens agrupa **peças sob o serviço** (`parentItemId`); rodapé
+  é **rich text** (`SiteSettings.pdfFooterText`, HTML simples) com negrito/itálico/
+  sublinhado/listas.
 - **NF-e**: pipeline `upload (.xml/.zip) → parse → mapeamento → tela de conferência
   editável → confirmar (só cadastrar/atualizar OU + entrada de estoque)`.
 - **Eventos de OS**: emitidos no domínio (`OsStatusChanged`, etc.) → listeners de
@@ -352,7 +355,10 @@ Padrões visuais:
 - **Dev**: `docker compose up -d` (postgres) + `pnpm dev` (gera Prisma, aplica migrations pendentes e sobe api+web via turbo).
 - **Prod**: `docker-compose.prod.yml` (postgres, api, web, nginx). Nginx faz
   reverse proxy, TLS, serve estáticos e roteia `/api` → NestJS, resto → Next.
-- **Migrations**: `prisma migrate deploy` no boot do container de api.
+- **Imagens**: runtimes **distroless + non-root** (uid 65532), só deps de produção
+  (`pnpm deploy --prod` na API; Next `standalone` no Web). Sem shell/`npx`/`ts-node` —
+  healthcheck e comandos manuais usam `node` (ver `docs/DEPLOY.md`).
+- **Migrations**: `prisma migrate deploy` no boot do container de api (entrypoint JS).
 - **Backup**: script `pg_dump` agendado (cron) + retenção; documentado no README.
 
 ---

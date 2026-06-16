@@ -1,11 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type {
-  AiArticleInput,
-  AiArticleResult,
-  AiAssistInput,
-  AiAssistResult,
-  AiConfigDto,
-  UpdateAiConfigInput,
+import { Prisma } from '@prisma/client';
+import {
+  aiFieldDefault,
+  type AiArticleInput,
+  type AiArticleResult,
+  type AiAssistInput,
+  type AiAssistResult,
+  type AiConfigDto,
+  type AiUsageSummaryDto,
+  type UpdateAiConfigInput,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CryptoService } from '../../infra/security/crypto.service';
@@ -28,10 +31,21 @@ export class AiService {
     return this.prisma.aiConfig.create({ data: { tenantId } });
   }
 
+  /** Lê o mapa de instruções por campo (JSON) de forma segura. */
+  private parseFieldInstructions(value: Prisma.JsonValue | null): Record<string, string> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (typeof v === 'string' && v.trim()) out[k] = v;
+    }
+    return out;
+  }
+
   private toDto(c: {
     provider: AiConfigDto['provider'];
     apiKeyEnc: string | null;
     instructions: string | null;
+    fieldInstructions: Prisma.JsonValue | null;
     active: boolean;
   }): AiConfigDto {
     let maskedKey: string | null = null;
@@ -47,6 +61,7 @@ export class AiService {
       hasKey: !!c.apiKeyEnc,
       maskedKey,
       instructions: c.instructions,
+      fieldInstructions: this.parseFieldInstructions(c.fieldInstructions),
       active: c.active,
     };
   }
@@ -60,12 +75,25 @@ export class AiService {
     input: UpdateAiConfigInput,
   ): Promise<AiConfigDto> {
     await this.getOrCreate(actor.tenantId);
+    // Normaliza o mapa por campo: mantém só valores preenchidos.
+    let fieldInstructions: Record<string, string> | undefined;
+    if (input.fieldInstructions !== undefined) {
+      fieldInstructions = {};
+      for (const [k, v] of Object.entries(input.fieldInstructions)) {
+        const t = (v ?? '').trim();
+        if (t) fieldInstructions[k] = t;
+      }
+    }
+
     const updated = await this.prisma.aiConfig.update({
       where: { tenantId: actor.tenantId },
       data: {
         ...(input.provider !== undefined ? { provider: input.provider } : {}),
         ...(input.instructions !== undefined
           ? { instructions: input.instructions ?? null }
+          : {}),
+        ...(fieldInstructions !== undefined
+          ? { fieldInstructions: fieldInstructions as Prisma.InputJsonValue }
           : {}),
         ...(input.active !== undefined ? { active: input.active } : {}),
         ...(input.apiKey ? { apiKeyEnc: this.crypto.encrypt(input.apiKey) } : {}),
@@ -95,7 +123,17 @@ export class AiService {
       provider: cfg.provider,
       apiKey: this.crypto.decrypt(cfg.apiKeyEnc),
       instructions: cfg.instructions ?? '',
+      fieldInstructions: this.parseFieldInstructions(cfg.fieldInstructions),
     };
+  }
+
+  /** Instrução específica do campo: override do tenant ou default do registro. */
+  private fieldGuidance(
+    fieldInstructions: Record<string, string>,
+    field: string | undefined,
+  ): string {
+    if (!field) return '';
+    return fieldInstructions[field]?.trim() || aiFieldDefault(field);
   }
 
   /** Gera/melhora um trecho de texto (diagnóstico de OS, mensagem, etc.). */
@@ -106,14 +144,43 @@ export class AiService {
       'Escreva em português do Brasil, de forma clara, profissional e objetiva.',
       'Responda apenas com o texto solicitado, sem comentários extras.',
       client.instructions,
+      this.fieldGuidance(client.fieldInstructions, input.field),
     ]
       .filter(Boolean)
       .join(' ');
     const user = input.content
       ? `${input.instruction}\n\nTexto base:\n${input.content}`
       : input.instruction;
-    const text = await this.provider.chat(client.provider, client.apiKey, system, user);
-    return { text };
+    const inputChars = system.length + user.length;
+    try {
+      const res = await this.provider.chat(client.provider, client.apiKey, system, user);
+      await this.logUsage({
+        tenantId: actor.tenantId,
+        userId: actor.id,
+        kind: 'assist',
+        field: input.field ?? null,
+        provider: client.provider,
+        success: true,
+        inputChars,
+        outputChars: res.text.length,
+        totalTokens: res.totalTokens,
+      });
+      return { text: res.text };
+    } catch (err) {
+      await this.logUsage({
+        tenantId: actor.tenantId,
+        userId: actor.id,
+        kind: 'assist',
+        field: input.field ?? null,
+        provider: client.provider,
+        success: false,
+        error: this.errMsg(err),
+        inputChars,
+        outputChars: 0,
+        totalTokens: null,
+      });
+      throw err;
+    }
   }
 
   /** Gera um artigo de blog completo a partir do assunto. */
@@ -126,15 +193,42 @@ export class AiService {
       'no formato: {"title": string, "excerpt": string, "content": string, "seoTitle": string, "seoDescription": string}.',
       'O "content" deve ter vários parágrafos (use \\n\\n entre eles).',
       client.instructions,
+      this.fieldGuidance(client.fieldInstructions, 'blog_article'),
     ]
       .filter(Boolean)
       .join(' ');
-    const raw = await this.provider.chat(
-      client.provider,
-      client.apiKey,
-      system,
-      `Assunto do artigo: ${input.subject}`,
-    );
+    const userPrompt = `Assunto do artigo: ${input.subject}`;
+    const inputChars = system.length + userPrompt.length;
+    let raw: string;
+    try {
+      const res = await this.provider.chat(client.provider, client.apiKey, system, userPrompt);
+      raw = res.text;
+      await this.logUsage({
+        tenantId: actor.tenantId,
+        userId: actor.id,
+        kind: 'article',
+        field: 'blog_article',
+        provider: client.provider,
+        success: true,
+        inputChars,
+        outputChars: raw.length,
+        totalTokens: res.totalTokens,
+      });
+    } catch (err) {
+      await this.logUsage({
+        tenantId: actor.tenantId,
+        userId: actor.id,
+        kind: 'article',
+        field: 'blog_article',
+        provider: client.provider,
+        success: false,
+        error: this.errMsg(err),
+        inputChars,
+        outputChars: 0,
+        totalTokens: null,
+      });
+      throw err;
+    }
 
     const parsed = this.tryParseArticle(raw);
     await this.audit.record({
@@ -146,6 +240,82 @@ export class AiService {
       after: { subject: input.subject, title: parsed.title },
     });
     return parsed;
+  }
+
+  /** Registra o uso da IA (best-effort: nunca quebra a resposta). */
+  private async logUsage(data: {
+    tenantId: string;
+    userId: string | null;
+    kind: 'assist' | 'article';
+    field: string | null;
+    provider: AiConfigDto['provider'];
+    success: boolean;
+    error?: string;
+    inputChars: number;
+    outputChars: number;
+    totalTokens: number | null;
+  }): Promise<void> {
+    try {
+      await this.prisma.aiUsageLog.create({
+        data: {
+          tenantId: data.tenantId,
+          userId: data.userId,
+          kind: data.kind,
+          field: data.field,
+          provider: data.provider,
+          success: data.success,
+          error: data.error ? data.error.slice(0, 500) : null,
+          inputChars: data.inputChars,
+          outputChars: data.outputChars,
+          totalTokens: data.totalTokens,
+        },
+      });
+    } catch {
+      // logging não deve impactar a geração
+    }
+  }
+
+  private errMsg(err: unknown): string {
+    return err instanceof Error ? err.message : 'erro desconhecido';
+  }
+
+  /** Uso recente da IA (últimas chamadas) + totais dos últimos 30 dias. */
+  async usage(tenantId: string): Promise<AiUsageSummaryDto> {
+    const rows = await this.prisma.aiUsageLog.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
+      take: 40,
+    });
+    const userIds = [...new Set(rows.map((r) => r.userId).filter(Boolean))] as string[];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const nameById = new Map(users.map((u) => [u.id, u.name]));
+
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const agg = await this.prisma.aiUsageLog.aggregate({
+      where: { tenantId, createdAt: { gte: since } },
+      _count: { _all: true },
+      _sum: { totalTokens: true },
+    });
+
+    return {
+      logs: rows.map((r) => ({
+        id: r.id,
+        createdAt: r.createdAt.toISOString(),
+        userName: r.userId ? (nameById.get(r.userId) ?? null) : null,
+        kind: r.kind,
+        field: r.field,
+        provider: r.provider,
+        success: r.success,
+        totalTokens: r.totalTokens,
+      })),
+      totalCalls: agg._count._all,
+      totalTokens: agg._sum.totalTokens ?? 0,
+    };
   }
 
   private tryParseArticle(raw: string): AiArticleResult {

@@ -25,6 +25,12 @@ export class AiController {
     return this.ai.get(actor.tenantId);
   }
 
+  @Get('usage')
+  @RequirePermission(Permission.AI_MANAGE)
+  usage(@CurrentUser() actor: AuthenticatedUser) {
+    return this.ai.usage(actor.tenantId);
+  }
+
   @Put()
   @RequirePermission(Permission.AI_MANAGE)
   update(

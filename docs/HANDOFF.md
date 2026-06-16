@@ -126,18 +126,21 @@ itens de configuração ficam só dentro do hub `/configuracoes`.
   (cron) — não há campo de data de nascimento no cliente nem job agendado.
 - **Categorias/Marcas gerenciáveis**: hoje são texto livre nos cadastros; o spec
   pede listas configuráveis.
-- **IA**: configuração + geração de texto/artigo prontas; faltam **logs de uso** e
-  instruções específicas por campo/módulo (hoje há instrução global).
+- ~~**IA**: faltam logs de uso e instruções por campo~~ **feito** — ver
+  "Melhorias recentes — IA" abaixo (instruções por campo + logs de uso/tokens).
 - **Aprovação parcial do orçamento**: registra as decisões por item, mas a **remoção
   automática** dos itens recusados na OS é manual (estorno de estoque já existe).
-- **Logo no PDF**: embute PNG/JPEG; SVG/WebP não são suportados pelo pdfkit. O texto de rodapé do PDF é configurável em Site público.
+- **Logo no PDF**: embute PNG/JPEG; SVG/WebP não são suportados pelo pdfkit. O rodapé
+  do PDF é **rich text** (negrito/itálico/sublinhado/listas), editável em Site público.
 
 ### Hardening/produção a finalizar
 - **TLS/HTTPS** no Nginx (hoje só porta 80) + `AUTH_COOKIE_SECURE=true`.
 - **Cobertura de testes** maior (mais unit/integração; rodar Playwright de fato —
   precisa `playwright install`).
 - **Storage S3/R2** em produção para escala/HA; hoje o deploy usa volume Docker persistente `oficina_uploads`.
-- Seed de produção é manual (`prisma db seed` no container) — ok, documentado.
+- **Seed de produção**: a imagem final é prod-only (distroless, sem `ts-node`), então
+  `prisma db seed` **não roda no container** — rode via container `node` descartável
+  na rede do compose (passo documentado em `docs/DEPLOY.md` §4).
 
 ### Melhorias sugeridas
 - Edição inline de quantidade dos itens da OS reajustando estoque.
@@ -221,3 +224,57 @@ Documentos de referência: `docs/ARQUITETURA.md` (arquitetura/roadmap) e
 ### Central de Pré-atendimento
 
 A tela `/leads` foi evoluída para Central de Pré-atendimento: busca cliente por nome/telefone/e-mail, procura veículo pela placa, alerta em amarelo quando a placa pertence a outro cliente, registra resultado de ligação/WhatsApp/e-mail e permite converter o contato em cliente, veículo e OS.
+
+### Melhorias recentes — UX, PDF, Endereço, IA e Docker
+
+**UX / Frontend**
+- **Confirmações estilizadas**: `useConfirm`/`<ConfirmProvider>` (`components/ui/confirm-dialog.tsx`)
+  substituíram todos os `confirm()` nativos (exclusões, transições de OS, reabrir orçamento).
+- **Detalhe da OS em abas** (desktop e mobile): topo com linha do tempo de estados
+  (compacta, sem cabeçalho) + próximas ações; abaixo, abas **Resumo · Itens ·
+  Orçamento · Histórico**. Componente único `features/service-orders/os-detail-view.tsx`
+  parametrizado por `variant` (`useMediaQuery`/`useIsDesktop` em `lib/use-media-query.ts`).
+- **Página do técnico** (`/os/[id]/tecnico`, aberta pelos cards do Kanban): versão
+  enxuta para o chão da oficina — sem entradas de estados, sem resumo financeiro,
+  sem orçamento; abas **Resumo · Itens · Técnico · Histórico**. A tela completa
+  (`/os/[id]`) **não tem** a aba Técnico.
+- **Itens da OS viram cards no mobile**; **Kanban** mostra colunas a partir de `lg`
+  (antes `xl`), melhor em tablet.
+- **Aprovação pública do orçamento** (`/acompanhar/[token]`): total **recalculado ao
+  vivo** ao marcar/desmarcar itens; cada linha mostra serviço · qtd · valor unitário ·
+  total; linhas de serviço com fundo destacado; linha do tempo removida.
+
+**PDF da OS** (`apps/api/src/modules/pdf/service-order-pdf.renderer.ts`)
+- Redesenho profissional, compacto (alvo de 1 página): cabeçalho à esquerda em linhas
+  (nome / rua, número, complemento, bairro / CEP - cidade/UF / tel - whats / cnpj - email),
+  caixa da OS, cards Cliente/Veículo, **só Diagnóstico** (relato removido), tabela única
+  de itens com **peças agrupadas sob o serviço** (via `parentItemId`) e **resumo
+  financeiro horizontal**. Rodapé é **rich text** (HTML) renderizado com negrito/
+  itálico/sublinhado/listas; espaçamento de linhas reduzido. (`↳` não existe na fonte
+  WinAnsi do pdfkit; use `»`/`•`.)
+
+**Endereço estruturado da oficina** (Site público)
+- `SiteSettings` ganhou `addressZip/Street/Number/Complement/District/City/State`
+  (migration `20260616120000_site_structured_address`). O campo `address` (string única)
+  é **recomposto no servidor** a partir das partes, então site público/PDF seguem
+  funcionando. Form com busca por **CEP (ViaCEP)**. Util `composeAddress`/`sanitizeRichHtml`
+  em `packages/shared`. Editor rich text do rodapé: `components/ui/rich-text-editor.tsx`.
+
+**IA — instruções por campo + logs de uso**
+- **Instruções por campo**: registro `AI_FIELDS` (relato/diagnóstico/observações da OS,
+  corpo de mensagem, artigo de blog) com defaults; override por tenant em
+  `AiConfig.fieldInstructions` (JSON, migration `20260616160000_ai_field_instructions`).
+  A instrução do campo entra no *system prompt*; `AiAssistButton` passa `field`.
+  Configurável em Configurações › IA.
+- **Logs de uso**: modelo `AiUsageLog` (migration `20260616170000_ai_usage_logs`) grava
+  cada chamada (tipo, campo, provedor, sucesso/erro, chars, **tokens**). Provider retorna
+  tokens (OpenAI `usage`, Gemini `usageMetadata`). Endpoint `GET /api/ai-config/usage`
+  e seção "Uso recente da IA" na página de IA (totais de 30 dias + últimas chamadas).
+
+**Docker / Produção**
+- Imagens otimizadas (**API 1.61GB→443MB, Web 1.94GB→334MB**): `pnpm deploy --prod`
+  (API) e Next `output: 'standalone'` (Web, opt-in via `NEXT_OUTPUT_STANDALONE`, ligado
+  só no Dockerfile — evita quebra de symlink no Windows). Runtime **distroless + non-root**.
+- **Healthcheck corrigido**: distroless não tem shell → `docker-compose.prod.yml` usa
+  `CMD` (exec) com `/nodejs/bin/node`, não `CMD-SHELL`. Sem isso, api/web ficavam
+  `unhealthy` e a stack não subia.

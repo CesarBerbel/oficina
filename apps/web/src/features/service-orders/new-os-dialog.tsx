@@ -174,6 +174,7 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
             <div className="flex items-center justify-between">
               <Label required>Problema relatado</Label>
               <AiAssistButton
+                field="os_report"
                 instruction="Reescreva o relato do cliente de forma clara e organizada para registro na ordem de serviço, mantendo as informações."
                 content={reportedProblem}
                 onResult={setReportedProblem}

@@ -110,6 +110,7 @@ export function TemplateFormDialog({
             <div className="flex items-center justify-between">
               <Label required>Mensagem</Label>
               <AiAssistButton
+                field="message_body"
                 instruction={`Escreva uma mensagem curta e cordial de oficina para o cliente referente ao evento "${form.event}", usando variáveis como {{cliente.nome}}, {{os.numero}} e {{os.link}} quando fizer sentido.`}
                 content={form.body}
                 onResult={(text) => set('body', text)}

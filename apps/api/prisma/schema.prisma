@@ -997,6 +997,8 @@ model AiConfig {
   provider     AiProvider @default(OPENAI)
   apiKeyEnc    String?
   instructions String?
+  // Instruções específicas por campo (mapa campo → instrução).
+  fieldInstructions Json?
   active       Boolean    @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -1004,6 +1006,25 @@ model AiConfig {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("ai_configs")
+}
+
+/// Log de uso da IA (uma linha por chamada de assistente/artigo).
+model AiUsageLog {
+  id          String     @id @default(cuid())
+  tenantId    String
+  userId      String?
+  kind        String // 'assist' | 'article'
+  field       String? // AiFieldKey (quando assist)
+  provider    AiProvider
+  success     Boolean
+  error       String?
+  inputChars  Int        @default(0)
+  outputChars Int        @default(0)
+  totalTokens Int?
+  createdAt   DateTime   @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("ai_usage_logs")
 }
 
 /// Artigo do blog.

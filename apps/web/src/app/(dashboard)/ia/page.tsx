@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { Save, Sparkles } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import { AI_PROVIDERS, AI_PROVIDER_LABELS, updateAiConfigSchema } from '@oficina/shared';
+import { AI_FIELDS, AI_PROVIDERS, AI_PROVIDER_LABELS, updateAiConfigSchema } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
-import { useAiConfig, useUpdateAiConfig } from '@/features/settings/use-settings';
+import { useAiConfig, useAiUsage, useUpdateAiConfig } from '@/features/settings/use-settings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,24 +21,31 @@ const FIELD_LABELS = {
   active: 'Ativo',
 };
 
+const AI_FIELD_LABEL = Object.fromEntries(
+  AI_FIELDS.map((f) => [f.key, f.label]),
+) as Record<string, string>;
+
 export default function AiConfigPage() {
   const { data, isLoading } = useAiConfig();
+  const { data: usage } = useAiUsage();
   const update = useUpdateAiConfig();
   const [provider, setProvider] = useState('OPENAI');
   const [apiKey, setApiKey] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [fieldInstructions, setFieldInstructions] = useState<Record<string, string>>({});
   const [active, setActive] = useState(false);
 
   useEffect(() => {
     if (data) {
       setProvider(data.provider);
       setInstructions(data.instructions ?? '');
+      setFieldInstructions(data.fieldInstructions ?? {});
       setActive(data.active);
     }
   }, [data]);
 
   async function save() {
-    const payload = { provider, instructions, active, ...(apiKey ? { apiKey } : {}) };
+    const payload = { provider, instructions, fieldInstructions, active, ...(apiKey ? { apiKey } : {}) };
     const parsed = updateAiConfigSchema.safeParse(payload);
     if (!parsed.success) {
       toast.error(Object.values(zodFieldErrors(parsed.error, FIELD_LABELS))[0] ?? 'Verifique os campos do formulário');
@@ -101,10 +108,77 @@ export default function AiConfigPage() {
         </label>
       </div>
 
+      <div className="space-y-4 rounded-xl border bg-card p-5">
+        <div>
+          <h2 className="text-sm font-semibold">Instruções por campo</h2>
+          <p className="text-xs text-muted-foreground">
+            Orientações específicas aplicadas em cada lugar onde a IA é usada. Deixe
+            em branco para usar o comportamento padrão.
+          </p>
+        </div>
+        {AI_FIELDS.map((f) => (
+          <div key={f.key} className="space-y-1.5">
+            <Label>{f.label}</Label>
+            <p className="text-xs text-muted-foreground">{f.description}</p>
+            <Textarea
+              value={fieldInstructions[f.key] ?? ''}
+              onChange={(e) =>
+                setFieldInstructions((c) => ({ ...c, [f.key]: e.target.value }))
+              }
+              rows={3}
+              placeholder={f.default}
+            />
+          </div>
+        ))}
+      </div>
+
       <Button onClick={save} disabled={update.isPending}>
         {update.isPending ? <CarLoader className="size-4 animate-spin" /> : <Save className="size-4" />}
         Salvar
       </Button>
+
+      {/* Uso recente da IA */}
+      <div className="space-y-3 rounded-xl border bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold">Uso recente da IA</h2>
+          {usage && (
+            <span className="text-xs text-muted-foreground">
+              {usage.totalCalls} chamada(s) · {usage.totalTokens.toLocaleString('pt-BR')} tokens (últimos 30 dias)
+            </span>
+          )}
+        </div>
+        {!usage || usage.logs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma utilização registrada ainda.</p>
+        ) : (
+          <div className="divide-y text-sm">
+            {usage.logs.map((l) => (
+              <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div className="min-w-0">
+                  <p className="font-medium">
+                    {l.kind === 'article'
+                      ? 'Artigo do blog'
+                      : l.field
+                        ? (AI_FIELD_LABEL[l.field] ?? 'Texto')
+                        : 'Texto'}
+                    {!l.success && (
+                      <span className="ml-2 rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+                        falha
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(l.createdAt).toLocaleString('pt-BR')}
+                    {l.userName ? ` · ${l.userName}` : ''} · {l.provider}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {l.totalTokens != null ? `${l.totalTokens.toLocaleString('pt-BR')} tk` : '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,9 +1,14 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { AiProvider } from '@prisma/client';
 
+export interface AiChatResult {
+  text: string;
+  totalTokens: number | null;
+}
+
 /**
- * Adapter de provedores de IA. Faz a chamada de chat e retorna o texto.
- * Usa fetch nativo (Node 20+); sem SDKs pesados.
+ * Adapter de provedores de IA. Faz a chamada de chat e retorna o texto +
+ * tokens consumidos. Usa fetch nativo (Node 20+); sem SDKs pesados.
  */
 @Injectable()
 export class AiProviderService {
@@ -12,7 +17,7 @@ export class AiProviderService {
     apiKey: string,
     system: string,
     user: string,
-  ): Promise<string> {
+  ): Promise<AiChatResult> {
     try {
       return provider === 'GEMINI'
         ? await this.gemini(apiKey, system, user)
@@ -25,7 +30,7 @@ export class AiProviderService {
     }
   }
 
-  private async openai(apiKey: string, system: string, user: string): Promise<string> {
+  private async openai(apiKey: string, system: string, user: string): Promise<AiChatResult> {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -47,11 +52,15 @@ export class AiProviderService {
     }
     const data = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
+      usage?: { total_tokens?: number };
     };
-    return data.choices?.[0]?.message?.content?.trim() ?? '';
+    return {
+      text: data.choices?.[0]?.message?.content?.trim() ?? '',
+      totalTokens: data.usage?.total_tokens ?? null,
+    };
   }
 
-  private async gemini(apiKey: string, system: string, user: string): Promise<string> {
+  private async gemini(apiKey: string, system: string, user: string): Promise<AiChatResult> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
     const res = await fetch(url, {
       method: 'POST',
@@ -67,7 +76,11 @@ export class AiProviderService {
     }
     const data = (await res.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
+      usageMetadata?: { totalTokenCount?: number };
     };
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+    return {
+      text: data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '',
+      totalTokens: data.usageMetadata?.totalTokenCount ?? null,
+    };
   }
 }

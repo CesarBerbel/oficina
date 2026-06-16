@@ -304,6 +304,7 @@ export function OsDetailView({
           action={
             canEditDiagnosis ? (
               <AiAssistButton
+                field="os_diagnosis"
                 instruction="Elabore um diagnóstico técnico claro e profissional para uma ordem de serviço de oficina, a partir do problema relatado."
                 content={diagnosis || os.reportedProblem}
                 onResult={setDiagnosis}
@@ -324,6 +325,7 @@ export function OsDetailView({
           action={
             canEditDiagnosis ? (
               <AiAssistButton
+                field="os_notes"
                 instruction="Escreva observações claras e cordiais para o cliente sobre o andamento desta ordem de serviço."
                 content={notes}
                 onResult={setNotes}
