@@ -41,11 +41,12 @@ services:
     expose:
       - '3333'
     healthcheck:
-      test: ['CMD-SHELL', "node -e \"fetch('http://127.0.0.1:3333/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      # Imagem distroless não tem shell: usa CMD (exec) + caminho absoluto do node.
+      test: ['CMD', '/nodejs/bin/node', '-e', "fetch('http://127.0.0.1:3333/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 40s
 
   web:
     build:
@@ -68,11 +69,12 @@ services:
     expose:
       - '3000'
     healthcheck:
-      test: ['CMD-SHELL', "node -e \"fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      # Imagem distroless não tem shell: usa CMD (exec) + caminho absoluto do node.
+      test: ['CMD', '/nodejs/bin/node', '-e', "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 40s
 
   nginx:
     image: nginx:1.27-alpine
