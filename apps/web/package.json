@@ -9,7 +9,8 @@
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "echo \"web: e2e via Playwright (pnpm test:e2e)\" && exit 0",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:screenshots": "playwright test screenshots.spec.ts"
   },
   "dependencies": {
     "@oficina/shared": "workspace:*",
