@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Save, User, Car, AlertTriangle, XCircle, CheckCircle2, FileDown, ClipboardCheck, CircleDollarSign } from 'lucide-react';
+import { Save, User, Car, AlertTriangle, XCircle, CheckCircle2, FileDown, ClipboardCheck, CircleDollarSign, MessageCircle } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
@@ -26,7 +26,13 @@ import { OsEventTimeline } from '@/features/service-orders/os-event-timeline';
 import { OsTechnicalMobilePanel } from '@/features/service-orders/os-technical-mobile-panel';
 import { AiAssistButton } from '@/features/ai/ai-assist-button';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
-import { maskPhone } from '@/lib/masks';
+import { maskPhone, onlyDigits } from '@/lib/masks';
+
+/** Monta o link wa.me a partir de um número BR (garante o código do país 55). */
+function whatsappLink(value: string): string {
+  const digits = onlyDigits(value);
+  return `https://wa.me/${digits.length <= 11 ? `55${digits}` : digits}`;
+}
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -267,10 +273,23 @@ export function OsDetailView({
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm">
-          <Link href={`/clientes/${os.customerId}?returnTo=${encodeURIComponent(selfHref)}`} className="font-medium hover:underline">
+          <Link href={`/clientes/${os.customerId}?returnTo=${encodeURIComponent(selfHref)}`} className="block font-medium hover:underline">
             {os.customerName}
           </Link>
-          <p className="text-muted-foreground">{os.customerPhone ? maskPhone(os.customerPhone) : 'Sem telefone'}</p>
+          {os.customerWhatsapp ? (
+            <a
+              href={whatsappLink(os.customerWhatsapp)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-0.5 flex w-fit items-center gap-1 text-emerald-600 hover:underline"
+            >
+              <MessageCircle className="size-3.5" /> {maskPhone(os.customerWhatsapp)}
+            </a>
+          ) : os.customerPhone ? (
+            <p className="text-muted-foreground">{maskPhone(os.customerPhone)}</p>
+          ) : (
+            <p className="text-muted-foreground">Sem contato</p>
+          )}
         </CardContent>
       </Card>
       <Card>

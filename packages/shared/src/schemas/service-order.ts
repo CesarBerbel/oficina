@@ -215,6 +215,7 @@ export interface ServiceOrderDetailDto extends ServiceOrderSummaryDto {
   diagnosis: string | null;
   notes: string | null;
   customerPhone: string | null;
+  customerWhatsapp: string | null;
   vehicleManufacturer: string;
   vehicleModel: string;
   vehicleModelYear: number | null;

@@ -60,7 +60,10 @@ export function OsQuoteSection({
   const generatePurchase = useGeneratePurchase(osId);
   const confirm = useConfirm();
   const [notes, setNotes] = useState(quote?.publicNotes ?? '');
+  const [reason, setReason] = useState('');
 
+  // Reenvio = já foi enviado ao menos uma vez (exige motivo).
+  const isResend = (quote?.sendCount ?? 0) >= 1;
   const canGenerate = GENERATE_STATUSES.includes(osStatus);
   const isRejected = osStatus === 'ORCAMENTO_RECUSADO';
   const isWaitingPart = osStatus === 'AGUARDANDO_PECA';
@@ -72,9 +75,17 @@ export function OsQuoteSection({
       : `/acompanhar/${publicToken}`;
 
   async function onGenerate() {
+    if (isResend && !reason.trim()) {
+      toast.error('Informe o motivo do reenvio do orçamento.');
+      return;
+    }
     try {
-      await generate.mutateAsync(notes || undefined);
-      toast.success('Orçamento gerado e enviado');
+      await generate.mutateAsync({
+        publicNotes: notes || undefined,
+        reason: isResend ? reason.trim() : undefined,
+      });
+      toast.success(isResend ? 'Orçamento reenviado' : 'Orçamento gerado e enviado');
+      setReason('');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Erro ao gerar orçamento');
     }
@@ -156,12 +167,25 @@ export function OsQuoteSection({
               placeholder="Observações públicas (aparecem ao cliente)..."
               rows={2}
             />
-            <Button size="sm" onClick={onGenerate} disabled={generate.isPending}>
+            {isResend && (
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Motivo do reenvio (obrigatório)..."
+                rows={2}
+                className="border-amber-300 focus-visible:ring-amber-400"
+              />
+            )}
+            <Button
+              size="sm"
+              onClick={onGenerate}
+              disabled={generate.isPending || (isResend && !reason.trim())}
+            >
               {generate.isPending ? <CarLoader className="size-4 animate-spin" /> : <FileText className="size-4" />}
               {isRejected
                 ? 'Gerar novo orçamento'
                 : quote
-                  ? 'Regerar orçamento'
+                  ? 'Reenviar orçamento'
                   : 'Gerar orçamento'}
             </Button>
           </div>

@@ -51,7 +51,7 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
 const UNIQUE_CONSTRAINT_RETRY_ATTEMPTS = 5;
 
 const summaryInclude = {
-  customer: { select: { id: true, name: true, phone: true } },
+  customer: { select: { id: true, name: true, phone: true, whatsapp: true } },
   vehicle: {
     select: {
       id: true,
@@ -239,6 +239,7 @@ export class ServiceOrdersService {
       diagnosis: row.diagnosis,
       notes: row.notes,
       customerPhone: row.customer.phone,
+      customerWhatsapp: row.customer.whatsapp,
       vehicleManufacturer: row.vehicle.manufacturer,
       vehicleModel: row.vehicle.model,
       vehicleModelYear: row.vehicle.modelYear,

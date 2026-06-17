@@ -15,6 +15,13 @@ export const generateQuoteSchema = z.object({
     .max(2000)
     .optional()
     .transform((v) => (v === '' ? undefined : v)),
+  // Motivo obrigatório a partir do 2º envio (reenvio) do orçamento.
+  reason: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .transform((v) => (v === '' ? undefined : v)),
 });
 export type GenerateQuoteInput = z.infer<typeof generateQuoteSchema>;
 
@@ -63,6 +70,7 @@ export interface QuoteDto {
   id: string;
   status: QuoteStatus;
   token: string;
+  sendCount: number;
   publicNotes: string | null;
   totalServices: number;
   totalParts: number;

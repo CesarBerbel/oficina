@@ -48,7 +48,10 @@ export class QuotesService {
   ): Promise<QuoteDto> {
     const order = await this.prisma.serviceOrder.findFirst({
       where: { id: orderId, tenantId: actor.tenantId },
-      include: { items: { orderBy: { createdAt: 'asc' } } },
+      include: {
+        items: { orderBy: { createdAt: 'asc' } },
+        quote: { select: { sendCount: true } },
+      },
     });
     if (!order) throw new NotFoundException('OS não encontrada');
     if (order.status === 'ENTRADA') {
@@ -72,6 +75,13 @@ export class QuotesService {
       throw new BadRequestException('Adicione itens à OS antes de gerar o orçamento');
     }
 
+    // A partir do 2º envio (reenvio), exige um motivo.
+    const prevSendCount = order.quote?.sendCount ?? 0;
+    const isResend = prevSendCount >= 1;
+    if (isResend && !input.reason) {
+      throw new BadRequestException('Informe o motivo do reenvio do orçamento.');
+    }
+
     const quote = await this.prisma.$transaction(async (tx) => {
       const q = await tx.quote.upsert({
         where: { serviceOrderId: orderId },
@@ -79,6 +89,7 @@ export class QuotesService {
           tenantId: actor.tenantId,
           serviceOrderId: orderId,
           status: 'ENVIADO',
+          sendCount: 1,
           publicNotes: input.publicNotes ?? null,
           totalServices: dec(order.totalServices),
           totalParts: dec(order.totalParts),
@@ -87,6 +98,7 @@ export class QuotesService {
         },
         update: {
           status: 'ENVIADO',
+          sendCount: { increment: 1 },
           publicNotes: input.publicNotes ?? null,
           totalServices: dec(order.totalServices),
           totalParts: dec(order.totalParts),
@@ -133,7 +145,12 @@ export class QuotesService {
       // todos os orçamentos gerados.
       const movingToQuote = canTransition(order.status, 'ORCAMENTO');
       const historyStatus = movingToQuote ? 'ORCAMENTO' : order.status;
-      const note = `${movingToQuote ? 'Orçamento enviado' : 'Orçamento reenviado'} · ${brl(dec(order.total))}`;
+      const note = [
+        `${isResend ? 'Orçamento reenviado' : 'Orçamento enviado'} · ${brl(dec(order.total))}`,
+        isResend && input.reason ? `Motivo: ${input.reason}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
       await tx.serviceOrder.update({
         where: { id: orderId },
         data: {
@@ -152,7 +169,7 @@ export class QuotesService {
           tenantId: actor.tenantId,
           serviceOrderId: orderId,
           type: 'STATUS_CHANGE',
-          title: movingToQuote ? 'Orçamento enviado' : 'Orçamento reenviado',
+          title: isResend ? 'Orçamento reenviado' : 'Orçamento enviado',
           description: note,
           visibility: 'PUBLIC',
           fromStatus: order.status,
@@ -260,11 +277,18 @@ export class QuotesService {
   ): Promise<{ to: string }> {
     const order = await this.prisma.serviceOrder.findFirst({
       where: { id: orderId, tenantId: actor.tenantId },
-      select: { id: true, quote: { select: { id: true } } },
+      select: { id: true, quote: { select: { id: true, status: true } } },
     });
     if (!order) throw new NotFoundException('OS não encontrada');
     if (!order.quote) {
       throw new BadRequestException('Gere o orçamento antes de enviar por e-mail');
+    }
+    // Orçamento aprovado não pode ser reenviado.
+    if (
+      order.quote.status === 'APROVADO' ||
+      order.quote.status === 'APROVADO_PARCIAL'
+    ) {
+      throw new BadRequestException('Orçamento já aprovado — não pode ser reenviado.');
     }
 
     const res = await this.messaging.sendQuoteEmail(actor.tenantId, orderId);
