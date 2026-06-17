@@ -45,10 +45,13 @@ export function ServiceFormDialog({
   open,
   onOpenChange,
   service,
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   service?: ServiceDto | null;
+  /** Chamado com o serviço recém-criado (ex.: inline no form de combo). */
+  onCreated?: (service: ServiceDto) => void;
 }) {
   const isEdit = !!service;
   const [name, setName] = useState('');
@@ -128,7 +131,11 @@ export function ServiceFormDialog({
     }
     try {
       if (isEdit) { await update.mutateAsync(parsed.data); toast.success('Serviço atualizado'); }
-      else { await create.mutateAsync(parsed.data as never); toast.success('Serviço criado'); }
+      else {
+        const createdService = (await create.mutateAsync(parsed.data as never)) as ServiceDto;
+        toast.success('Serviço criado');
+        onCreated?.(createdService);
+      }
       onOpenChange(false);
     } catch (err) {
       toast.error(apiErrorMessage(err, FIELD_LABELS));

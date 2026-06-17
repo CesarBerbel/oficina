@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { createComboSchema, updateComboSchema, type ComboDto } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useServices, useCreateCombo, useUpdateCombo } from './use-catalog';
+import { ServiceFormDialog } from './service-form-dialog';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -35,6 +36,7 @@ export function ComboFormDialog({
   const [description, setDescription] = useState('');
   const [services, setServices] = useState<Row[]>([]);
   const [toAdd, setToAdd] = useState('');
+  const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: servicesData } = useServices({ page: 1, pageSize: 100, active: true });
@@ -51,7 +53,7 @@ export function ComboFormDialog({
     } else {
       setName(''); setDescription(''); setServices([]);
     }
-    setToAdd(''); setErrors({});
+    setToAdd(''); setServiceDialogOpen(false); setErrors({});
   }, [open, combo]);
 
   function addService() {
@@ -122,7 +124,16 @@ export function ComboFormDialog({
           </div>
 
           <div className="space-y-2 rounded-lg border p-3">
-            <Label required>Serviços incluídos</Label>
+            <div className="flex items-center justify-between">
+              <Label required>Serviços incluídos</Label>
+              <button
+                type="button"
+                onClick={() => setServiceDialogOpen(true)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <Plus className="size-3.5" /> Novo serviço
+              </button>
+            </div>
             {services.length === 0 && <p className="text-xs text-muted-foreground">Nenhum serviço.</p>}
             {services.map((s, idx) => (
               <div key={s.serviceId} className="flex items-center justify-between gap-2 text-sm">
@@ -161,6 +172,19 @@ export function ComboFormDialog({
             </Button>
           </DialogFooter>
         </form>
+
+        {/* Cadastro inline de serviço: adiciona o recém-criado ao combo */}
+        <ServiceFormDialog
+          open={serviceDialogOpen}
+          onOpenChange={setServiceDialogOpen}
+          onCreated={(svc) =>
+            setServices((rows) =>
+              rows.some((r) => r.serviceId === svc.id)
+                ? rows
+                : [...rows, { serviceId: svc.id, name: svc.name, price: svc.salePrice }],
+            )
+          }
+        />
       </DialogContent>
     </Dialog>
   );
