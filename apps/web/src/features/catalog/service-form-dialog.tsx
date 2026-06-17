@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { createServiceSchema, updateServiceSchema, type ServiceDto } from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useParts } from '@/features/inventory/use-inventory';
+import { PartFormDialog } from '@/features/inventory/part-form-dialog';
 import { useCategories } from '@/features/categories/use-categories';
 import { useCreateService, useUpdateService } from './use-catalog';
 import {
@@ -59,6 +60,7 @@ export function ServiceFormDialog({
   const [showOnSite, setShowOnSite] = useState(true);
   const [defaultParts, setDefaultParts] = useState<DefaultPartRow[]>([]);
   const [partToAdd, setPartToAdd] = useState('');
+  const [partDialogOpen, setPartDialogOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: partsData } = useParts({ page: 1, pageSize: 100 });
@@ -97,6 +99,7 @@ export function ServiceFormDialog({
       setCost('0'); setEstimatedMinutes(''); setShowOnSite(true); setDefaultParts([]);
     }
     setPartToAdd('');
+    setPartDialogOpen(false);
     setErrors({});
   }, [open, service]);
 
@@ -214,7 +217,16 @@ export function ServiceFormDialog({
 
           {/* Peças padrão */}
           <div className="space-y-2 rounded-lg border p-3">
-            <Label>Peças padrão</Label>
+            <div className="flex items-center justify-between">
+              <Label>Peças padrão</Label>
+              <button
+                type="button"
+                onClick={() => setPartDialogOpen(true)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <Plus className="size-3.5" /> Nova peça
+              </button>
+            </div>
             {defaultParts.length === 0 && (
               <p className="text-xs text-muted-foreground">Nenhuma peça padrão.</p>
             )}
@@ -252,6 +264,19 @@ export function ServiceFormDialog({
             </Button>
           </DialogFooter>
         </form>
+
+        {/* Cadastro inline de peça: adiciona a recém-criada às peças padrão */}
+        <PartFormDialog
+          open={partDialogOpen}
+          onOpenChange={setPartDialogOpen}
+          onCreated={(p) =>
+            setDefaultParts((rows) =>
+              rows.some((r) => r.partId === p.id)
+                ? rows
+                : [...rows, { partId: p.id, partName: p.name, quantity: '1' }],
+            )
+          }
+        />
       </DialogContent>
     </Dialog>
   );

@@ -33,6 +33,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   part?: PartDto | null;
+  /** Chamado com a peça recém-criada (ex.: peça padrão inline no serviço). */
+  onCreated?: (part: { id: string; name: string }) => void;
 }
 
 const empty = {
@@ -67,7 +69,7 @@ const FIELD_LABELS = {
   initialStock: 'Estoque inicial',
 };
 
-export function PartFormDialog({ open, onOpenChange, part }: Props) {
+export function PartFormDialog({ open, onOpenChange, part, onCreated }: Props) {
   const isEdit = !!part;
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -125,8 +127,9 @@ export function PartFormDialog({ open, onOpenChange, part }: Props) {
         await update.mutateAsync(parsed.data);
         toast.success('Peça atualizada');
       } else {
-        await create.mutateAsync(parsed.data as never);
+        const createdPart = (await create.mutateAsync(parsed.data as never)) as PartDto;
         toast.success('Peça cadastrada');
+        onCreated?.({ id: createdPart.id, name: createdPart.name });
       }
       onOpenChange(false);
     } catch (err) {
