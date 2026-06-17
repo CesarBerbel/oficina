@@ -4,11 +4,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import { createServiceSchema, updateServiceSchema, type ServiceDto } from '@oficina/shared';
+import {
+  createServiceSchema,
+  updateServiceSchema,
+  CategoryKind,
+  type ServiceDto,
+} from '@oficina/shared';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useParts } from '@/features/inventory/use-inventory';
 import { PartFormDialog } from '@/features/inventory/part-form-dialog';
-import { useCategories } from '@/features/categories/use-categories';
+import { useCategories, useCreateCategory } from '@/features/categories/use-categories';
 import { useCreateService, useUpdateService } from './use-catalog';
 import {
   Dialog,
@@ -64,10 +69,13 @@ export function ServiceFormDialog({
   const [defaultParts, setDefaultParts] = useState<DefaultPartRow[]>([]);
   const [partToAdd, setPartToAdd] = useState('');
   const [partDialogOpen, setPartDialogOpen] = useState(false);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: partsData } = useParts({ page: 1, pageSize: 100 });
   const { data: categoryData } = useCategories('SERVICE');
+  const createCategory = useCreateCategory();
   const create = useCreateService();
   const update = useUpdateService(service?.id ?? '');
 
@@ -103,8 +111,28 @@ export function ServiceFormDialog({
     }
     setPartToAdd('');
     setPartDialogOpen(false);
+    setAddingCategory(false);
+    setNewCategory('');
     setErrors({});
   }, [open, service]);
+
+  async function addCategory() {
+    const categoryName = newCategory.trim();
+    if (!categoryName) return;
+    try {
+      await createCategory.mutateAsync({
+        kind: CategoryKind.SERVICE,
+        name: categoryName,
+        active: true,
+      });
+      setCategory(categoryName);
+      setNewCategory('');
+      setAddingCategory(false);
+      toast.success('Categoria criada');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, FIELD_LABELS, 'Erro ao criar categoria'));
+    }
+  }
 
   function addPart() {
     if (!partToAdd) return;
@@ -182,13 +210,64 @@ export function ServiceFormDialog({
               {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label>Categoria</Label>
-              <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="">Sem categoria</option>
-                {categoryOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </Select>
+              <div className="flex items-center justify-between">
+                <Label>Categoria</Label>
+                {!addingCategory && (
+                  <button
+                    type="button"
+                    onClick={() => setAddingCategory(true)}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    <Plus className="size-3" /> Nova categoria
+                  </button>
+                )}
+              </div>
+              {addingCategory ? (
+                <div className="flex gap-2">
+                  <Input
+                    autoFocus
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addCategory();
+                      }
+                    }}
+                    placeholder="Nome da categoria"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={addCategory}
+                    disabled={createCategory.isPending || !newCategory.trim()}
+                  >
+                    {createCategory.isPending && <CarLoader className="size-4 animate-spin" />}
+                    Adicionar
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0"
+                    aria-label="Cancelar"
+                    onClick={() => {
+                      setAddingCategory(false);
+                      setNewCategory('');
+                    }}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+                  <option value="">Sem categoria</option>
+                  {categoryOptions.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </Select>
+              )}
             </div>
           </div>
 
