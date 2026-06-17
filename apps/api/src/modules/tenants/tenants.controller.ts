@@ -6,10 +6,13 @@ import {
   HttpCode,
   Param,
   Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import {
+  createBranchSchema,
   updatePlatformTenantSchema,
+  type CreateBranchInput,
   type UpdatePlatformTenantInput,
 } from '@oficina/shared';
 import { TenantsService } from './tenants.service';
@@ -26,6 +29,15 @@ export class TenantsController {
   @Get()
   list() {
     return this.tenants.list();
+  }
+
+  @Post()
+  @HttpCode(201)
+  createBranch(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body(new ZodValidationPipe(createBranchSchema)) body: CreateBranchInput,
+  ) {
+    return this.tenants.createBranch(actor, body);
   }
 
   @Patch(':id')

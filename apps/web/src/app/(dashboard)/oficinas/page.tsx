@@ -1,6 +1,7 @@
 'use client';
 
-import { Power, Trash2, Building2 } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Power, Trash2, Building2 } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import type { PlatformTenantDto } from '@oficina/shared';
@@ -12,6 +13,7 @@ import {
   useSetTenantActive,
   useDeleteTenant,
 } from '@/features/platform/use-platform';
+import { BranchFormDialog } from '@/features/platform/branch-form-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -26,6 +28,7 @@ import {
 
 export default function OficinasPage() {
   const { user } = useAuth();
+  const [branchOpen, setBranchOpen] = useState(false);
   const { data: tenants, isLoading } = usePlatformTenants();
   const setActive = useSetTenantActive();
   const del = useDeleteTenant();
@@ -89,14 +92,21 @@ export default function OficinasPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-          <Building2 className="size-6 text-primary" /> Oficinas
-        </h1>
-        <p className="text-muted-foreground">
-          Gestão das oficinas (tenants) cadastradas na plataforma.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+            <Building2 className="size-6 text-primary" /> Oficinas
+          </h1>
+          <p className="text-muted-foreground">
+            Matriz e filiais cadastradas na plataforma.
+          </p>
+        </div>
+        <Button onClick={() => setBranchOpen(true)}>
+          <Plus className="size-4" /> Nova filial
+        </Button>
       </div>
+
+      <BranchFormDialog open={branchOpen} onOpenChange={setBranchOpen} />
 
       {/* Desktop */}
       <div className="hidden rounded-xl border md:block">
@@ -125,7 +135,15 @@ export default function OficinasPage() {
                 return (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">
-                      {t.name}
+                      <span className={t.isMatriz ? '' : 'pl-4'}>
+                        {t.name}
+                      </span>
+                      <Badge
+                        variant={t.isMatriz ? 'default' : 'outline'}
+                        className="ml-2 align-middle text-[10px]"
+                      >
+                        {t.isMatriz ? 'Matriz' : 'Filial'}
+                      </Badge>
                       {isSelf && (
                         <span className="ml-2 text-xs text-muted-foreground">(sua oficina)</span>
                       )}
@@ -178,7 +196,15 @@ export default function OficinasPage() {
             <div key={t.id} className="rounded-xl border bg-card p-4 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-medium">{t.name}</p>
+                  <p className="flex items-center gap-2 font-medium">
+                    {t.name}
+                    <Badge
+                      variant={t.isMatriz ? 'default' : 'outline'}
+                      className="text-[10px]"
+                    >
+                      {t.isMatriz ? 'Matriz' : 'Filial'}
+                    </Badge>
+                  </p>
                   <p className="text-xs text-muted-foreground">{t.slug}</p>
                 </div>
                 <Badge variant={t.active ? 'success' : 'secondary'}>
