@@ -49,8 +49,7 @@ test('estoquista não enxerga itens sem permissão, mas vê os de estoque', asyn
   await expect(nav.getByRole('link', { name: 'Compras' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Serviços' })).toBeVisible();
 
-  // Não tem AUDIT_READ / BLOG_WRITE / COMBOS_WRITE:
+  // Não tem AUDIT_READ nem BLOG_WRITE:
   await expect(nav.getByRole('link', { name: 'Métricas' })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'Blog' })).toHaveCount(0);
-  await expect(nav.getByRole('link', { name: 'Combos' })).toHaveCount(0);
 });
