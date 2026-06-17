@@ -2,17 +2,14 @@ import { Prisma } from '@prisma/client';
 import { SERVICE_ORDER_STATUS_LABELS } from '@oficina/shared';
 import PDFDocument from 'pdfkit';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 
 const brl = (n: number): string =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 
-const dt = (d: Date | null): string =>
-  d ? new Intl.DateTimeFormat('pt-BR').format(d) : '—';
+const dt = (d: Date | null): string => (d ? new Intl.DateTimeFormat('pt-BR').format(d) : '—');
 
-const onlyDigits = (value: string | null | undefined): string =>
-  (value ?? '').replace(/\D/g, '');
+const onlyDigits = (value: string | null | undefined): string => (value ?? '').replace(/\D/g, '');
 
 const maskPhone = (value: string | null | undefined): string => {
   const digits = onlyDigits(value).slice(0, 11);
@@ -89,12 +86,10 @@ export function renderServiceOrderPdf(
     const compact = (value: string | null | undefined): string =>
       (value ?? '').replace(/\s+/g, ' ').trim();
 
-    const money = (value: Prisma.Decimal | number | null | undefined): string =>
-      brl(dec(value));
+    const money = (value: Prisma.Decimal | number | null | undefined): string => brl(dec(value));
 
     const statusLabel = String(
-      (SERVICE_ORDER_STATUS_LABELS as Record<string, string>)[order.status] ??
-        order.status,
+      (SERVICE_ORDER_STATUS_LABELS as Record<string, string>)[order.status] ?? order.status,
     );
 
     const fitText = (text: string, maxWidth: number): string => {
@@ -116,13 +111,7 @@ export function renderServiceOrderPdf(
         .replace(/[  ]+/g, ' ')
         .trim();
 
-    const strokeLine = (
-      x1: number,
-      y1: number,
-      x2: number,
-      y2: number,
-      color = line,
-    ): void => {
+    const strokeLine = (x1: number, y1: number, x2: number, y2: number, color = line): void => {
       doc.moveTo(x1, y1).lineTo(x2, y2).lineWidth(0.6).strokeColor(color).stroke();
       doc.lineWidth(1);
     };
@@ -135,15 +124,11 @@ export function renderServiceOrderPdf(
       value: string | number | null | undefined,
     ): void => {
       const text = value == null || value === '' ? '-' : String(value);
-      doc
-        .font('Helvetica-Bold')
-        .fontSize(6)
-        .fillColor(muted)
-        .text(label.toUpperCase(), x, yy, {
-          width: w,
-          lineBreak: false,
-          characterSpacing: 0.3,
-        });
+      doc.font('Helvetica-Bold').fontSize(6).fillColor(muted).text(label.toUpperCase(), x, yy, {
+        width: w,
+        lineBreak: false,
+        characterSpacing: 0.3,
+      });
       doc
         .font('Helvetica')
         .fontSize(8)
@@ -194,9 +179,7 @@ export function renderServiceOrderPdf(
       // Endereço em duas linhas a partir das partes (fallback: campo composto).
       const addrLine1 =
         [
-          [compact(shop.addressStreet), compact(shop.addressNumber)]
-            .filter(Boolean)
-            .join(', '),
+          [compact(shop.addressStreet), compact(shop.addressNumber)].filter(Boolean).join(', '),
           compact(shop.addressComplement),
           compact(shop.addressDistrict),
         ]
@@ -205,9 +188,7 @@ export function renderServiceOrderPdf(
       const addrLine2 =
         [
           compact(shop.addressZip) ? `CEP ${compact(shop.addressZip)}` : null,
-          [compact(shop.addressCity), compact(shop.addressState)]
-            .filter(Boolean)
-            .join('/'),
+          [compact(shop.addressCity), compact(shop.addressState)].filter(Boolean).join('/'),
         ]
           .filter(Boolean)
           .join(' - ') || null;
@@ -239,10 +220,7 @@ export function renderServiceOrderPdf(
       cy = doc.y + 1.5;
 
       const docLine =
-        [
-          compact(shop.cnpj) ? `CNPJ: ${maskCpfCnpj(shop.cnpj)}` : null,
-          compact(shop.email) || null,
-        ]
+        [compact(shop.cnpj) ? `CNPJ: ${maskCpfCnpj(shop.cnpj)}` : null, compact(shop.email) || null]
           .filter(Boolean)
           .join('   ·   ') || '-';
       doc
@@ -294,13 +272,7 @@ export function renderServiceOrderPdf(
       metaItems.forEach(([label, value], i) => {
         const mx = left + i * metaColW + 12;
         if (i > 0) {
-          strokeLine(
-            left + i * metaColW,
-            hy + 4,
-            left + i * metaColW,
-            hy + metaH - 4,
-            '#cbd5e1',
-          );
+          strokeLine(left + i * metaColW, hy + 4, left + i * metaColW, hy + metaH - 4, '#cbd5e1');
         }
         doc
           .font('Helvetica-Bold')
@@ -371,9 +343,7 @@ export function renderServiceOrderPdf(
           return;
         }
         lines.push({
-          runs: clean.length
-            ? clean
-            : [{ text: '', bold: false, italic: false, underline: false }],
+          runs: clean.length ? clean : [{ text: '', bold: false, italic: false, underline: false }],
           prefix: asItem ? (listType === 'ol' ? `${listIndex}.` : '•') : undefined,
         });
         runs = [];
@@ -485,7 +455,10 @@ export function renderServiceOrderPdf(
       ) => {
         doc.roundedRect(x, y, colW, boxH, 4).strokeColor(line).lineWidth(0.8).stroke();
         doc.roundedRect(x, y, colW, 16, 4).fillColor(zebra).fill();
-        doc.rect(x, y + 8, colW, 8).fillColor(zebra).fill();
+        doc
+          .rect(x, y + 8, colW, 8)
+          .fillColor(zebra)
+          .fill();
         doc
           .font('Helvetica-Bold')
           .fontSize(7.5)
@@ -648,11 +621,7 @@ export function renderServiceOrderPdf(
     const sTop = y;
     const totalBoxW = 170;
     const leftAreaW = width - totalBoxW;
-    doc
-      .roundedRect(left, sTop, width, sumH, 4)
-      .strokeColor('#cbd5e1')
-      .lineWidth(0.9)
-      .stroke();
+    doc.roundedRect(left, sTop, width, sumH, 4).strokeColor('#cbd5e1').lineWidth(0.9).stroke();
 
     const cells: Array<[string, string]> = [
       ['Serviços', money(order.totalServices)],

@@ -12,8 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const DEFAULT_TENANT_SLUG =
-  process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG ?? 'oficina-modelo';
+const DEFAULT_TENANT_SLUG = process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG ?? 'oficina-modelo';
 
 const FIELD_LABELS = {
   tenantSlug: 'Oficina',
@@ -51,18 +50,14 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="grid min-h-dvh place-items-center bg-muted/40 p-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-xl border bg-card p-8 shadow-sm"
-      >
+      <form onSubmit={onSubmit} className="w-full max-w-sm rounded-xl border bg-card p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Wrench className="size-6" />
           </span>
           <h1 className="text-xl font-semibold">Recuperar senha</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Informe a oficina e seu e-mail. Se o usuário existir, enviaremos um
-            link de redefinição.
+            Informe a oficina e seu e-mail. Se o usuário existir, enviaremos um link de redefinição.
           </p>
         </div>
 
@@ -70,8 +65,8 @@ export default function ForgotPasswordPage() {
           <div className="space-y-4 rounded-lg border bg-muted/50 p-4 text-sm">
             <p className="font-medium">Verifique seu e-mail</p>
             <p className="text-muted-foreground">
-              Por segurança, a mensagem exibida é a mesma mesmo quando o e-mail
-              não está cadastrado. O link expira em 1 hora.
+              Por segurança, a mensagem exibida é a mesma mesmo quando o e-mail não está cadastrado.
+              O link expira em 1 hora.
             </p>
             <Button asChild className="w-full">
               <Link href="/login">Voltar ao login</Link>
@@ -89,9 +84,7 @@ export default function ForgotPasswordPage() {
                 onChange={(e) => setTenantSlug(e.target.value)}
                 placeholder="oficina-modelo"
               />
-              {errors.tenantSlug && (
-                <p className="text-xs text-destructive">{errors.tenantSlug}</p>
-              )}
+              {errors.tenantSlug && <p className="text-xs text-destructive">{errors.tenantSlug}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -105,9 +98,7 @@ export default function ForgotPasswordPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="usuario@oficina.com"
               />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email}</p>
-              )}
+              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
 
             <Button type="submit" className="w-full" disabled={submitting}>

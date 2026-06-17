@@ -47,9 +47,7 @@ export function SearchableSelect({
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [portalLayer, setPortalLayer] = React.useState<HTMLElement | null>(null);
-  const [panelPosition, setPanelPosition] = React.useState<PanelPosition | null>(
-    null,
-  );
+  const [panelPosition, setPanelPosition] = React.useState<PanelPosition | null>(null);
 
   const rootRef = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
@@ -61,9 +59,7 @@ export function SearchableSelect({
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
-    return options.filter((o) =>
-      `${o.label} ${o.keywords ?? ''}`.toLowerCase().includes(q),
-    );
+    return options.filter((o) => `${o.label} ${o.keywords ?? ''}`.toLowerCase().includes(q));
   }, [options, query]);
 
   const updatePanelPosition = React.useCallback(() => {
@@ -205,12 +201,10 @@ export function SearchableSelect({
       <ul
         role="listbox"
         className="overflow-y-auto p-1"
-        style={{ maxHeight: portalLayer ? panelPosition?.maxHeight ?? 256 : 256 }}
+        style={{ maxHeight: portalLayer ? (panelPosition?.maxHeight ?? 256) : 256 }}
       >
         {filtered.length === 0 ? (
-          <li className="px-3 py-2 text-sm text-muted-foreground">
-            {emptyText}
-          </li>
+          <li className="px-3 py-2 text-sm text-muted-foreground">{emptyText}</li>
         ) : (
           filtered.map((option) => (
             <li key={option.value}>

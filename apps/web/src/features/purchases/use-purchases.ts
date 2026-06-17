@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreatePurchaseInput,
   CreateSupplierInput,
@@ -81,7 +76,8 @@ function invalidatePurchases(qc: ReturnType<typeof useQueryClient>) {
 export function useCreatePurchase() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreatePurchaseInput) => api.post<PurchaseOrderDto>('/purchase-orders', input),
+    mutationFn: (input: CreatePurchaseInput) =>
+      api.post<PurchaseOrderDto>('/purchase-orders', input),
     onSuccess: () => invalidatePurchases(qc),
   });
 }
@@ -89,8 +85,7 @@ export function useCreatePurchase() {
 export function useCreateFromShortages() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      api.post<{ created: number }>('/purchase-orders/from-shortages'),
+    mutationFn: () => api.post<{ created: number }>('/purchase-orders/from-shortages'),
     onSuccess: () => invalidatePurchases(qc),
   });
 }
@@ -98,7 +93,8 @@ export function useCreateFromShortages() {
 export function useReceivePurchase(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: ReceivePurchaseInput) => api.post<PurchaseOrderDto>(`/purchase-orders/${id}/receive`, input),
+    mutationFn: (input: ReceivePurchaseInput) =>
+      api.post<PurchaseOrderDto>(`/purchase-orders/${id}/receive`, input),
     onSuccess: () => invalidatePurchases(qc),
   });
 }
@@ -168,7 +164,8 @@ export async function parseNfe(file: File): Promise<NfeParseResult> {
 export function useConfirmNfe() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: NfeConfirmInput) => api.post<NfeConfirmResult>('/nfe-import/confirm', input),
+    mutationFn: (input: NfeConfirmInput) =>
+      api.post<NfeConfirmResult>('/nfe-import/confirm', input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['parts'] }),
   });
 }

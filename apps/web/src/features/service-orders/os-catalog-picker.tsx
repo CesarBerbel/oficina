@@ -86,11 +86,24 @@ export function OsCatalogPicker({ osId }: { osId: string }) {
             placeholder="Serviço do catálogo..."
           />
           <Button
-            size="icon" variant="outline" aria-label="Adicionar serviço" className="shrink-0"
+            size="icon"
+            variant="outline"
+            aria-label="Adicionar serviço"
+            className="shrink-0"
             disabled={!serviceId || addService.isPending}
-            onClick={() => run(() => addService.mutateAsync(serviceId), 'Serviço adicionado', () => setServiceId(''))}
+            onClick={() =>
+              run(
+                () => addService.mutateAsync(serviceId),
+                'Serviço adicionado',
+                () => setServiceId(''),
+              )
+            }
           >
-            {addService.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            {addService.isPending ? (
+              <CarLoader className="size-4 animate-spin" />
+            ) : (
+              <Plus className="size-4" />
+            )}
           </Button>
         </div>
       </div>
@@ -116,11 +129,24 @@ export function OsCatalogPicker({ osId }: { osId: string }) {
             placeholder="Combo (expande nos serviços)..."
           />
           <Button
-            size="icon" variant="outline" aria-label="Adicionar combo" className="shrink-0"
+            size="icon"
+            variant="outline"
+            aria-label="Adicionar combo"
+            className="shrink-0"
             disabled={!comboId || addCombo.isPending}
-            onClick={() => run(() => addCombo.mutateAsync(comboId), 'Combo expandido na OS', () => setComboId(''))}
+            onClick={() =>
+              run(
+                () => addCombo.mutateAsync(comboId),
+                'Combo expandido na OS',
+                () => setComboId(''),
+              )
+            }
           >
-            {addCombo.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            {addCombo.isPending ? (
+              <CarLoader className="size-4 animate-spin" />
+            ) : (
+              <Plus className="size-4" />
+            )}
           </Button>
         </div>
       </div>
@@ -146,20 +172,35 @@ export function OsCatalogPicker({ osId }: { osId: string }) {
             placeholder="Peça do estoque..."
           />
           <Input
-            type="number" step="any" value={partQty}
+            type="number"
+            step="any"
+            value={partQty}
             onChange={(e) => setPartQty(e.target.value)}
-            className="w-20 shrink-0" aria-label="Quantidade da peça"
+            className="w-20 shrink-0"
+            aria-label="Quantidade da peça"
           />
           <Button
-            size="icon" variant="outline" aria-label="Adicionar peça" className="shrink-0"
+            size="icon"
+            variant="outline"
+            aria-label="Adicionar peça"
+            className="shrink-0"
             disabled={!partId || addPart.isPending}
-            onClick={() => run(
-              () => addPart.mutateAsync({ partId, quantity: Number(partQty) || 1 }),
-              'Peça adicionada (estoque baixado)',
-              () => { setPartId(''); setPartQty('1'); },
-            )}
+            onClick={() =>
+              run(
+                () => addPart.mutateAsync({ partId, quantity: Number(partQty) || 1 }),
+                'Peça adicionada (estoque baixado)',
+                () => {
+                  setPartId('');
+                  setPartQty('1');
+                },
+              )
+            }
           >
-            {addPart.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            {addPart.isPending ? (
+              <CarLoader className="size-4 animate-spin" />
+            ) : (
+              <Plus className="size-4" />
+            )}
           </Button>
         </div>
       </div>

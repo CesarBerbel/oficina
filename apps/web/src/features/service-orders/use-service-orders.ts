@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   AddItemInput,
   ChangeStatusInput,
@@ -39,8 +34,7 @@ const BASE = '/service-orders';
 export function useServiceOrders(params: Partial<ListServiceOrdersQuery>) {
   return useQuery({
     queryKey: ['service-orders', params],
-    queryFn: () =>
-      api.get<Paginated<ServiceOrderSummaryDto>>(`${BASE}${qs(params)}`),
+    queryFn: () => api.get<Paginated<ServiceOrderSummaryDto>>(`${BASE}${qs(params)}`),
     placeholderData: keepPreviousData,
   });
 }
@@ -48,10 +42,7 @@ export function useServiceOrders(params: Partial<ListServiceOrdersQuery>) {
 export function useServiceOrderBoard() {
   return useQuery({
     queryKey: ['service-orders', 'board'],
-    queryFn: () =>
-      api.get<Record<ServiceOrderStatus, ServiceOrderBoardItemDto[]>>(
-        `${BASE}/board`,
-      ),
+    queryFn: () => api.get<Record<ServiceOrderStatus, ServiceOrderBoardItemDto[]>>(`${BASE}/board`),
     refetchInterval: 30_000,
   });
 }
@@ -59,8 +50,7 @@ export function useServiceOrderBoard() {
 export function useTechnicians() {
   return useQuery({
     queryKey: ['service-orders', 'technicians'],
-    queryFn: () =>
-      api.get<{ id: string; name: string }[]>(`${BASE}/technicians`),
+    queryFn: () => api.get<{ id: string; name: string }[]>(`${BASE}/technicians`),
     staleTime: 5 * 60_000,
   });
 }
@@ -76,12 +66,10 @@ export function useServiceOrder(id: string | undefined) {
 export function useServiceOrderTransitions(id: string | undefined) {
   return useQuery({
     queryKey: ['service-orders', 'transitions', id],
-    queryFn: () =>
-      api.get<ServiceOrderTransitionDto[]>(`${BASE}/${id}/transitions`),
+    queryFn: () => api.get<ServiceOrderTransitionDto[]>(`${BASE}/${id}/transitions`),
     enabled: !!id,
   });
 }
-
 
 export function useServiceOrderTimeline(id: string | undefined) {
   return useQuery({
@@ -106,8 +94,7 @@ export function useCreateTechnicalUpdate(id: string) {
 export function useCreateServiceOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateServiceOrderInput) =>
-      api.post<ServiceOrderDetailDto>(BASE, input),
+    mutationFn: (input: CreateServiceOrderInput) => api.post<ServiceOrderDetailDto>(BASE, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['service-orders'] }),
   });
 }
@@ -183,8 +170,7 @@ export function useGenerateQuote(id: string) {
 
 export function useSendQuoteEmail(id: string) {
   return useMutation({
-    mutationFn: () =>
-      api.post<{ to: string }>(`${BASE}/${id}/quote/send-email`, {}),
+    mutationFn: () => api.post<{ to: string }>(`${BASE}/${id}/quote/send-email`, {}),
   });
 }
 
@@ -199,8 +185,7 @@ export function useReopenQuote(id: string) {
 export function useGeneratePurchase(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      api.post<{ created: number }>(`${BASE}/${id}/quote/generate-purchase`, {}),
+    mutationFn: () => api.post<{ created: number }>(`${BASE}/${id}/quote/generate-purchase`, {}),
     onSuccess: () => {
       invalidate(qc, id);
       qc.invalidateQueries({ queryKey: ['purchases'] });

@@ -8,8 +8,7 @@ export const StockMovementType = {
   ESTORNO: 'ESTORNO',
 } as const;
 
-export type StockMovementType =
-  (typeof StockMovementType)[keyof typeof StockMovementType];
+export type StockMovementType = (typeof StockMovementType)[keyof typeof StockMovementType];
 
 export const STOCK_MOVEMENT_LABELS: Record<StockMovementType, string> = {
   ENTRADA: 'Entrada',

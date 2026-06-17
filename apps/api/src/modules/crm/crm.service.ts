@@ -12,8 +12,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 
 const diffDays = (from: Date, to = new Date()): number =>
   Math.floor((to.getTime() - from.getTime()) / 86_400_000);
@@ -27,7 +26,8 @@ const DEFAULT_CAMPAIGNS: CrmSeasonalCampaignDto[] = [
     name: 'Férias e viagem',
     months: [6, 7, 12],
     title: 'Check-up para viagem',
-    message: 'Olá, {cliente}. Antes da próxima viagem, podemos agendar um check-up preventivo do veículo {placa}?',
+    message:
+      'Olá, {cliente}. Antes da próxima viagem, podemos agendar um check-up preventivo do veículo {placa}?',
     vehicleAgeMinYears: null,
   },
   {
@@ -35,7 +35,8 @@ const DEFAULT_CAMPAIGNS: CrmSeasonalCampaignDto[] = [
     name: 'Inverno / bateria',
     months: [5, 6, 7, 8],
     title: 'Revisão de bateria e arrefecimento',
-    message: 'Olá, {cliente}. Nesta época é importante revisar bateria, arrefecimento e palhetas do veículo {placa}. Quer agendar?',
+    message:
+      'Olá, {cliente}. Nesta época é importante revisar bateria, arrefecimento e palhetas do veículo {placa}. Quer agendar?',
     vehicleAgeMinYears: 3,
   },
   {
@@ -43,16 +44,19 @@ const DEFAULT_CAMPAIGNS: CrmSeasonalCampaignDto[] = [
     name: 'Verão / ar-condicionado',
     months: [10, 11, 12, 1, 2],
     title: 'Higienização e revisão do ar-condicionado',
-    message: 'Olá, {cliente}. Podemos revisar e higienizar o ar-condicionado do veículo {placa} para o período de calor?',
+    message:
+      'Olá, {cliente}. Podemos revisar e higienizar o ar-condicionado do veículo {placa} para o período de calor?',
     vehicleAgeMinYears: null,
   },
 ];
 
-function vehicleLabel(vehicle?: {
-  plate: string;
-  manufacturer: string;
-  model: string;
-} | null): string | null {
+function vehicleLabel(
+  vehicle?: {
+    plate: string;
+    manufacturer: string;
+    model: string;
+  } | null,
+): string | null {
   if (!vehicle) return null;
   return `${vehicle.plate} · ${vehicle.manufacturer} ${vehicle.model}`;
 }
@@ -69,13 +73,15 @@ function normalizeCampaigns(value: unknown): CrmSeasonalCampaignDto[] {
         : [],
       title: String(item.title ?? '').trim(),
       message: String(item.message ?? '').trim(),
-      vehicleAgeMinYears:
-        item.vehicleAgeMinYears == null ? null : Number(item.vehicleAgeMinYears),
+      vehicleAgeMinYears: item.vehicleAgeMinYears == null ? null : Number(item.vehicleAgeMinYears),
     }))
     .filter((item) => item.id && item.name && item.months.length > 0 && item.title && item.message);
 }
 
-function renderMessage(template: string, data: { cliente: string; placa?: string | null; veiculo?: string | null }): string {
+function renderMessage(
+  template: string,
+  data: { cliente: string; placa?: string | null; veiculo?: string | null },
+): string {
   return template
     .replaceAll('{cliente}', data.cliente)
     .replaceAll('{placa}', data.placa ?? 'seu veículo')
@@ -152,7 +158,10 @@ export class CrmService {
     return this.toSettingsDto(await this.getOrCreateSettings(tenantId));
   }
 
-  async updateSettings(actor: AuthenticatedUser, input: UpdateCrmSettingsInput): Promise<CrmSettingsDto> {
+  async updateSettings(
+    actor: AuthenticatedUser,
+    input: UpdateCrmSettingsInput,
+  ): Promise<CrmSettingsDto> {
     await this.getOrCreateSettings(actor.tenantId);
     const updated = await this.prisma.crmSettings.update({
       where: { tenantId: actor.tenantId },
@@ -229,7 +238,16 @@ export class CrmService {
           diagnosis: true,
           notes: true,
           customer: { select: { id: true, name: true, phone: true, whatsapp: true, email: true } },
-          vehicle: { select: { id: true, plate: true, manufacturer: true, model: true, modelYear: true, currentKm: true } },
+          vehicle: {
+            select: {
+              id: true,
+              plate: true,
+              manufacturer: true,
+              model: true,
+              modelYear: true,
+              currentKm: true,
+            },
+          },
         },
         take: 800,
       }),
@@ -246,7 +264,16 @@ export class CrmService {
           total: true,
           closedAt: true,
           customer: { select: { id: true, name: true, phone: true, whatsapp: true, email: true } },
-          vehicle: { select: { id: true, plate: true, manufacturer: true, model: true, modelYear: true, currentKm: true } },
+          vehicle: {
+            select: {
+              id: true,
+              plate: true,
+              manufacturer: true,
+              model: true,
+              modelYear: true,
+              currentKm: true,
+            },
+          },
         },
         take: 120,
       }),
@@ -259,7 +286,16 @@ export class CrmService {
           total: true,
           updatedAt: true,
           customer: { select: { id: true, name: true, phone: true, whatsapp: true, email: true } },
-          vehicle: { select: { id: true, plate: true, manufacturer: true, model: true, modelYear: true, currentKm: true } },
+          vehicle: {
+            select: {
+              id: true,
+              plate: true,
+              manufacturer: true,
+              model: true,
+              modelYear: true,
+              currentKm: true,
+            },
+          },
         },
         take: 120,
       }),
@@ -315,9 +351,10 @@ export class CrmService {
               kind: 'REVISAO_KM',
               priority: kmUntilReview <= 0 ? 'alta' : 'media',
               title: 'Revisão preventiva por quilometragem',
-              reason: kmUntilReview <= 0
-                ? `Revisão por KM vencida em ${Math.abs(kmUntilReview)} km.`
-                : `Faltam ${kmUntilReview} km para a próxima revisão configurada.`,
+              reason:
+                kmUntilReview <= 0
+                  ? `Revisão por KM vencida em ${Math.abs(kmUntilReview)} km.`
+                  : `Faltam ${kmUntilReview} km para a próxima revisão configurada.`,
               suggestedMessage: `Olá, ${order.customer.name}. O veículo ${order.vehicle.plate} está próximo da revisão por quilometragem. Podemos agendar uma revisão preventiva?`,
               customerId: order.customer.id,
               customerName: order.customer.name,
@@ -340,14 +377,17 @@ export class CrmService {
       }
 
       if (settings.enableRecommendedMaintenance) {
-        const sourceText = [order.reportedProblem, order.diagnosis, order.notes].filter(Boolean).join(' ');
+        const sourceText = [order.reportedProblem, order.diagnosis, order.notes]
+          .filter(Boolean)
+          .join(' ');
         if (sourceText && textHasKeyword(sourceText, settings.recommendedMaintenanceKeywords)) {
           opportunities.push({
             key: `recommended-${order.id}`,
             kind: 'MANUTENCAO_RECOMENDADA',
             priority: 'media',
             title: 'Manutenção recomendada para acompanhar',
-            reason: 'A última OS possui observação/diagnóstico com palavra-chave de acompanhamento.',
+            reason:
+              'A última OS possui observação/diagnóstico com palavra-chave de acompanhamento.',
             suggestedMessage: `Olá, ${order.customer.name}. Na última passagem do veículo ${order.vehicle.plate}, deixamos uma recomendação preventiva registrada. Podemos agendar uma avaliação?`,
             customerId: order.customer.id,
             customerName: order.customer.name,
@@ -454,11 +494,17 @@ export class CrmService {
 
     if (settings.enableSeasonalCampaigns) {
       const month = now.getMonth() + 1;
-      const campaigns = settings.seasonalCampaigns.filter((campaign) => campaign.months.includes(month));
+      const campaigns = settings.seasonalCampaigns.filter((campaign) =>
+        campaign.months.includes(month),
+      );
       for (const campaign of campaigns) {
         for (const order of lastByVehicle.values()) {
           const age = order.vehicle.modelYear ? now.getFullYear() - order.vehicle.modelYear : null;
-          if (campaign.vehicleAgeMinYears != null && (age == null || age < campaign.vehicleAgeMinYears)) continue;
+          if (
+            campaign.vehicleAgeMinYears != null &&
+            (age == null || age < campaign.vehicleAgeMinYears)
+          )
+            continue;
           opportunities.push({
             key: `seasonal-${campaign.id}-${order.vehicle.id}`,
             kind: 'CAMPANHA_SAZONAL',
@@ -496,7 +542,11 @@ export class CrmService {
     }
 
     const sorted = [...unique.values()]
-      .sort((a, b) => rank[a.priority] - rank[b.priority] || (b.daysSinceLastService ?? 0) - (a.daysSinceLastService ?? 0))
+      .sort(
+        (a, b) =>
+          rank[a.priority] - rank[b.priority] ||
+          (b.daysSinceLastService ?? 0) - (a.daysSinceLastService ?? 0),
+      )
       .slice(0, Math.max(1, Math.min(limit, 300)));
 
     return {

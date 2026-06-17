@@ -43,9 +43,11 @@ export function useLeads(params: Partial<ListLeadsQuery>) {
   });
 }
 
-
-
-export function useReceptionScheduleBlocks(params: { from: string; to: string; technicianId?: string }) {
+export function useReceptionScheduleBlocks(params: {
+  from: string;
+  to: string;
+  technicianId?: string;
+}) {
   return useQuery({
     queryKey: ['leads', 'schedule-blocks', params],
     queryFn: () => api.get<ReceptionScheduleBlockDto[]>(`/leads/schedule-blocks${qs(params)}`),

@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ComboDto,
   CreateComboInput,
@@ -39,8 +34,7 @@ export function useServices(params: Partial<ListServicesQuery>) {
 export function useCreateService() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateServiceInput) =>
-      api.post<ServiceDto>('/services', input),
+    mutationFn: (input: CreateServiceInput) => api.post<ServiceDto>('/services', input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),
   });
 }
@@ -48,8 +42,7 @@ export function useCreateService() {
 export function useUpdateService(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateServiceInput) =>
-      api.put<ServiceDto>(`/services/${id}`, input),
+    mutationFn: (input: UpdateServiceInput) => api.put<ServiceDto>(`/services/${id}`, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['services'] }),
   });
 }
@@ -82,8 +75,7 @@ export function useCreateCombo() {
 export function useUpdateCombo(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateComboInput) =>
-      api.put<ComboDto>(`/combos/${id}`, input),
+    mutationFn: (input: UpdateComboInput) => api.put<ComboDto>(`/combos/${id}`, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['combos'] }),
   });
 }

@@ -17,7 +17,12 @@ import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { maskPhoneOrEmail } from '@/lib/masks';
 import { useAuth } from '@/lib/auth-context';
 import {
-  useTemplates, useDeleteTemplate, useMessageLogs, useSendMessage, useSendTestEmail, useMailStatus,
+  useTemplates,
+  useDeleteTemplate,
+  useMessageLogs,
+  useSendMessage,
+  useSendTestEmail,
+  useMailStatus,
 } from '@/features/messaging/use-messaging';
 import { TemplateFormDialog } from '@/features/messaging/template-form-dialog';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -29,7 +34,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 
 const SEND_FIELD_LABELS = {
@@ -54,15 +63,26 @@ export default function MessagesPage() {
 
       <div className="flex gap-1 border-b">
         {(['templates', 'historico'] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={cn('-mb-px border-b-2 px-4 py-2 text-sm font-medium capitalize transition-colors',
-              tab === t ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={cn(
+              '-mb-px border-b-2 px-4 py-2 text-sm font-medium capitalize transition-colors',
+              tab === t
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
             {t === 'historico' ? 'Histórico' : 'Templates'}
           </button>
         ))}
       </div>
 
-      {tab === 'templates' ? <TemplatesTab canWrite={canWrite} /> : <HistoricoTab canWrite={canWrite} />}
+      {tab === 'templates' ? (
+        <TemplatesTab canWrite={canWrite} />
+      ) : (
+        <HistoricoTab canWrite={canWrite} />
+      )}
     </div>
   );
 }
@@ -86,9 +106,8 @@ function MailStatusBanner() {
     <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
       <Mail className="size-4 shrink-0" />
       <span>
-        E-mail em <strong>modo simulado</strong> (MAIL_DRIVER=log): as mensagens
-        não são enviadas, apenas registradas. Configure o SMTP no .env para
-        enviar de verdade.
+        E-mail em <strong>modo simulado</strong> (MAIL_DRIVER=log): as mensagens não são enviadas,
+        apenas registradas. Configure o SMTP no .env para enviar de verdade.
       </span>
     </div>
   );
@@ -103,9 +122,20 @@ function TemplatesTab({ canWrite }: { canWrite: boolean }) {
 
   return (
     <div className="space-y-4">
-      {canWrite && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" /> Novo template</Button>}
+      {canWrite && (
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
+        >
+          <Plus className="size-4" /> Novo template
+        </Button>
+      )}
       {isLoading ? (
-        <div className="grid h-32 place-items-center"><CarLoader className="size-5 animate-spin text-muted-foreground" /></div>
+        <div className="grid h-32 place-items-center">
+          <CarLoader className="size-5 animate-spin text-muted-foreground" />
+        </div>
       ) : (templates ?? []).length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Nenhum template.</p>
       ) : (
@@ -124,12 +154,37 @@ function TemplatesTab({ canWrite }: { canWrite: boolean }) {
                 </div>
                 {canWrite && (
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => { setEditing(t); setOpen(true); }}><Pencil className="size-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={async () => {
-                      const ok = await confirm({ title: 'Excluir template', description: `Excluir o template "${t.name}"?`, destructive: true, confirmLabel: 'Excluir' });
-                      if (!ok) return;
-                      try { await del.mutateAsync(t.id); toast.success('Excluído'); } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro'); }
-                    }}><Trash2 className="size-4" /></Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setEditing(t);
+                        setOpen(true);
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Excluir template',
+                          description: `Excluir o template "${t.name}"?`,
+                          destructive: true,
+                          confirmLabel: 'Excluir',
+                        });
+                        if (!ok) return;
+                        try {
+                          await del.mutateAsync(t.id);
+                          toast.success('Excluído');
+                        } catch (e) {
+                          toast.error(e instanceof ApiError ? e.message : 'Erro');
+                        }
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
                   </div>
                 )}
               </div>
@@ -155,26 +210,44 @@ function HistoricoTab({ canWrite }: { canWrite: boolean }) {
     <div className="space-y-4">
       {canWrite && (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setSendOpen(true)}><Send className="size-4" /> Enviar mensagem</Button>
-          <Button variant="outline" onClick={() => setTestOpen(true)}><Mail className="size-4" /> Testar e-mail</Button>
+          <Button variant="outline" onClick={() => setSendOpen(true)}>
+            <Send className="size-4" /> Enviar mensagem
+          </Button>
+          <Button variant="outline" onClick={() => setTestOpen(true)}>
+            <Mail className="size-4" /> Testar e-mail
+          </Button>
         </div>
       )}
       <div className="rounded-xl border divide-y">
         {isLoading ? (
-          <div className="grid h-24 place-items-center"><CarLoader className="size-5 animate-spin text-muted-foreground" /></div>
+          <div className="grid h-24 place-items-center">
+            <CarLoader className="size-5 animate-spin text-muted-foreground" />
+          </div>
         ) : logs.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma mensagem enviada.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Nenhuma mensagem enviada.
+          </p>
         ) : (
           logs.map((l) => (
             <div key={l.id} className="p-3 text-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline">{MESSAGE_CHANNEL_LABELS[l.channel]}</Badge>
-                <Badge variant={l.status === 'FALHA' ? 'destructive' : l.status === 'ENVIADO' ? 'success' : 'secondary'}>
+                <Badge
+                  variant={
+                    l.status === 'FALHA'
+                      ? 'destructive'
+                      : l.status === 'ENVIADO'
+                        ? 'success'
+                        : 'secondary'
+                  }
+                >
                   {MESSAGE_STATUS_LABELS[l.status]}
                 </Badge>
                 <span className="text-muted-foreground">{MESSAGE_EVENT_LABELS[l.event]}</span>
                 <span className="text-muted-foreground">→ {l.to || l.customerName || '—'}</span>
-                <span className="ml-auto text-xs text-muted-foreground">{formatDate(l.createdAt)}</span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {formatDate(l.createdAt)}
+                </span>
               </div>
               <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{l.body}</p>
             </div>
@@ -185,8 +258,22 @@ function HistoricoTab({ canWrite }: { canWrite: boolean }) {
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{meta.total} envio(s)</span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
-            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Próxima</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Próxima
+            </Button>
           </div>
         </div>
       )}
@@ -196,7 +283,13 @@ function HistoricoTab({ canWrite }: { canWrite: boolean }) {
   );
 }
 
-function TestEmailDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+function TestEmailDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const test = useSendTestEmail();
   const [to, setTo] = useState('');
 
@@ -209,7 +302,9 @@ function TestEmailDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
     try {
       const res = await test.mutateAsync(to.trim());
       if (res.mode === 'log') {
-        toast.success('Modo simulado (MAIL_DRIVER=log): e-mail registrado no terminal, nada foi enviado.');
+        toast.success(
+          'Modo simulado (MAIL_DRIVER=log): e-mail registrado no terminal, nada foi enviado.',
+        );
       } else if (res.status === 'ENVIADO') {
         toast.success(`E-mail enviado para ${to.trim()} via SMTP.`);
       } else {
@@ -238,13 +333,17 @@ function TestEmailDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
               placeholder="seu-email@exemplo.com"
             />
             <p className="text-xs text-muted-foreground">
-              Valida a configuração SMTP. Com MAIL_DRIVER=log, o envio é apenas
-              simulado (aparece no terminal e no histórico).
+              Valida a configuração SMTP. Com MAIL_DRIVER=log, o envio é apenas simulado (aparece no
+              terminal e no histórico).
             </p>
           </div>
           <DialogFooter>
             <Button type="submit" disabled={test.isPending}>
-              {test.isPending ? <CarLoader className="size-4 animate-spin" /> : <Mail className="size-4" />}
+              {test.isPending ? (
+                <CarLoader className="size-4 animate-spin" />
+              ) : (
+                <Mail className="size-4" />
+              )}
               Enviar teste
             </Button>
           </DialogFooter>
@@ -254,7 +353,13 @@ function TestEmailDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
   );
 }
 
-function ManualSendDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+function ManualSendDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const send = useSendMessage();
   const [channel, setChannel] = useState('WHATSAPP');
   const [to, setTo] = useState('');
@@ -263,32 +368,53 @@ function ManualSendDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = sendMessageSchema.safeParse({ channel, to, body });
-    if (!parsed.success) { toast.error(Object.values(zodFieldErrors(parsed.error, SEND_FIELD_LABELS))[0] ?? 'Verifique os campos do formulário'); return; }
+    if (!parsed.success) {
+      toast.error(
+        Object.values(zodFieldErrors(parsed.error, SEND_FIELD_LABELS))[0] ??
+          'Verifique os campos do formulário',
+      );
+      return;
+    }
     try {
       await send.mutateAsync(parsed.data);
       toast.success('Mensagem registrada (simulada)');
-      setTo(''); setBody('');
+      setTo('');
+      setBody('');
       onOpenChange(false);
-    } catch (err) { toast.error(apiErrorMessage(err, SEND_FIELD_LABELS, 'Erro ao enviar')); }
+    } catch (err) {
+      toast.error(apiErrorMessage(err, SEND_FIELD_LABELS, 'Erro ao enviar'));
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Enviar mensagem manual</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Enviar mensagem manual</DialogTitle>
+        </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label required>Canal</Label>
-              <Select value={channel} onChange={(e) => setChannel(e.target.value)} className="w-full">
-                {MESSAGE_CHANNELS.map((c) => <option key={c} value={c}>{MESSAGE_CHANNEL_LABELS[c]}</option>)}
+              <Select
+                value={channel}
+                onChange={(e) => setChannel(e.target.value)}
+                className="w-full"
+              >
+                {MESSAGE_CHANNELS.map((c) => (
+                  <option key={c} value={c}>
+                    {MESSAGE_CHANNEL_LABELS[c]}
+                  </option>
+                ))}
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Destinatário</Label>
               <Input
                 value={to}
-                onChange={(e) => setTo(channel === 'EMAIL' ? e.target.value : maskPhoneOrEmail(e.target.value))}
+                onChange={(e) =>
+                  setTo(channel === 'EMAIL' ? e.target.value : maskPhoneOrEmail(e.target.value))
+                }
                 inputMode={channel === 'EMAIL' ? 'email' : 'tel'}
                 maxLength={channel === 'EMAIL' ? undefined : 15}
                 placeholder={channel === 'EMAIL' ? 'email@exemplo.com' : '(00) 00000-0000'}
@@ -300,7 +426,9 @@ function ManualSendDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
             <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={send.isPending}>
               {send.isPending && <CarLoader className="size-4 animate-spin" />} Enviar
             </Button>

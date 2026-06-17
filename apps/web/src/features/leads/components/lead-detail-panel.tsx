@@ -91,7 +91,13 @@ export function LeadDetailPanel({ id }: { id?: string }) {
   });
   const [customerId, setCustomerId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', whatsapp: '', email: '', notes: '' });
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    phone: '',
+    whatsapp: '',
+    email: '',
+    notes: '',
+  });
   const [newVehicle, setNewVehicle] = useState({
     plate: '',
     manufacturer: '',
@@ -106,7 +112,11 @@ export function LeadDetailPanel({ id }: { id?: string }) {
   const [reportedProblem, setReportedProblem] = useState('');
 
   const { data: customers } = useCustomers({ page: 1, pageSize: 500 });
-  const { data: vehicles } = useVehicles({ customerId: customerId || undefined, page: 1, pageSize: 500 });
+  const { data: vehicles } = useVehicles({
+    customerId: customerId || undefined,
+    page: 1,
+    pageSize: 500,
+  });
   const { data: technicians } = useTechnicians();
   const updateStatus = useUpdateLeadStatus();
   const registerContact = useRegisterLeadContact();
@@ -317,8 +327,7 @@ export function LeadDetailPanel({ id }: { id?: string }) {
   const isClosed = CLOSED_RECEPTION_STATUSES.has(lead.status);
   const isScheduleReadOnly = isCheckedIn || isConverted || lead.status === 'NAO_COMPARECEU';
   const canEditSchedule = !isScheduleReadOnly;
-  const canConfirmAppointment =
-    hasAppointment && lead.status === 'AGENDADO' && !isScheduleReadOnly;
+  const canConfirmAppointment = hasAppointment && lead.status === 'AGENDADO' && !isScheduleReadOnly;
   const canCheckInAppointment =
     hasAppointment && OPEN_APPOINTMENT_STATUSES.has(lead.status) && !isScheduleReadOnly;
   const canMarkNoShow =
@@ -343,7 +352,17 @@ export function LeadDetailPanel({ id }: { id?: string }) {
             <Badge variant={CONFLICT_VARIANT[lead.match.conflictLevel]}>
               {LEAD_CONFLICT_LEVEL_LABELS[lead.match.conflictLevel]}
             </Badge>
-            <Badge variant={lead.operationalPriority === 'CRITICA' ? 'destructive' : lead.operationalPriority === 'ALTA' ? 'warning' : lead.operationalPriority === 'MEDIA' ? 'secondary' : 'outline'}>
+            <Badge
+              variant={
+                lead.operationalPriority === 'CRITICA'
+                  ? 'destructive'
+                  : lead.operationalPriority === 'ALTA'
+                    ? 'warning'
+                    : lead.operationalPriority === 'MEDIA'
+                      ? 'secondary'
+                      : 'outline'
+              }
+            >
               Prioridade {lead.operationalPriority.toLowerCase()} · {lead.operationalScore}/100
             </Badge>
           </div>
@@ -351,18 +370,46 @@ export function LeadDetailPanel({ id }: { id?: string }) {
             Recebido em {formatDateTime(lead.createdAt)} · Jornada da recepção até a abertura da OS.
           </p>
         </div>
-        <Select value={lead.status} onChange={(event) => changeStatus(event.target.value as LeadStatus)} className="w-full sm:w-56">
+        <Select
+          value={lead.status}
+          onChange={(event) => changeStatus(event.target.value as LeadStatus)}
+          className="w-full sm:w-56"
+        >
           {LEAD_STATUSES.map((item) => (
-            <option key={item} value={item}>{LEAD_STATUS_LABELS[item]}</option>
+            <option key={item} value={item}>
+              {LEAD_STATUS_LABELS[item]}
+            </option>
           ))}
         </Select>
       </div>
 
       <div className="grid gap-2 md:grid-cols-4">
-        <JourneyStep active={['NOVO', 'EM_ATENDIMENTO', 'CONTATO_REALIZADO', 'RETORNAR_DEPOIS'].includes(lead.status)} done={lead.status !== 'NOVO'} icon={MessageCircle} label="Atendimento" />
-        <JourneyStep active={['AGENDADO', 'CONFIRMADO'].includes(lead.status)} done={Boolean(lead.appointmentStartAt)} icon={CalendarCheck} label="Agenda" />
-        <JourneyStep active={lead.status === 'CLIENTE_CHEGOU'} done={Boolean(lead.checkedInAt) || lead.status === 'CONVERTIDO'} icon={UserCheck} label="Chegada" />
-        <JourneyStep active={lead.status === 'CONVERTIDO'} done={lead.status === 'CONVERTIDO'} icon={Wrench} label="OS" />
+        <JourneyStep
+          active={['NOVO', 'EM_ATENDIMENTO', 'CONTATO_REALIZADO', 'RETORNAR_DEPOIS'].includes(
+            lead.status,
+          )}
+          done={lead.status !== 'NOVO'}
+          icon={MessageCircle}
+          label="Atendimento"
+        />
+        <JourneyStep
+          active={['AGENDADO', 'CONFIRMADO'].includes(lead.status)}
+          done={Boolean(lead.appointmentStartAt)}
+          icon={CalendarCheck}
+          label="Agenda"
+        />
+        <JourneyStep
+          active={lead.status === 'CLIENTE_CHEGOU'}
+          done={Boolean(lead.checkedInAt) || lead.status === 'CONVERTIDO'}
+          icon={UserCheck}
+          label="Chegada"
+        />
+        <JourneyStep
+          active={lead.status === 'CONVERTIDO'}
+          done={lead.status === 'CONVERTIDO'}
+          icon={Wrench}
+          label="OS"
+        />
       </div>
 
       <div className="rounded-xl border bg-card p-4">
@@ -373,17 +420,24 @@ export function LeadDetailPanel({ id }: { id?: string }) {
             </span>
             <div>
               <h3 className="font-semibold">Inteligência da Recepção</h3>
-              <p className="text-sm text-muted-foreground">Score operacional calculado pelo backend para priorizar atendimento, conflito, retorno, chegada e conversão em OS.</p>
+              <p className="text-sm text-muted-foreground">
+                Score operacional calculado pelo backend para priorizar atendimento, conflito,
+                retorno, chegada e conversão em OS.
+              </p>
             </div>
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold">{lead.operationalScore}/100</p>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">{lead.operationalPriority}</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              {lead.operationalPriority}
+            </p>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {lead.operationalReasons.map((reason) => (
-            <Badge key={reason} variant="outline">{reason}</Badge>
+            <Badge key={reason} variant="outline">
+              {reason}
+            </Badge>
           ))}
         </div>
       </div>
@@ -394,19 +448,38 @@ export function LeadDetailPanel({ id }: { id?: string }) {
             <h3 className="font-semibold">Dados do atendimento</h3>
             <div className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
               <WhatsAppNumberLink value={lead.phone} label="WhatsApp" showIcon />
-              <a href={`tel:${lead.phone.replace(/\D/g, '')}`} className="inline-flex items-center gap-2 hover:text-primary hover:underline">
+              <a
+                href={`tel:${lead.phone.replace(/\D/g, '')}`}
+                className="inline-flex items-center gap-2 hover:text-primary hover:underline"
+              >
                 <Phone className="size-4" /> Ligar
               </a>
-              {lead.email && <p className="flex items-center gap-2"><Mail className="size-4" /> {lead.email}</p>}
-              {lead.plate && <p>Placa: <span className="font-medium text-foreground">{lead.plate}</span></p>}
-              {lead.vehicle && <p>Veículo: <span className="font-medium text-foreground">{lead.vehicle}</span></p>}
+              {lead.email && (
+                <p className="flex items-center gap-2">
+                  <Mail className="size-4" /> {lead.email}
+                </p>
+              )}
+              {lead.plate && (
+                <p>
+                  Placa: <span className="font-medium text-foreground">{lead.plate}</span>
+                </p>
+              )}
+              {lead.vehicle && (
+                <p>
+                  Veículo: <span className="font-medium text-foreground">{lead.vehicle}</span>
+                </p>
+              )}
             </div>
             <p className="mt-3 whitespace-pre-wrap text-sm">{lead.message}</p>
           </div>
 
           <div className={cn('rounded-xl border p-4', conflictClass)}>
             <div className="flex items-start gap-2">
-              {lead.match.conflictLevel === 'OK' ? <CheckCircle2 className="mt-0.5 size-5" /> : <AlertTriangle className="mt-0.5 size-5" />}
+              {lead.match.conflictLevel === 'OK' ? (
+                <CheckCircle2 className="mt-0.5 size-5" />
+              ) : (
+                <AlertTriangle className="mt-0.5 size-5" />
+              )}
               <div>
                 <h3 className="font-semibold">Conferência automática</h3>
                 <p className="mt-1 text-sm">{lead.match.conflictReason}</p>
@@ -417,21 +490,38 @@ export function LeadDetailPanel({ id }: { id?: string }) {
           <div className="rounded-xl border bg-card p-4">
             <h3 className="font-semibold">Cliente sugerido</h3>
             {lead.match.suggestedCustomers.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">Nenhum cliente parecido encontrado. Use a conversão para cadastrar um novo cliente.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Nenhum cliente parecido encontrado. Use a conversão para cadastrar um novo cliente.
+              </p>
             ) : (
               <div className="mt-3 space-y-2">
                 {lead.match.suggestedCustomers.map((customer) => (
-                  <div key={customer.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+                  <div
+                    key={customer.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+                  >
                     <div>
                       <p className="font-medium">{customer.name}</p>
                       <p className="text-xs text-muted-foreground">{customer.reason}</p>
                       <div className="space-y-0.5 text-xs text-muted-foreground">
                         {customer.phone && <p>Telefone: {maskPhone(customer.phone)}</p>}
-                        {customer.whatsapp && <WhatsAppNumberLink value={customer.whatsapp} label="WhatsApp" className="text-xs" />}
-                        {!customer.phone && !customer.whatsapp && customer.email && <p>{customer.email}</p>}
+                        {customer.whatsapp && (
+                          <WhatsAppNumberLink
+                            value={customer.whatsapp}
+                            label="WhatsApp"
+                            className="text-xs"
+                          />
+                        )}
+                        {!customer.phone && !customer.whatsapp && customer.email && (
+                          <p>{customer.email}</p>
+                        )}
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => submitLinkCustomer(customer.id)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => submitLinkCustomer(customer.id)}
+                    >
                       Vincular cliente
                     </Button>
                   </div>
@@ -447,16 +537,25 @@ export function LeadDetailPanel({ id }: { id?: string }) {
                 <div>
                   <p className="font-medium">{lead.match.vehicle.plate}</p>
                   <p className="text-sm text-muted-foreground">
-                    {lead.match.vehicle.manufacturer} {lead.match.vehicle.model} {lead.match.vehicle.modelYear ?? ''}
+                    {lead.match.vehicle.manufacturer} {lead.match.vehicle.model}{' '}
+                    {lead.match.vehicle.modelYear ?? ''}
                   </p>
-                  <p className="text-xs text-muted-foreground">Dono cadastrado: {lead.match.vehicle.customerName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Dono cadastrado: {lead.match.vehicle.customerName}
+                  </p>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => submitLinkVehicle(lead.match.vehicle?.id ?? '')}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => submitLinkVehicle(lead.match.vehicle?.id ?? '')}
+                >
                   Usar este veículo
                 </Button>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-muted-foreground">Nenhum veículo encontrado pela placa informada.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Nenhum veículo encontrado pela placa informada.
+              </p>
             )}
           </div>
         </div>
@@ -466,9 +565,13 @@ export function LeadDetailPanel({ id }: { id?: string }) {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="font-semibold">Agenda embutida</h3>
-                <p className="text-sm text-muted-foreground">Marque, remarque, confirme, registre chegada ou baixe o não comparecimento.</p>
+                <p className="text-sm text-muted-foreground">
+                  Marque, remarque, confirme, registre chegada ou baixe o não comparecimento.
+                </p>
               </div>
-              {lead.appointmentStartAt && <Badge variant="outline">{appointmentSummary(lead)}</Badge>}
+              {lead.appointmentStartAt && (
+                <Badge variant="outline">{appointmentSummary(lead)}</Badge>
+              )}
             </div>
 
             {isScheduleReadOnly && (
@@ -481,7 +584,8 @@ export function LeadDetailPanel({ id }: { id?: string }) {
 
             {isClosed && !isCheckedIn && (
               <div className="mt-3 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
-                Atendimento encerrado. Para uma nova visita, reagende usando “Remarcar agendamento” quando aplicável.
+                Atendimento encerrado. Para uma nova visita, reagende usando “Remarcar agendamento”
+                quando aplicável.
               </div>
             )}
 
@@ -495,7 +599,11 @@ export function LeadDetailPanel({ id }: { id?: string }) {
                   disabled={isScheduleReadOnly}
                   onChange={(event) => {
                     const value = event.target.value;
-                    setSchedule((cur) => ({ ...cur, appointmentStartAt: value, appointmentEndAt: value }));
+                    setSchedule((cur) => ({
+                      ...cur,
+                      appointmentStartAt: value,
+                      appointmentEndAt: value,
+                    }));
                   }}
                 />
               </div>
@@ -506,7 +614,9 @@ export function LeadDetailPanel({ id }: { id?: string }) {
                   value={schedule.appointmentEndAt}
                   readOnly={isScheduleReadOnly}
                   disabled={isScheduleReadOnly}
-                  onChange={(event) => setSchedule((cur) => ({ ...cur, appointmentEndAt: event.target.value }))}
+                  onChange={(event) =>
+                    setSchedule((cur) => ({ ...cur, appointmentEndAt: event.target.value }))
+                  }
                 />
               </div>
               <div>
@@ -514,11 +624,15 @@ export function LeadDetailPanel({ id }: { id?: string }) {
                 <Select
                   value={schedule.assignedToId}
                   disabled={isScheduleReadOnly}
-                  onChange={(event) => setSchedule((cur) => ({ ...cur, assignedToId: event.target.value }))}
+                  onChange={(event) =>
+                    setSchedule((cur) => ({ ...cur, assignedToId: event.target.value }))
+                  }
                 >
                   <option value="">Sem técnico definido</option>
                   {(technicians ?? []).map((technician) => (
-                    <option key={technician.id} value={technician.id}>{technician.name}</option>
+                    <option key={technician.id} value={technician.id}>
+                      {technician.name}
+                    </option>
                   ))}
                 </Select>
               </div>
@@ -528,7 +642,9 @@ export function LeadDetailPanel({ id }: { id?: string }) {
                   value={schedule.appointmentServiceType}
                   readOnly={isScheduleReadOnly}
                   disabled={isScheduleReadOnly}
-                  onChange={(event) => setSchedule((cur) => ({ ...cur, appointmentServiceType: event.target.value }))}
+                  onChange={(event) =>
+                    setSchedule((cur) => ({ ...cur, appointmentServiceType: event.target.value }))
+                  }
                   placeholder="Ex.: diagnóstico, revisão, retorno, garantia..."
                 />
               </div>
@@ -538,19 +654,24 @@ export function LeadDetailPanel({ id }: { id?: string }) {
                   value={schedule.appointmentNotes}
                   readOnly={isScheduleReadOnly}
                   disabled={isScheduleReadOnly}
-                  onChange={(event) => setSchedule((cur) => ({ ...cur, appointmentNotes: event.target.value }))}
+                  onChange={(event) =>
+                    setSchedule((cur) => ({ ...cur, appointmentNotes: event.target.value }))
+                  }
                   placeholder="Ex.: cliente prefere manhã, verificar suspensão dianteira..."
                 />
               </div>
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <Button disabled={!canEditSchedule || scheduleLead.isPending}>
-                <CalendarCheck className="size-4" /> {hasAppointment ? 'Remarcar agendamento' : 'Agendar'}
+                <CalendarCheck className="size-4" />{' '}
+                {hasAppointment ? 'Remarcar agendamento' : 'Agendar'}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                disabled={!canConfirmAppointment || confirmAppointment.isPending || scheduleLead.isPending}
+                disabled={
+                  !canConfirmAppointment || confirmAppointment.isPending || scheduleLead.isPending
+                }
                 onClick={() => runAppointmentAction('confirm', 'Agendamento confirmado')}
               >
                 <CheckCircle2 className="size-4" /> Confirmar
@@ -575,8 +696,12 @@ export function LeadDetailPanel({ id }: { id?: string }) {
                 type="button"
                 variant="outline"
                 className="sm:col-span-2"
-                disabled={!canCancelAppointment || cancelAppointment.isPending || cancelCheckIn.isPending}
-                onClick={() => runAppointmentAction(cancelAppointmentAction, cancelAppointmentSuccess)}
+                disabled={
+                  !canCancelAppointment || cancelAppointment.isPending || cancelCheckIn.isPending
+                }
+                onClick={() =>
+                  runAppointmentAction(cancelAppointmentAction, cancelAppointmentSuccess)
+                }
               >
                 {cancelAppointmentLabel}
               </Button>
@@ -588,27 +713,57 @@ export function LeadDetailPanel({ id }: { id?: string }) {
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div>
                 <Label>Canal</Label>
-                <Select value={contact.channel} onChange={(event) => setContact((cur) => ({ ...cur, channel: event.target.value as LeadContactChannel }))}>
+                <Select
+                  value={contact.channel}
+                  onChange={(event) =>
+                    setContact((cur) => ({
+                      ...cur,
+                      channel: event.target.value as LeadContactChannel,
+                    }))
+                  }
+                >
                   {LEAD_CONTACT_CHANNELS.map((item) => (
-                    <option key={item} value={item}>{LEAD_CONTACT_CHANNEL_LABELS[item]}</option>
+                    <option key={item} value={item}>
+                      {LEAD_CONTACT_CHANNEL_LABELS[item]}
+                    </option>
                   ))}
                 </Select>
               </div>
               <div>
                 <Label>Resultado</Label>
-                <Select value={contact.outcome} onChange={(event) => setContact((cur) => ({ ...cur, outcome: event.target.value as LeadContactOutcome }))}>
+                <Select
+                  value={contact.outcome}
+                  onChange={(event) =>
+                    setContact((cur) => ({
+                      ...cur,
+                      outcome: event.target.value as LeadContactOutcome,
+                    }))
+                  }
+                >
                   {LEAD_CONTACT_OUTCOMES.map((item) => (
-                    <option key={item} value={item}>{LEAD_CONTACT_OUTCOME_LABELS[item]}</option>
+                    <option key={item} value={item}>
+                      {LEAD_CONTACT_OUTCOME_LABELS[item]}
+                    </option>
                   ))}
                 </Select>
               </div>
               <div className="sm:col-span-2">
                 <Label>Retorno combinado</Label>
-                <Input type="datetime-local" value={contact.nextFollowUpAt} onChange={(event) => setContact((cur) => ({ ...cur, nextFollowUpAt: event.target.value }))} />
+                <Input
+                  type="datetime-local"
+                  value={contact.nextFollowUpAt}
+                  onChange={(event) =>
+                    setContact((cur) => ({ ...cur, nextFollowUpAt: event.target.value }))
+                  }
+                />
               </div>
               <div className="sm:col-span-2">
                 <Label>Observação</Label>
-                <Textarea value={contact.notes} onChange={(event) => setContact((cur) => ({ ...cur, notes: event.target.value }))} placeholder="Ex.: cliente pediu retorno amanhã às 9h..." />
+                <Textarea
+                  value={contact.notes}
+                  onChange={(event) => setContact((cur) => ({ ...cur, notes: event.target.value }))}
+                  placeholder="Ex.: cliente pediu retorno amanhã às 9h..."
+                />
               </div>
             </div>
             <Button className="mt-3 w-full" disabled={registerContact.isPending}>
@@ -621,62 +776,176 @@ export function LeadDetailPanel({ id }: { id?: string }) {
             <div className="mt-3 space-y-3">
               <div>
                 <Label>Cliente existente</Label>
-                <Select value={customerId} onChange={(event) => { setCustomerId(event.target.value); setVehicleId(''); }}>
+                <Select
+                  value={customerId}
+                  onChange={(event) => {
+                    setCustomerId(event.target.value);
+                    setVehicleId('');
+                  }}
+                >
                   <option value="">Cadastrar novo cliente</option>
                   {(customers?.data ?? []).map((customer) => (
-                    <option key={customer.id} value={customer.id}>{customer.name}</option>
+                    <option key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </option>
                   ))}
                 </Select>
               </div>
 
               {!customerId && (
                 <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
-                  <div className="sm:col-span-2"><Label>Nome</Label><Input value={newCustomer.name} onChange={(event) => setNewCustomer((cur) => ({ ...cur, name: event.target.value }))} /></div>
-                  <div><Label>Telefone</Label><Input value={newCustomer.phone} onChange={(event) => setNewCustomer((cur) => ({ ...cur, phone: maskPhone(event.target.value) }))} /></div>
-                  <div><Label>WhatsApp</Label><Input value={newCustomer.whatsapp} onChange={(event) => setNewCustomer((cur) => ({ ...cur, whatsapp: maskPhone(event.target.value) }))} /></div>
-                  <div className="sm:col-span-2"><Label>E-mail</Label><Input value={newCustomer.email} onChange={(event) => setNewCustomer((cur) => ({ ...cur, email: event.target.value }))} /></div>
+                  <div className="sm:col-span-2">
+                    <Label>Nome</Label>
+                    <Input
+                      value={newCustomer.name}
+                      onChange={(event) =>
+                        setNewCustomer((cur) => ({ ...cur, name: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Telefone</Label>
+                    <Input
+                      value={newCustomer.phone}
+                      onChange={(event) =>
+                        setNewCustomer((cur) => ({ ...cur, phone: maskPhone(event.target.value) }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>WhatsApp</Label>
+                    <Input
+                      value={newCustomer.whatsapp}
+                      onChange={(event) =>
+                        setNewCustomer((cur) => ({
+                          ...cur,
+                          whatsapp: maskPhone(event.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label>E-mail</Label>
+                    <Input
+                      value={newCustomer.email}
+                      onChange={(event) =>
+                        setNewCustomer((cur) => ({ ...cur, email: event.target.value }))
+                      }
+                    />
+                  </div>
                 </div>
               )}
 
               <div>
                 <Label>Veículo existente</Label>
-                <Select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} disabled={!customerId}>
+                <Select
+                  value={vehicleId}
+                  onChange={(event) => setVehicleId(event.target.value)}
+                  disabled={!customerId}
+                >
                   <option value="">Cadastrar novo veículo</option>
                   {vehicleOptions.map((vehicle) => (
-                    <option key={vehicle.id} value={vehicle.id}>{vehicle.plate} · {vehicle.manufacturer} {vehicle.model}</option>
+                    <option key={vehicle.id} value={vehicle.id}>
+                      {vehicle.plate} · {vehicle.manufacturer} {vehicle.model}
+                    </option>
                   ))}
                 </Select>
               </div>
 
               {!vehicleId && (
                 <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
-                  <div><Label>Placa</Label><Input value={newVehicle.plate} onChange={(event) => setNewVehicle((cur) => ({ ...cur, plate: event.target.value.toUpperCase() }))} /></div>
-                  <div><Label>KM</Label><Input inputMode="numeric" value={newVehicle.currentKm} onChange={(event) => setNewVehicle((cur) => ({ ...cur, currentKm: event.target.value }))} /></div>
-                  <div><Label>Fabricante</Label><Input value={newVehicle.manufacturer} onChange={(event) => setNewVehicle((cur) => ({ ...cur, manufacturer: event.target.value }))} /></div>
-                  <div><Label>Modelo</Label><Input value={newVehicle.model} onChange={(event) => setNewVehicle((cur) => ({ ...cur, model: event.target.value }))} /></div>
-                  <div><Label>Ano</Label><Input inputMode="numeric" value={newVehicle.modelYear} onChange={(event) => setNewVehicle((cur) => ({ ...cur, modelYear: event.target.value }))} /></div>
-                  <div><Label>Cor</Label><Input value={newVehicle.color} onChange={(event) => setNewVehicle((cur) => ({ ...cur, color: event.target.value }))} /></div>
+                  <div>
+                    <Label>Placa</Label>
+                    <Input
+                      value={newVehicle.plate}
+                      onChange={(event) =>
+                        setNewVehicle((cur) => ({
+                          ...cur,
+                          plate: event.target.value.toUpperCase(),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>KM</Label>
+                    <Input
+                      inputMode="numeric"
+                      value={newVehicle.currentKm}
+                      onChange={(event) =>
+                        setNewVehicle((cur) => ({ ...cur, currentKm: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Fabricante</Label>
+                    <Input
+                      value={newVehicle.manufacturer}
+                      onChange={(event) =>
+                        setNewVehicle((cur) => ({ ...cur, manufacturer: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Modelo</Label>
+                    <Input
+                      value={newVehicle.model}
+                      onChange={(event) =>
+                        setNewVehicle((cur) => ({ ...cur, model: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Ano</Label>
+                    <Input
+                      inputMode="numeric"
+                      value={newVehicle.modelYear}
+                      onChange={(event) =>
+                        setNewVehicle((cur) => ({ ...cur, modelYear: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Cor</Label>
+                    <Input
+                      value={newVehicle.color}
+                      onChange={(event) =>
+                        setNewVehicle((cur) => ({ ...cur, color: event.target.value }))
+                      }
+                    />
+                  </div>
                 </div>
               )}
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <Label>Técnico</Label>
-                  <Select value={technicianId} onChange={(event) => setTechnicianId(event.target.value)}>
+                  <Select
+                    value={technicianId}
+                    onChange={(event) => setTechnicianId(event.target.value)}
+                  >
                     <option value="">Sem técnico definido</option>
                     {(technicians ?? []).map((technician) => (
-                      <option key={technician.id} value={technician.id}>{technician.name}</option>
+                      <option key={technician.id} value={technician.id}>
+                        {technician.name}
+                      </option>
                     ))}
                   </Select>
                 </div>
                 <div>
                   <Label>Previsão</Label>
-                  <Input type="datetime-local" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+                  <Input
+                    type="datetime-local"
+                    value={dueDate}
+                    onChange={(event) => setDueDate(event.target.value)}
+                  />
                 </div>
               </div>
               <div>
                 <Label>Problema relatado</Label>
-                <Textarea value={reportedProblem} onChange={(event) => setReportedProblem(event.target.value)} />
+                <Textarea
+                  value={reportedProblem}
+                  onChange={(event) => setReportedProblem(event.target.value)}
+                />
               </div>
             </div>
             <Button className="mt-3 w-full" disabled={convertLead.isPending}>
@@ -695,10 +964,19 @@ export function LeadDetailPanel({ id }: { id?: string }) {
             ) : (
               lead.contactAttempts.map((attempt) => (
                 <div key={attempt.id} className="rounded-lg border p-3 text-sm">
-                  <p className="font-medium">{LEAD_CONTACT_CHANNEL_LABELS[attempt.channel]} · {LEAD_CONTACT_OUTCOME_LABELS[attempt.outcome]}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(attempt.createdAt)} · {attempt.userName ?? 'Sistema'}</p>
+                  <p className="font-medium">
+                    {LEAD_CONTACT_CHANNEL_LABELS[attempt.channel]} ·{' '}
+                    {LEAD_CONTACT_OUTCOME_LABELS[attempt.outcome]}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDateTime(attempt.createdAt)} · {attempt.userName ?? 'Sistema'}
+                  </p>
                   {attempt.notes && <p className="mt-2 whitespace-pre-wrap">{attempt.notes}</p>}
-                  {attempt.nextFollowUpAt && <p className="mt-2 text-amber-700">Retorno: {formatDateTime(attempt.nextFollowUpAt)}</p>}
+                  {attempt.nextFollowUpAt && (
+                    <p className="mt-2 text-amber-700">
+                      Retorno: {formatDateTime(attempt.nextFollowUpAt)}
+                    </p>
+                  )}
                 </div>
               ))
             )}
@@ -711,8 +989,14 @@ export function LeadDetailPanel({ id }: { id?: string }) {
             {lead.events.map((event) => (
               <div key={event.id} className="border-l-2 border-primary/30 pl-3 text-sm">
                 <p className="font-medium">{event.title}</p>
-                <p className="text-xs text-muted-foreground">{formatDateTime(event.createdAt)} · {event.userName ?? 'Sistema'}</p>
-                {event.description && <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{event.description}</p>}
+                <p className="text-xs text-muted-foreground">
+                  {formatDateTime(event.createdAt)} · {event.userName ?? 'Sistema'}
+                </p>
+                {event.description && (
+                  <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                    {event.description}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -743,12 +1027,19 @@ function JourneyStep({
   return (
     <div className={cn('rounded-xl border bg-card p-3', active && 'border-primary bg-primary/5')}>
       <div className="flex items-center gap-2">
-        <span className={cn('grid size-8 place-items-center rounded-full bg-muted text-muted-foreground', done && 'bg-primary/10 text-primary')}>
+        <span
+          className={cn(
+            'grid size-8 place-items-center rounded-full bg-muted text-muted-foreground',
+            done && 'bg-primary/10 text-primary',
+          )}
+        >
           <Icon className="size-4" />
         </span>
         <div>
           <p className="text-sm font-semibold">{label}</p>
-          <p className="text-xs text-muted-foreground">{done ? 'Registrado' : active ? 'Em andamento' : 'Pendente'}</p>
+          <p className="text-xs text-muted-foreground">
+            {done ? 'Registrado' : active ? 'Em andamento' : 'Pendente'}
+          </p>
         </div>
       </div>
     </div>

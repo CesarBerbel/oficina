@@ -2,13 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Save, User, Car, AlertTriangle, XCircle, CheckCircle2, FileDown, ClipboardCheck, CircleDollarSign, MessageCircle } from 'lucide-react';
+import {
+  Save,
+  User,
+  Car,
+  AlertTriangle,
+  XCircle,
+  CheckCircle2,
+  FileDown,
+  ClipboardCheck,
+  CircleDollarSign,
+  MessageCircle,
+} from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import {
-  SERVICE_ORDER_STATUS_LABELS,
-  type ServiceOrderTransitionDto,
-} from '@oficina/shared';
+import { SERVICE_ORDER_STATUS_LABELS, type ServiceOrderTransitionDto } from '@oficina/shared';
 import { ApiError, openAuthedResource } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -49,13 +57,7 @@ type OsTab = 'resumo' | 'itens' | 'orcamento' | 'tecnico' | 'historico';
  * Kanban técnico): sem entradas de estados, sem resumo financeiro e sem
  * orçamento, com a aba Técnico em destaque.
  */
-export function OsDetailView({
-  id,
-  variant,
-}: {
-  id: string;
-  variant: 'full' | 'technician';
-}) {
+export function OsDetailView({ id, variant }: { id: string; variant: 'full' | 'technician' }) {
   const isTech = variant === 'technician';
 
   const { hasPermission } = useAuth();
@@ -106,8 +108,7 @@ export function OsDetailView({
   const serviceOrder = os;
   const nextTransitions = serviceOrder.availableTransitions ?? [];
   const canEditDiagnosis = os.editable && (canWrite || canDiagnose);
-  const dirtyText =
-    diagnosis !== (os.diagnosis ?? '') || notes !== (os.notes ?? '');
+  const dirtyText = diagnosis !== (os.diagnosis ?? '') || notes !== (os.notes ?? '');
   const dirtyFinancial = Number(discount) !== os.discount;
   const dirty = dirtyText || (canWrite && dirtyFinancial);
 
@@ -195,7 +196,9 @@ export function OsDetailView({
         ) : (
           canCheckin && (
             <Button variant="outline" asChild>
-              <Link href={`/check-in/novo?vehicleId=${os.vehicleId}&osId=${os.id}&returnTo=${encodeURIComponent(selfHref)}`}>
+              <Link
+                href={`/check-in/novo?vehicleId=${os.vehicleId}&osId=${os.id}&returnTo=${encodeURIComponent(selfHref)}`}
+              >
                 <ClipboardCheck className="size-4" /> Fazer check-in
               </Link>
             </Button>
@@ -203,7 +206,11 @@ export function OsDetailView({
         )}
         {showFinancial && canFinance && (
           <Button variant="outline" disabled={syncFinancial.isPending} onClick={generateReceivable}>
-            {syncFinancial.isPending ? <CarLoader className="size-4 animate-spin" /> : <CircleDollarSign className="size-4" />}
+            {syncFinancial.isPending ? (
+              <CarLoader className="size-4 animate-spin" />
+            ) : (
+              <CircleDollarSign className="size-4" />
+            )}
             Gerar financeiro
           </Button>
         )}
@@ -224,9 +231,7 @@ export function OsDetailView({
   const statusActions = canStatus && nextTransitions.length > 0 && (
     <div className="space-y-2 rounded-xl border bg-card p-3">
       <div className="flex flex-wrap gap-2">
-        <span className="self-center text-sm text-muted-foreground">
-          Próximas ações:
-        </span>
+        <span className="self-center text-sm text-muted-foreground">Próximas ações:</span>
         {nextTransitions.map((transition) => {
           const disabled = changeStatus.isPending || !!transition.disabledReason;
           return (
@@ -273,7 +278,10 @@ export function OsDetailView({
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm">
-          <Link href={`/clientes/${os.customerId}?returnTo=${encodeURIComponent(selfHref)}`} className="block font-medium hover:underline">
+          <Link
+            href={`/clientes/${os.customerId}?returnTo=${encodeURIComponent(selfHref)}`}
+            className="block font-medium hover:underline"
+          >
             {os.customerName}
           </Link>
           {os.customerWhatsapp ? (
@@ -512,9 +520,7 @@ export function OsDetailView({
             </div>
           ))}
         {tab === 'itens' && <div className="space-y-6">{itemsCard}</div>}
-        {tab === 'orcamento' && showQuote && (
-          <div className="space-y-6">{quoteSection}</div>
-        )}
+        {tab === 'orcamento' && showQuote && <div className="space-y-6">{quoteSection}</div>}
         {tab === 'tecnico' && <div className="space-y-6">{technicalPanel}</div>}
         {tab === 'historico' && <div className="space-y-6">{eventTimeline}</div>}
       </div>

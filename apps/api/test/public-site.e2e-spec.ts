@@ -35,9 +35,7 @@ describe('Site público, leads e resolução de tenant (e2e)', () => {
       .get(`/api/public/site/by-slug/${TENANT_SLUG}`)
       .expect(200);
     expect(bySlug.body.services).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'Revisão preventiva' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ name: 'Revisão preventiva' })]),
     );
   });
 

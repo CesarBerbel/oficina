@@ -104,9 +104,7 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {isEdit ? 'Editar usuário' : 'Novo usuário'}
-          </DialogTitle>
+          <DialogTitle>{isEdit ? 'Editar usuário' : 'Novo usuário'}</DialogTitle>
           <DialogDescription>
             {isEdit
               ? 'Atualize os dados do funcionário.'
@@ -116,33 +114,32 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="u-name" required>Nome</Label>
-            <Input
-              id="u-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name}</p>
-            )}
+            <Label htmlFor="u-name" required>
+              Nome
+            </Label>
+            <Input id="u-name" value={name} onChange={(e) => setName(e.target.value)} />
+            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="u-email" required>E-mail</Label>
+            <Label htmlFor="u-email" required>
+              E-mail
+            </Label>
             <Input
               id="u-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            {errors.email && (
-              <p className="text-xs text-destructive">{errors.email}</p>
-            )}
+            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="u-password" required={!isEdit}>
-              Senha {isEdit && <span className="text-muted-foreground">(deixe em branco para manter)</span>}
+              Senha{' '}
+              {isEdit && (
+                <span className="text-muted-foreground">(deixe em branco para manter)</span>
+              )}
             </Label>
             <Input
               id="u-password"
@@ -151,9 +148,7 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            {errors.password && (
-              <p className="text-xs text-destructive">{errors.password}</p>
-            )}
+            {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
           </div>
 
           <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-3">
@@ -165,23 +160,19 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
               onChange={(e) => setForcePasswordChange(e.target.checked)}
             />
             <div className="space-y-1">
-              <Label htmlFor="u-force-password-change">
-                Exigir nova senha no próximo login
-              </Label>
+              <Label htmlFor="u-force-password-change">Exigir nova senha no próximo login</Label>
               <p className="text-xs text-muted-foreground">
-                Use para onboarding de novos usuários ou quando uma senha
-                provisória for definida pelo administrador.
+                Use para onboarding de novos usuários ou quando uma senha provisória for definida
+                pelo administrador.
               </p>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="u-role" required>Perfil</Label>
-            <Select
-              id="u-role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-            >
+            <Label htmlFor="u-role" required>
+              Perfil
+            </Label>
+            <Select id="u-role" value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
               {USER_ROLES.map((r) => (
                 <option key={r} value={r}>
                   {USER_ROLE_LABELS[r]}
@@ -191,11 +182,7 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={pending}>

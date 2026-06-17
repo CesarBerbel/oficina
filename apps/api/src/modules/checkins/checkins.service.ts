@@ -66,12 +66,8 @@ export class CheckinsService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(
-    tenantId: string,
-    query: ListCheckinsQuery,
-  ): Promise<Paginated<CheckinDto>> {
-    const { page, pageSize, search, vehicleId, customerId, serviceOrderId } =
-      query;
+  async list(tenantId: string, query: ListCheckinsQuery): Promise<Paginated<CheckinDto>> {
+    const { page, pageSize, search, vehicleId, customerId, serviceOrderId } = query;
 
     const where: Prisma.VehicleCheckinWhereInput = {
       tenantId,
@@ -119,10 +115,7 @@ export class CheckinsService {
     return toDto(checkin);
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreateCheckinInput,
-  ): Promise<CheckinDto> {
+  async create(actor: AuthenticatedUser, input: CreateCheckinInput): Promise<CheckinDto> {
     // Veículo é compartilhado no grupo (groupId); o check-in é por filial.
     const vehicle = await this.prisma.vehicle.findFirst({
       where: { id: input.vehicleId, tenantId: actor.groupId },
@@ -169,10 +162,7 @@ export class CheckinsService {
       });
 
       // Mantém o KM do veículo atualizado quando o check-in traz leitura maior.
-      if (
-        input.km != null &&
-        (vehicle.currentKm == null || input.km > vehicle.currentKm)
-      ) {
+      if (input.km != null && (vehicle.currentKm == null || input.km > vehicle.currentKm)) {
         await tx.vehicle.update({
           where: { id: vehicle.id },
           data: { currentKm: input.km },

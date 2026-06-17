@@ -1,9 +1,5 @@
 import { Body, Controller, Get, Put, Query } from '@nestjs/common';
-import {
-  Permission,
-  updateCrmSettingsSchema,
-  type UpdateCrmSettingsInput,
-} from '@oficina/shared';
+import { Permission, updateCrmSettingsSchema, type UpdateCrmSettingsInput } from '@oficina/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
@@ -16,10 +12,7 @@ export class CrmController {
 
   @Get('post-sale')
   @RequirePermission(Permission.CUSTOMERS_READ)
-  postSale(
-    @CurrentUser() actor: AuthenticatedUser,
-    @Query('limit') limit?: string,
-  ) {
+  postSale(@CurrentUser() actor: AuthenticatedUser, @Query('limit') limit?: string) {
     return this.crm.postSale(actor.tenantId, Number(limit) || 80);
   }
 

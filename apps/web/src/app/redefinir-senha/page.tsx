@@ -53,10 +53,7 @@ export default function ResetPasswordPage() {
 
   return (
     <main className="grid min-h-dvh place-items-center bg-muted/40 p-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-xl border bg-card p-8 shadow-sm"
-      >
+      <form onSubmit={onSubmit} className="w-full max-w-sm rounded-xl border bg-card p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Wrench className="size-6" />
@@ -86,12 +83,8 @@ export default function ResetPasswordPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Mínimo de 8 caracteres"
             />
-            {errors.password && (
-              <p className="text-xs text-destructive">{errors.password}</p>
-            )}
-            {errors.token && (
-              <p className="text-xs text-destructive">{errors.token}</p>
-            )}
+            {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+            {errors.token && <p className="text-xs text-destructive">{errors.token}</p>}
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting || !token}>

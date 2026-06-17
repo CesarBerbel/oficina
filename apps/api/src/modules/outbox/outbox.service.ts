@@ -60,9 +60,7 @@ export class OutboxService {
   }
 
   /** Processa um lote de mensagens pendentes. Retorna o resumo do lote. */
-  async processPending(
-    limit = 25,
-  ): Promise<{ done: number; failed: number; retried: number }> {
+  async processPending(limit = 25): Promise<{ done: number; failed: number; retried: number }> {
     // Recupera itens presos em PROCESSING (worker que caiu no meio).
     await this.prisma.outboxMessage.updateMany({
       where: { status: 'PROCESSING', updatedAt: { lt: new Date(Date.now() - STUCK_MS) } },
@@ -125,11 +123,7 @@ export class OutboxService {
     return { done, failed, retried };
   }
 
-  private async handle(
-    type: string,
-    tenantId: string,
-    payload: Prisma.JsonValue,
-  ): Promise<void> {
+  private async handle(type: string, tenantId: string, payload: Prisma.JsonValue): Promise<void> {
     if (type === 'ORDER_EVENT') {
       const { event, orderId } = payload as OrderEventPayload;
       await this.messaging.dispatchOrderEvent(tenantId, event, orderId);

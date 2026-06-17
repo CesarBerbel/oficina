@@ -1,19 +1,7 @@
 'use client';
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import type {
-  AuthUser,
-  LoginResponse,
-  Permission,
-  InstallSystemInput,
-} from '@oficina/shared';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { AuthUser, LoginResponse, Permission, InstallSystemInput } from '@oficina/shared';
 import { api, setAccessToken, API_URL } from './api';
 
 type Status = 'loading' | 'authenticated' | 'unauthenticated';
@@ -60,11 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (
-    tenantSlug: string,
-    email: string,
-    password: string,
-  ) => {
+  const login = useCallback(async (tenantSlug: string, email: string, password: string) => {
     const data = await api.post<LoginResponse>(
       '/auth/login',
       { tenantSlug, email, password },
@@ -96,8 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const hasPermission = useCallback(
-    (permission: Permission | string) =>
-      user?.permissions?.includes(permission as string) ?? false,
+    (permission: Permission | string) => user?.permissions?.includes(permission as string) ?? false,
     [user],
   );
 

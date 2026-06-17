@@ -12,8 +12,7 @@ import { api } from '@/lib/api';
 export function useCategories(kind?: CategoryKind) {
   return useQuery({
     queryKey: ['categories', kind ?? 'all'],
-    queryFn: () =>
-      api.get<CategoryDto[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
+    queryFn: () => api.get<CategoryDto[]>(`/categories${kind ? `?kind=${kind}` : ''}`),
     staleTime: 5 * 60_000,
   });
 }
@@ -25,8 +24,7 @@ function invalidate(qc: ReturnType<typeof useQueryClient>) {
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateCategoryInput) =>
-      api.post<CategoryDto>('/categories', input),
+    mutationFn: (input: CreateCategoryInput) => api.post<CategoryDto>('/categories', input),
     onSuccess: () => invalidate(qc),
   });
 }
@@ -34,8 +32,7 @@ export function useCreateCategory() {
 export function useUpdateCategory(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateCategoryInput) =>
-      api.put<CategoryDto>(`/categories/${id}`, input),
+    mutationFn: (input: UpdateCategoryInput) => api.put<CategoryDto>(`/categories/${id}`, input),
     onSuccess: () => invalidate(qc),
   });
 }

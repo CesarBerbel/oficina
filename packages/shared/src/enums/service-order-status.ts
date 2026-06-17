@@ -20,12 +20,9 @@ export const ServiceOrderStatus = {
   CANCELADA: 'CANCELADA',
 } as const;
 
-export type ServiceOrderStatus =
-  (typeof ServiceOrderStatus)[keyof typeof ServiceOrderStatus];
+export type ServiceOrderStatus = (typeof ServiceOrderStatus)[keyof typeof ServiceOrderStatus];
 
-export const SERVICE_ORDER_STATUSES = Object.values(
-  ServiceOrderStatus,
-) as ServiceOrderStatus[];
+export const SERVICE_ORDER_STATUSES = Object.values(ServiceOrderStatus) as ServiceOrderStatus[];
 
 export const SERVICE_ORDER_STATUS_LABELS: Record<ServiceOrderStatus, string> = {
   ENTRADA: 'Entrada',
@@ -57,29 +54,16 @@ export const SERVICE_ORDER_STATUS_FLOW: ServiceOrderStatus[] = [
 ];
 
 /** Transições válidas de domínio, incluindo transições sistêmicas. */
-export const SERVICE_ORDER_TRANSITIONS: Record<
-  ServiceOrderStatus,
-  ServiceOrderStatus[]
-> = {
+export const SERVICE_ORDER_TRANSITIONS: Record<ServiceOrderStatus, ServiceOrderStatus[]> = {
   ENTRADA: ['DIAGNOSTICO_PRONTO', 'CANCELADA'],
   DIAGNOSTICO_PRONTO: ['ORCAMENTO', 'CANCELADA'],
   // A geração do orçamento entra em ORCAMENTO. A aprovação pode terminar em
   // ORCAMENTO_APROVADO ou AGUARDANDO_PECA, conforme estoque/reserva.
-  ORCAMENTO: [
-    'ORCAMENTO_APROVADO',
-    'AGUARDANDO_PECA',
-    'ORCAMENTO_RECUSADO',
-    'CANCELADA',
-  ],
+  ORCAMENTO: ['ORCAMENTO_APROVADO', 'AGUARDANDO_PECA', 'ORCAMENTO_RECUSADO', 'CANCELADA'],
   // Reabertura para edição é tratada pelo fluxo de orçamento.
   ORCAMENTO_APROVADO: ['EM_EXECUCAO', 'DIAGNOSTICO_PRONTO', 'CANCELADA'],
   ORCAMENTO_RECUSADO: ['ORCAMENTO', 'CANCELADA'],
-  AGUARDANDO_PECA: [
-    'ORCAMENTO_APROVADO',
-    'EM_EXECUCAO',
-    'DIAGNOSTICO_PRONTO',
-    'CANCELADA',
-  ],
+  AGUARDANDO_PECA: ['ORCAMENTO_APROVADO', 'EM_EXECUCAO', 'DIAGNOSTICO_PRONTO', 'CANCELADA'],
   EM_EXECUCAO: ['EM_TESTE', 'CANCELADA'],
   EM_TESTE: ['PRONTA', 'EM_EXECUCAO'],
   PRONTA: ['PRONTO_RETIRAR'],
@@ -88,11 +72,7 @@ export const SERVICE_ORDER_TRANSITIONS: Record<
   CANCELADA: [],
 };
 
-export type ServiceOrderTransitionSource =
-  | 'MANUAL'
-  | 'QUOTE'
-  | 'PURCHASE'
-  | 'SYSTEM';
+export type ServiceOrderTransitionSource = 'MANUAL' | 'QUOTE' | 'PURCHASE' | 'SYSTEM';
 
 export interface ServiceOrderTransitionDefinition {
   /** Status de destino. */
@@ -113,8 +93,7 @@ export interface ServiceOrderTransitionDefinition {
   requiresQuote: boolean;
 }
 
-export interface ServiceOrderTransitionDto
-  extends ServiceOrderTransitionDefinition {
+export interface ServiceOrderTransitionDto extends ServiceOrderTransitionDefinition {
   /** Quando preenchido, a ação deve ser exibida como bloqueada. */
   disabledReason: string | null;
 }
@@ -174,8 +153,7 @@ export const SERVICE_ORDER_MANUAL_TRANSITIONS: Record<
     transition({
       status: 'ORCAMENTO_APROVADO',
       label: 'Aprovar orçamento',
-      description:
-        'Registra aprovação manual/offline e reserva as peças aprovadas.',
+      description: 'Registra aprovação manual/offline e reserva as peças aprovadas.',
       source: 'MANUAL',
       destructive: false,
       requiresConfirmation: false,
@@ -241,8 +219,7 @@ export const SERVICE_ORDER_MANUAL_TRANSITIONS: Record<
     transition({
       status: 'ORCAMENTO_APROVADO',
       label: 'Marcar peças disponíveis',
-      description:
-        'Usa quando as peças foram obtidas por outro caminho e a OS pode seguir.',
+      description: 'Usa quando as peças foram obtidas por outro caminho e a OS pode seguir.',
       source: 'MANUAL',
       destructive: false,
       requiresConfirmation: false,
@@ -343,10 +320,7 @@ export const SERVICE_ORDER_MANUAL_TRANSITIONS: Record<
 };
 
 /** Status terminais: OS não pode mais ser editada. */
-export const SERVICE_ORDER_TERMINAL_STATUSES: ServiceOrderStatus[] = [
-  'ENTREGUE',
-  'CANCELADA',
-];
+export const SERVICE_ORDER_TERMINAL_STATUSES: ServiceOrderStatus[] = ['ENTREGUE', 'CANCELADA'];
 
 /**
  * Status em que a OS fica somente-leitura (não permite editar itens/diagnóstico).
@@ -364,31 +338,19 @@ export function isOrderEditable(status: ServiceOrderStatus): boolean {
   return !SERVICE_ORDER_LOCKED_STATUSES.includes(status);
 }
 
-export function canTransition(
-  from: ServiceOrderStatus,
-  to: ServiceOrderStatus,
-): boolean {
+export function canTransition(from: ServiceOrderStatus, to: ServiceOrderStatus): boolean {
   return SERVICE_ORDER_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
-export function canManualTransition(
-  from: ServiceOrderStatus,
-  to: ServiceOrderStatus,
-): boolean {
-  return (
-    SERVICE_ORDER_MANUAL_TRANSITIONS[from]?.some((item) => item.status === to) ??
-    false
-  );
+export function canManualTransition(from: ServiceOrderStatus, to: ServiceOrderStatus): boolean {
+  return SERVICE_ORDER_MANUAL_TRANSITIONS[from]?.some((item) => item.status === to) ?? false;
 }
 
 export function getManualTransitionDefinition(
   from: ServiceOrderStatus,
   to: ServiceOrderStatus,
 ): ServiceOrderTransitionDefinition | null {
-  return (
-    SERVICE_ORDER_MANUAL_TRANSITIONS[from]?.find((item) => item.status === to) ??
-    null
-  );
+  return SERVICE_ORDER_MANUAL_TRANSITIONS[from]?.find((item) => item.status === to) ?? null;
 }
 
 export function isTerminalStatus(status: ServiceOrderStatus): boolean {

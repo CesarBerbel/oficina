@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
@@ -14,14 +9,10 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 @Injectable()
 export class PlatformAdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const req = context
-      .switchToHttp()
-      .getRequest<Request & { user?: AuthenticatedUser }>();
+    const req = context.switchToHttp().getRequest<Request & { user?: AuthenticatedUser }>();
 
     if (!req.user?.superAdmin) {
-      throw new ForbiddenException(
-        'Acesso restrito ao super usuário da plataforma.',
-      );
+      throw new ForbiddenException('Acesso restrito ao super usuário da plataforma.');
     }
     return true;
   }

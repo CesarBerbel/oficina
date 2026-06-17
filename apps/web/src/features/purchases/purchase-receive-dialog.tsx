@@ -4,23 +4,29 @@ import { useEffect, useRef, useState } from 'react';
 import { FileInput } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import {
-  PURCHASE_ORDER_STATUS_LABELS,
-  type PurchaseOrderDto,
-} from '@oficina/shared';
+import { PURCHASE_ORDER_STATUS_LABELS, type PurchaseOrderDto } from '@oficina/shared';
 import { apiErrorMessage } from '@/lib/form-errors';
 import { useReceivePurchase, useReceivePurchaseNfe } from './use-purchases';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
 export function PurchaseReceiveDialog({
-  open, onOpenChange, purchase,
+  open,
+  onOpenChange,
+  purchase,
 }: {
-  open: boolean; onOpenChange: (o: boolean) => void; purchase: PurchaseOrderDto | null;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  purchase: PurchaseOrderDto | null;
 }) {
   const receive = useReceivePurchase(purchase?.id ?? '');
   const receiveNfe = useReceivePurchaseNfe(purchase?.id ?? '');
@@ -46,12 +52,17 @@ export function PurchaseReceiveDialog({
     const received = purchase.items
       .map((it) => ({ itemId: it.id, quantity: Number(qty[it.id]) || 0 }))
       .filter((r) => r.quantity > 0);
-    if (received.length === 0) { toast.error('Quantidade: informe ao menos uma quantidade para receber'); return; }
+    if (received.length === 0) {
+      toast.error('Quantidade: informe ao menos uma quantidade para receber');
+      return;
+    }
     try {
       await receive.mutateAsync({ received });
       toast.success('Recebimento registrado (estoque atualizado)');
       onOpenChange(false);
-    } catch (err) { toast.error(apiErrorMessage(err, {}, 'Erro ao receber')); }
+    } catch (err) {
+      toast.error(apiErrorMessage(err, {}, 'Erro ao receber'));
+    }
   }
 
   async function onNfeFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -79,8 +90,8 @@ export function PurchaseReceiveDialog({
         <div className="mb-3 rounded-lg border bg-muted/40 p-3">
           <p className="text-sm font-medium">Receber pela NF-e</p>
           <p className="mb-2 text-xs text-muted-foreground">
-            Envie o XML (ou ZIP) da nota; os itens são casados por SKU/EAN e a
-            entrada é dada automaticamente.
+            Envie o XML (ou ZIP) da nota; os itens são casados por SKU/EAN e a entrada é dada
+            automaticamente.
           </p>
           <input
             ref={fileRef}
@@ -119,7 +130,10 @@ export function PurchaseReceiveDialog({
                   </p>
                 </div>
                 <Input
-                  type="number" step="any" className="w-24" aria-label={`Receber ${it.partName}`}
+                  type="number"
+                  step="any"
+                  className="w-24"
+                  aria-label={`Receber ${it.partName}`}
                   value={qty[it.id] ?? ''}
                   onChange={(e) => setQty((q) => ({ ...q, [it.id]: e.target.value }))}
                 />
@@ -127,7 +141,9 @@ export function PurchaseReceiveDialog({
             ))}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={receive.isPending}>
               {receive.isPending && <CarLoader className="size-4 animate-spin" />}
               Confirmar recebimento

@@ -56,7 +56,9 @@ const leadDetailInclude = {
 
 type LeadRow = Prisma.LeadGetPayload<object>;
 type LeadDetailRow = Prisma.LeadGetPayload<{ include: typeof leadDetailInclude }>;
-type ReceptionScheduleBlockRow = Prisma.ReceptionScheduleBlockGetPayload<{ include: { technician: { select: { name: true } } } }>;
+type ReceptionScheduleBlockRow = Prisma.ReceptionScheduleBlockGetPayload<{
+  include: { technician: { select: { name: true } } };
+}>;
 type Tx = Prisma.TransactionClient;
 
 type CustomerSuggestionSource = {
@@ -92,7 +94,18 @@ function firstLine(value: string): string {
 
 type OperationalPriority = 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
 
-function leadOperationalScore(lead: Pick<LeadRow, 'status' | 'conflictLevel' | 'nextFollowUpAt' | 'appointmentStartAt' | 'checkedInAt' | 'convertedServiceOrderId' | 'createdAt'>): { score: number; priority: OperationalPriority; reasons: string[] } {
+function leadOperationalScore(
+  lead: Pick<
+    LeadRow,
+    | 'status'
+    | 'conflictLevel'
+    | 'nextFollowUpAt'
+    | 'appointmentStartAt'
+    | 'checkedInAt'
+    | 'convertedServiceOrderId'
+    | 'createdAt'
+  >,
+): { score: number; priority: OperationalPriority; reasons: string[] } {
   const now = Date.now();
   let score = 0;
   const reasons: string[] = [];
@@ -136,7 +149,8 @@ function leadOperationalScore(lead: Pick<LeadRow, 'status' | 'conflictLevel' | '
   }
 
   const bounded = Math.min(100, score);
-  const priority: OperationalPriority = bounded >= 80 ? 'CRITICA' : bounded >= 55 ? 'ALTA' : bounded >= 25 ? 'MEDIA' : 'BAIXA';
+  const priority: OperationalPriority =
+    bounded >= 80 ? 'CRITICA' : bounded >= 55 ? 'ALTA' : bounded >= 25 ? 'MEDIA' : 'BAIXA';
   return {
     score: bounded,
     priority,
@@ -189,7 +203,6 @@ export class LeadsService {
     };
   }
 
-
   private toScheduleBlockDto(row: ReceptionScheduleBlockRow): ReceptionScheduleBlockDto {
     return {
       id: row.id,
@@ -204,7 +217,10 @@ export class LeadsService {
     };
   }
 
-  private async technicianForSchedule(tenantId: string, technicianId: string | undefined): Promise<{ id: string; name: string } | null> {
+  private async technicianForSchedule(
+    tenantId: string,
+    technicianId: string | undefined,
+  ): Promise<{ id: string; name: string } | null> {
     if (!technicianId) return null;
     const technician = await this.prisma.user.findFirst({
       where: { id: technicianId, tenantId, role: 'TECNICO', active: true },
@@ -547,14 +563,15 @@ export class LeadsService {
     const { page, pageSize, status, search, appointmentFrom, appointmentTo } = query;
     const normalizedSearchPlate = normalizePlate(search);
     const searchDigits = digits(search);
-    const appointmentWindow = appointmentFrom || appointmentTo
-      ? {
-          appointmentStartAt: {
-            ...(appointmentFrom ? { gte: new Date(appointmentFrom) } : {}),
-            ...(appointmentTo ? { lt: new Date(appointmentTo) } : {}),
-          },
-        }
-      : {};
+    const appointmentWindow =
+      appointmentFrom || appointmentTo
+        ? {
+            appointmentStartAt: {
+              ...(appointmentFrom ? { gte: new Date(appointmentFrom) } : {}),
+              ...(appointmentTo ? { lt: new Date(appointmentTo) } : {}),
+            },
+          }
+        : {};
     const where: Prisma.LeadWhereInput = {
       tenantId,
       ...appointmentWindow,
@@ -567,9 +584,7 @@ export class LeadsService {
               { vehicle: { contains: search, mode: 'insensitive' } },
               { phone: { contains: search } },
               ...(searchDigits ? [{ phone: { contains: searchDigits } }] : []),
-              ...(normalizedSearchPlate
-                ? [{ plate: { contains: normalizedSearchPlate } }]
-                : []),
+              ...(normalizedSearchPlate ? [{ plate: { contains: normalizedSearchPlate } }] : []),
               { email: { contains: search, mode: 'insensitive' } },
             ],
           }
@@ -579,11 +594,7 @@ export class LeadsService {
       this.prisma.lead.count({ where }),
       this.prisma.lead.findMany({
         where,
-        orderBy: [
-          { appointmentStartAt: 'asc' },
-          { nextFollowUpAt: 'asc' },
-          { createdAt: 'desc' },
-        ],
+        orderBy: [{ appointmentStartAt: 'asc' }, { nextFollowUpAt: 'asc' }, { createdAt: 'desc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -613,44 +624,45 @@ export class LeadsService {
       appointmentCanceledAt: null,
     };
 
-    const [upcomingRows, noShowRows, overdueFollowUpRows, checkedInRows] = await this.prisma.$transaction([
-      this.prisma.lead.findMany({
-        where: {
-          ...commonWhere,
-          appointmentStartAt: { gte: now, lte: arrivalWindowEnd },
-        },
-        orderBy: { appointmentStartAt: 'asc' },
-        take: 20,
-      }),
-      this.prisma.lead.findMany({
-        where: {
-          ...commonWhere,
-          appointmentStartAt: { lte: noShowCutoff },
-        },
-        orderBy: { appointmentStartAt: 'asc' },
-        take: 20,
-      }),
-      this.prisma.lead.findMany({
-        where: {
-          tenantId,
-          status: { in: ACTIVE_RECEPTION_STATUSES },
-          nextFollowUpAt: { lte: now },
-          convertedServiceOrderId: null,
-        },
-        orderBy: { nextFollowUpAt: 'asc' },
-        take: 20,
-      }),
-      this.prisma.lead.findMany({
-        where: {
-          tenantId,
-          status: 'CLIENTE_CHEGOU',
-          checkedInAt: { not: null },
-          convertedServiceOrderId: null,
-        },
-        orderBy: { checkedInAt: 'asc' },
-        take: 20,
-      }),
-    ]);
+    const [upcomingRows, noShowRows, overdueFollowUpRows, checkedInRows] =
+      await this.prisma.$transaction([
+        this.prisma.lead.findMany({
+          where: {
+            ...commonWhere,
+            appointmentStartAt: { gte: now, lte: arrivalWindowEnd },
+          },
+          orderBy: { appointmentStartAt: 'asc' },
+          take: 20,
+        }),
+        this.prisma.lead.findMany({
+          where: {
+            ...commonWhere,
+            appointmentStartAt: { lte: noShowCutoff },
+          },
+          orderBy: { appointmentStartAt: 'asc' },
+          take: 20,
+        }),
+        this.prisma.lead.findMany({
+          where: {
+            tenantId,
+            status: { in: ACTIVE_RECEPTION_STATUSES },
+            nextFollowUpAt: { lte: now },
+            convertedServiceOrderId: null,
+          },
+          orderBy: { nextFollowUpAt: 'asc' },
+          take: 20,
+        }),
+        this.prisma.lead.findMany({
+          where: {
+            tenantId,
+            status: 'CLIENTE_CHEGOU',
+            checkedInAt: { not: null },
+            convertedServiceOrderId: null,
+          },
+          orderBy: { checkedInAt: 'asc' },
+          take: 20,
+        }),
+      ]);
 
     return {
       generatedAt: now.toISOString(),
@@ -673,10 +685,7 @@ export class LeadsService {
         return {
           ...this.toDto(lead),
           minutesUntilAppointment: null,
-          minutesLate: Math.max(
-            0,
-            Math.round((now.getTime() - appointmentTime) / 60_000),
-          ),
+          minutesLate: Math.max(0, Math.round((now.getTime() - appointmentTime) / 60_000)),
           alertReason: 'Horário já passou. Registre chegada ou não comparecimento.',
         };
       }),
@@ -685,10 +694,7 @@ export class LeadsService {
         return {
           ...this.toDto(lead),
           minutesUntilAppointment: null,
-          minutesLate: Math.max(
-            0,
-            Math.round((now.getTime() - followUpTime) / 60_000),
-          ),
+          minutesLate: Math.max(0, Math.round((now.getTime() - followUpTime) / 60_000)),
           alertReason: 'Retorno combinado vencido.',
         };
       }),
@@ -697,10 +703,7 @@ export class LeadsService {
         return {
           ...this.toDto(lead),
           minutesUntilAppointment: null,
-          minutesLate: Math.max(
-            0,
-            Math.round((now.getTime() - checkedInTime) / 60_000),
-          ),
+          minutesLate: Math.max(0, Math.round((now.getTime() - checkedInTime) / 60_000)),
           alertReason: 'Cliente chegou e ainda nao virou OS.',
         };
       }),
@@ -737,7 +740,15 @@ export class LeadsService {
         where: { id },
         data: {
           status,
-          closedAt: ['CONVERTIDO', 'NAO_COMPARECEU', 'CANCELADO', 'PERDIDO', 'DUPLICADO', 'INVALIDO', 'DESCARTADO'].includes(status)
+          closedAt: [
+            'CONVERTIDO',
+            'NAO_COMPARECEU',
+            'CANCELADO',
+            'PERDIDO',
+            'DUPLICADO',
+            'INVALIDO',
+            'DESCARTADO',
+          ].includes(status)
             ? new Date()
             : null,
         },
@@ -792,7 +803,9 @@ export class LeadsService {
           checkedInAt: input.outcome === 'CLIENTE_CHEGOU' ? now : undefined,
           noShowAt: input.outcome === 'NAO_COMPARECEU' ? now : undefined,
           appointmentCanceledAt: input.outcome === 'CANCELOU_AGENDAMENTO' ? now : undefined,
-          closedAt: ['NAO_COMPARECEU', 'CANCELADO', 'PERDIDO', 'INVALIDO'].includes(status) ? now : null,
+          closedAt: ['NAO_COMPARECEU', 'CANCELADO', 'PERDIDO', 'INVALIDO'].includes(status)
+            ? now
+            : null,
         },
       });
 
@@ -812,7 +825,6 @@ export class LeadsService {
     });
     return this.findOne(actor.tenantId, id);
   }
-
 
   async listScheduleBlocks(
     tenantId: string,
@@ -947,8 +959,8 @@ export class LeadsService {
         where: { id },
         data: {
           status: 'AGENDADO',
-          assignedToId: shouldClearTechnician ? null : technician?.id ?? actor.id,
-          assignedToName: shouldClearTechnician ? null : technician?.name ?? actor.email,
+          assignedToId: shouldClearTechnician ? null : (technician?.id ?? actor.id),
+          assignedToName: shouldClearTechnician ? null : (technician?.name ?? actor.email),
           appointmentStartAt,
           appointmentEndAt,
           appointmentServiceType: input.appointmentServiceType ?? null,
@@ -974,8 +986,8 @@ export class LeadsService {
           appointmentStartAt: appointmentStartAt.toISOString(),
           appointmentEndAt: appointmentEndAt.toISOString(),
           appointmentServiceType: input.appointmentServiceType ?? null,
-          assignedToId: shouldClearTechnician ? null : technician?.id ?? actor.id,
-          assignedToName: shouldClearTechnician ? null : technician?.name ?? actor.email,
+          assignedToId: shouldClearTechnician ? null : (technician?.id ?? actor.id),
+          assignedToName: shouldClearTechnician ? null : (technician?.name ?? actor.email),
         },
       });
     });
@@ -1303,7 +1315,13 @@ export class LeadsService {
           }
 
           const customerId = await this.resolveCustomerForConversion(tx, actor, lead, input);
-          const vehicleId = await this.resolveVehicleForConversion(tx, actor, lead, input, customerId);
+          const vehicleId = await this.resolveVehicleForConversion(
+            tx,
+            actor,
+            lead,
+            input,
+            customerId,
+          );
           const number = await this.nextOrderNumber(tx, actor.tenantId);
           const reportedProblem = input.reportedProblem ?? lead.message;
           const order = await tx.serviceOrder.create({

@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
   CreateServiceInput,
@@ -15,8 +11,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 
 const include = {
   defaultParts: {
@@ -64,10 +59,7 @@ export class ServicesService {
     }
   }
 
-  async list(
-    groupId: string,
-    query: ListServicesQuery,
-  ): Promise<Paginated<ServiceDto>> {
+  async list(groupId: string, query: ListServicesQuery): Promise<Paginated<ServiceDto>> {
     const { page, pageSize, search, active } = query;
     const where: Prisma.ServiceWhereInput = {
       tenantId: groupId,
@@ -113,10 +105,7 @@ export class ServicesService {
     return toDto(service);
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreateServiceInput,
-  ): Promise<ServiceDto> {
+  async create(actor: AuthenticatedUser, input: CreateServiceInput): Promise<ServiceDto> {
     await this.assertParts(
       actor.groupId,
       input.defaultParts.map((p) => p.partId),
@@ -180,18 +169,14 @@ export class ServicesService {
         data: {
           ...(input.name !== undefined ? { name: input.name } : {}),
           ...(input.category !== undefined ? { category: input.category ?? null } : {}),
-          ...(input.description !== undefined
-            ? { description: input.description ?? null }
-            : {}),
+          ...(input.description !== undefined ? { description: input.description ?? null } : {}),
           ...(input.salePrice !== undefined ? { salePrice: input.salePrice } : {}),
           ...(input.cost !== undefined ? { cost: input.cost } : {}),
           ...(input.estimatedMinutes !== undefined
             ? { estimatedMinutes: input.estimatedMinutes ?? null }
             : {}),
           ...(input.active !== undefined ? { active: input.active } : {}),
-          ...(input.showOnSite !== undefined
-            ? { showOnSite: input.showOnSite }
-            : {}),
+          ...(input.showOnSite !== undefined ? { showOnSite: input.showOnSite } : {}),
         },
       });
 

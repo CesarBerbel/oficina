@@ -1,17 +1,7 @@
 'use client';
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
-import type {
-  CheckinDto,
-  CreateCheckinInput,
-  ListCheckinsQuery,
-  Paginated,
-} from '@oficina/shared';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CheckinDto, CreateCheckinInput, ListCheckinsQuery, Paginated } from '@oficina/shared';
 import { api } from '@/lib/api';
 
 function qs(params: Record<string, unknown>): string {
@@ -42,8 +32,7 @@ export function useCheckin(id: string | undefined) {
 export function useCreateCheckin() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateCheckinInput) =>
-      api.post<CheckinDto>('/checkins', input),
+    mutationFn: (input: CreateCheckinInput) => api.post<CheckinDto>('/checkins', input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['checkins'] });
       qc.invalidateQueries({ queryKey: ['vehicles'] });

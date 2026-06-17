@@ -1,21 +1,14 @@
 import { headers } from 'next/headers';
-import type {
-  BlogPostDto,
-  PublicBlogSummaryDto,
-  PublicSiteDto,
-} from '@oficina/shared';
+import type { BlogPostDto, PublicBlogSummaryDto, PublicSiteDto } from '@oficina/shared';
 
 // Em SSR (server components), prefere a URL interna (ex.: http://api:3333/api
 // dentro do Docker); cai para a pública/local quando não definida.
 const API_URL =
-  process.env.API_INTERNAL_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  'http://localhost:3333/api';
+  process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
 
 async function publicHeaders(): Promise<HeadersInit> {
   const incoming = await headers();
-  const host =
-    incoming.get('x-forwarded-host') ?? incoming.get('host') ?? undefined;
+  const host = incoming.get('x-forwarded-host') ?? incoming.get('host') ?? undefined;
   const tenantSlug = process.env.NEXT_PUBLIC_SITE_TENANT_SLUG;
 
   return {

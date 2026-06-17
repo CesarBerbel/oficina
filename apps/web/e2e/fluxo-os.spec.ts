@@ -34,7 +34,10 @@ test.describe('Fluxo de frontend', () => {
     const nome = `Cliente E2E ${Date.now()}`;
 
     await page.goto('/clientes');
-    await page.getByRole('button', { name: /novo cliente/i }).first().click();
+    await page
+      .getByRole('button', { name: /novo cliente/i })
+      .first()
+      .click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();

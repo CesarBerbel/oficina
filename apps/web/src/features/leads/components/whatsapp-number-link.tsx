@@ -27,7 +27,10 @@ export function WhatsAppNumberLink({
       target="_blank"
       rel="noopener noreferrer"
       onClick={onClick}
-      className={cn('inline-flex items-center gap-1.5 hover:text-primary hover:underline', className)}
+      className={cn(
+        'inline-flex items-center gap-1.5 hover:text-primary hover:underline',
+        className,
+      )}
     >
       {showIcon && <MessageCircle className="size-3.5" />}
       {label ? `${label}: ` : null}

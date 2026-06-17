@@ -88,10 +88,7 @@ export function VehicleFormDialog({
   const pending = create.isPending || update.isPending;
 
   const customerOptions = useMemo(() => {
-    const options = new Map<
-      string,
-      { value: string; label: string; keywords?: string }
-    >();
+    const options = new Map<string, { value: string; label: string; keywords?: string }>();
 
     if (lockedCustomerId && lockedCustomerName) {
       options.set(lockedCustomerId, {
@@ -126,9 +123,7 @@ export function VehicleFormDialog({
       });
     }
 
-    return [...options.values()].sort((a, b) =>
-      a.label.localeCompare(b.label, 'pt-BR'),
-    );
+    return [...options.values()].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   }, [
     customersData?.data,
     lockedCustomerId,
@@ -193,9 +188,7 @@ export function VehicleFormDialog({
         await update.mutateAsync(parsed.data);
         toast.success('Veículo atualizado');
       } else {
-        const createdVehicle = (await create.mutateAsync(
-          parsed.data as never,
-        )) as VehicleDto;
+        const createdVehicle = (await create.mutateAsync(parsed.data as never)) as VehicleDto;
         toast.success('Veículo criado');
         onCreated?.(createdVehicle.id);
       }
@@ -234,7 +227,10 @@ export function VehicleFormDialog({
               />
             </Field>
             <Field label="Fabricante" error={errors.manufacturer} required>
-              <Input value={form.manufacturer} onChange={(e) => set('manufacturer', e.target.value)} />
+              <Input
+                value={form.manufacturer}
+                onChange={(e) => set('manufacturer', e.target.value)}
+              />
             </Field>
             <Field label="Modelo" error={errors.model} required>
               <Input value={form.model} onChange={(e) => set('model', e.target.value)} />
@@ -243,7 +239,11 @@ export function VehicleFormDialog({
 
           <div className="grid gap-4 sm:grid-cols-4">
             <Field label="Ano/modelo" error={errors.modelYear}>
-              <Input type="number" value={form.modelYear} onChange={(e) => set('modelYear', e.target.value)} />
+              <Input
+                type="number"
+                value={form.modelYear}
+                onChange={(e) => set('modelYear', e.target.value)}
+              />
             </Field>
             <Field label="Cor">
               <Input value={form.color} onChange={(e) => set('color', e.target.value)} />
@@ -259,7 +259,10 @@ export function VehicleFormDialog({
               </Select>
             </Field>
             <Field label="Câmbio">
-              <Select value={form.transmission} onChange={(e) => set('transmission', e.target.value)}>
+              <Select
+                value={form.transmission}
+                onChange={(e) => set('transmission', e.target.value)}
+              >
                 <option value="">—</option>
                 {TRANSMISSION_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -272,10 +275,18 @@ export function VehicleFormDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Motor">
-              <Input value={form.engine} onChange={(e) => set('engine', e.target.value)} placeholder="1.0, 2.0 TSI..." />
+              <Input
+                value={form.engine}
+                onChange={(e) => set('engine', e.target.value)}
+                placeholder="1.0, 2.0 TSI..."
+              />
             </Field>
             <Field label="KM atual" error={errors.currentKm}>
-              <Input type="number" value={form.currentKm} onChange={(e) => set('currentKm', e.target.value)} />
+              <Input
+                type="number"
+                value={form.currentKm}
+                onChange={(e) => set('currentKm', e.target.value)}
+              />
             </Field>
           </div>
 

@@ -18,10 +18,7 @@ export const createComboSchema = z.object({
   name: z.string().trim().min(2, 'Informe o nome').max(160),
   description: optionalString(2000),
   active: z.boolean().default(true),
-  serviceIds: z
-    .array(z.string().min(1))
-    .min(1, 'Selecione ao menos um serviço')
-    .max(50),
+  serviceIds: z.array(z.string().min(1)).min(1, 'Selecione ao menos um serviço').max(50),
 });
 
 export type CreateComboInput = z.infer<typeof createComboSchema>;

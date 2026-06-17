@@ -53,10 +53,7 @@ export class AuditService {
     }
   }
 
-  async list(
-    tenantId: string,
-    query: ListAuditQuery,
-  ): Promise<Paginated<AuditLogDto>> {
+  async list(tenantId: string, query: ListAuditQuery): Promise<Paginated<AuditLogDto>> {
     const { page, pageSize, module, action } = query;
     const where: Prisma.AuditLogWhereInput = {
       tenantId,

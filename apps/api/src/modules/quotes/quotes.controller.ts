@@ -1,16 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  UseFilters,
-} from '@nestjs/common';
-import {
-  generateQuoteSchema,
-  Permission,
-  type GenerateQuoteInput,
-} from '@oficina/shared';
+import { Body, Controller, Get, Param, Post, UseFilters } from '@nestjs/common';
+import { generateQuoteSchema, Permission, type GenerateQuoteInput } from '@oficina/shared';
 import { QuotesService } from './quotes.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -41,28 +30,19 @@ export class QuotesController {
 
   @Post('send-email')
   @RequirePermission(Permission.QUOTES_WRITE)
-  sendEmail(
-    @CurrentUser() actor: AuthenticatedUser,
-    @Param('orderId') orderId: string,
-  ) {
+  sendEmail(@CurrentUser() actor: AuthenticatedUser, @Param('orderId') orderId: string) {
     return this.quotes.sendEmail(actor, orderId);
   }
 
   @Post('reopen')
   @RequirePermission(Permission.QUOTES_WRITE)
-  reopen(
-    @CurrentUser() actor: AuthenticatedUser,
-    @Param('orderId') orderId: string,
-  ) {
+  reopen(@CurrentUser() actor: AuthenticatedUser, @Param('orderId') orderId: string) {
     return this.quotes.reopen(actor, orderId);
   }
 
   @Post('generate-purchase')
   @RequirePermission(Permission.QUOTES_WRITE)
-  generatePurchase(
-    @CurrentUser() actor: AuthenticatedUser,
-    @Param('orderId') orderId: string,
-  ) {
+  generatePurchase(@CurrentUser() actor: AuthenticatedUser, @Param('orderId') orderId: string) {
     return this.quotes.generatePurchase(actor, orderId);
   }
 }

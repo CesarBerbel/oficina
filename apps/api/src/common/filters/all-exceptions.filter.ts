@@ -54,8 +54,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (exception.code === 'P2003') {
         status = HttpStatus.CONFLICT;
         code = 'FOREIGN_KEY_CONFLICT';
-        message =
-          'Não foi possível concluir a operação porque existem registros vinculados.';
+        message = 'Não foi possível concluir a operação porque existem registros vinculados.';
         details = { field: exception.meta?.field_name };
       } else if (exception.code === 'P2025') {
         status = HttpStatus.NOT_FOUND;

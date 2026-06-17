@@ -9,7 +9,12 @@ import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useParts } from '@/features/inventory/use-inventory';
 import { useCreatePurchase, useSuppliers } from './use-purchases';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +22,12 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
 
-interface ItemRow { partId: string; partName: string; quantity: string; unitCost: string }
+interface ItemRow {
+  partId: string;
+  partName: string;
+  quantity: string;
+  unitCost: string;
+}
 
 const FIELD_LABELS = {
   supplierId: 'Fornecedor',
@@ -27,9 +37,11 @@ const FIELD_LABELS = {
 };
 
 export function PurchaseFormDialog({
-  open, onOpenChange,
+  open,
+  onOpenChange,
 }: {
-  open: boolean; onOpenChange: (o: boolean) => void;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
 }) {
   const [supplierId, setSupplierId] = useState('');
   const [items, setItems] = useState<ItemRow[]>([]);
@@ -41,18 +53,29 @@ export function PurchaseFormDialog({
   const create = useCreatePurchase();
 
   useEffect(() => {
-    if (open) { setSupplierId(''); setItems([]); setPartToAdd(''); setError(''); }
+    if (open) {
+      setSupplierId('');
+      setItems([]);
+      setPartToAdd('');
+      setError('');
+    }
   }, [open]);
 
   function addItem() {
     if (!partToAdd || items.some((i) => i.partId === partToAdd)) return;
     const part = parts?.data.find((p) => p.id === partToAdd);
     if (!part) return;
-    setItems((rows) => [...rows, { partId: part.id, partName: part.name, quantity: '1', unitCost: String(part.costPrice) }]);
+    setItems((rows) => [
+      ...rows,
+      { partId: part.id, partName: part.name, quantity: '1', unitCost: String(part.costPrice) },
+    ]);
     setPartToAdd('');
   }
 
-  const total = items.reduce((acc, i) => acc + (Number(i.quantity) || 0) * (Number(i.unitCost) || 0), 0);
+  const total = items.reduce(
+    (acc, i) => acc + (Number(i.quantity) || 0) * (Number(i.unitCost) || 0),
+    0,
+  );
   const available = (parts?.data ?? []).filter((p) => !items.some((i) => i.partId === p.id));
 
   async function onSubmit(e: React.FormEvent) {
@@ -62,12 +85,20 @@ export function PurchaseFormDialog({
       items: items.map((i) => ({ partId: i.partId, quantity: i.quantity, unitCost: i.unitCost })),
     };
     const parsed = createPurchaseSchema.safeParse(payload);
-    if (!parsed.success) { setError(Object.values(zodFieldErrors(parsed.error, FIELD_LABELS))[0] ?? 'Verifique os campos do formulário'); return; }
+    if (!parsed.success) {
+      setError(
+        Object.values(zodFieldErrors(parsed.error, FIELD_LABELS))[0] ??
+          'Verifique os campos do formulário',
+      );
+      return;
+    }
     try {
       const po = await create.mutateAsync(parsed.data);
       toast.success(`Pedido #${po.number} criado`);
       onOpenChange(false);
-    } catch (err) { toast.error(apiErrorMessage(err, FIELD_LABELS, 'Erro ao criar')); }
+    } catch (err) {
+      toast.error(apiErrorMessage(err, FIELD_LABELS, 'Erro ao criar'));
+    }
   }
 
   return (
@@ -80,9 +111,17 @@ export function PurchaseFormDialog({
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label>Fornecedor</Label>
-            <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className="w-full">
+            <Select
+              value={supplierId}
+              onChange={(e) => setSupplierId(e.target.value)}
+              className="w-full"
+            >
               <option value="">— sem fornecedor —</option>
-              {(suppliers?.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {(suppliers?.data ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
             </Select>
           </div>
 
@@ -92,25 +131,66 @@ export function PurchaseFormDialog({
             {items.map((it, idx) => (
               <div key={it.partId} className="flex items-center gap-2">
                 <span className="flex-1 truncate text-sm">{it.partName}</span>
-                <Input type="number" step="any" value={it.quantity} aria-label="Quantidade"
-                  onChange={(e) => setItems((r) => r.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} className="w-20" />
-                <Input type="number" step="0.01" value={it.unitCost} aria-label="Custo unitário"
-                  onChange={(e) => setItems((r) => r.map((x, i) => i === idx ? { ...x, unitCost: e.target.value } : x))} className="w-24" />
-                <button type="button" onClick={() => setItems((r) => r.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-destructive">
+                <Input
+                  type="number"
+                  step="any"
+                  value={it.quantity}
+                  aria-label="Quantidade"
+                  onChange={(e) =>
+                    setItems((r) =>
+                      r.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x)),
+                    )
+                  }
+                  className="w-20"
+                />
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={it.unitCost}
+                  aria-label="Custo unitário"
+                  onChange={(e) =>
+                    setItems((r) =>
+                      r.map((x, i) => (i === idx ? { ...x, unitCost: e.target.value } : x)),
+                    )
+                  }
+                  className="w-24"
+                />
+                <button
+                  type="button"
+                  onClick={() => setItems((r) => r.filter((_, i) => i !== idx))}
+                  className="text-muted-foreground hover:text-destructive"
+                >
                   <X className="size-4" />
                 </button>
               </div>
             ))}
             <div className="flex gap-2">
-              <Select value={partToAdd} onChange={(e) => setPartToAdd(e.target.value)} className="w-full flex-1">
+              <Select
+                value={partToAdd}
+                onChange={(e) => setPartToAdd(e.target.value)}
+                className="w-full flex-1"
+              >
                 <option value="">Adicionar peça...</option>
-                {available.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {available.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
               </Select>
-              <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={addItem}><Plus className="size-4" /></Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                onClick={addItem}
+              >
+                <Plus className="size-4" />
+              </Button>
             </div>
             {items.length > 0 && (
               <div className="flex justify-between border-t pt-2 text-sm font-medium">
-                <span>Total</span><span>{formatCurrency(total)}</span>
+                <span>Total</span>
+                <span>{formatCurrency(total)}</span>
               </div>
             )}
           </div>
@@ -118,7 +198,9 @@ export function PurchaseFormDialog({
           {error && <p className="text-xs text-destructive">{error}</p>}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={create.isPending || items.length === 0}>
               {create.isPending && <CarLoader className="size-4 animate-spin" />}
               Criar pedido

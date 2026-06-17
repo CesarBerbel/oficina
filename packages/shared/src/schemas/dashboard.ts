@@ -30,7 +30,6 @@ export interface ActionItem {
   ageHours: number | null;
 }
 
-
 export interface DashboardProductivityStatusDto {
   status: string;
   label: string;

@@ -3,12 +3,7 @@
 import { useState } from 'react';
 import { Plus, Search, MoreHorizontal, Pencil, ArrowLeftRight, AlertTriangle } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
-import {
-  PART_TYPE_LABELS,
-  PART_TYPES,
-  type PartDto,
-  type PartType,
-} from '@oficina/shared';
+import { PART_TYPE_LABELS, PART_TYPES, type PartDto, type PartType } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
 import { useParts } from '@/features/inventory/use-inventory';
 import { PartFormDialog } from '@/features/inventory/part-form-dialog';
@@ -66,7 +61,12 @@ export default function InventoryPage() {
           <p className="text-muted-foreground">Peças e insumos.</p>
         </div>
         {canWrite && (
-          <Button onClick={() => { setEditing(null); setFormOpen(true); }}>
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+          >
             <Plus className="size-4" /> Nova peça
           </Button>
         )}
@@ -79,16 +79,33 @@ export default function InventoryPage() {
             placeholder="Buscar por nome, SKU, código ou marca..."
             className="pl-9"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
-        <Select className="sm:w-40" value={type} onChange={(e) => { setType(e.target.value); setPage(1); }}>
+        <Select
+          className="sm:w-40"
+          value={type}
+          onChange={(e) => {
+            setType(e.target.value);
+            setPage(1);
+          }}
+        >
           <option value="">Todos os tipos</option>
-          {PART_TYPES.map((t) => <option key={t} value={t}>{PART_TYPE_LABELS[t]}</option>)}
+          {PART_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {PART_TYPE_LABELS[t]}
+            </option>
+          ))}
         </Select>
         <Button
           variant={lowStock ? 'default' : 'outline'}
-          onClick={() => { setLowStock((v) => !v); setPage(1); }}
+          onClick={() => {
+            setLowStock((v) => !v);
+            setPage(1);
+          }}
         >
           <AlertTriangle className="size-4" /> Estoque baixo
         </Button>
@@ -109,23 +126,37 @@ export default function InventoryPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  <CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" />
+                </TableCell>
+              </TableRow>
             ) : parts.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Nenhuma peça encontrada.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  Nenhuma peça encontrada.
+                </TableCell>
+              </TableRow>
             ) : (
               parts.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">
                     {p.name}
-                    {p.brand && <span className="block text-xs text-muted-foreground">{p.brand}</span>}
+                    {p.brand && (
+                      <span className="block text-xs text-muted-foreground">{p.brand}</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{p.sku ?? '—'}</TableCell>
-                  <TableCell><Badge variant="secondary">{PART_TYPE_LABELS[p.type]}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{PART_TYPE_LABELS[p.type]}</Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <span className={p.lowStock ? 'font-semibold text-destructive' : ''}>
                       {p.currentStock} {p.unit}
                     </span>
-                    {p.lowStock && <AlertTriangle className="ml-1 inline size-3.5 text-destructive" />}
+                    {p.lowStock && (
+                      <AlertTriangle className="ml-1 inline size-3.5 text-destructive" />
+                    )}
                     {p.reservedStock > 0 && (
                       <span className="block text-xs text-amber-600 dark:text-amber-400">
                         {p.reservedStock} reservado · {p.availableStock} livre
@@ -135,9 +166,17 @@ export default function InventoryPage() {
                   <TableCell className="text-right">{formatCurrency(p.salePrice)}</TableCell>
                   <TableCell>
                     <RowActions
-                      p={p} canWrite={canWrite} canMove={canMove}
-                      onEdit={(x) => { setEditing(x); setFormOpen(true); }}
-                      onMove={(x) => { setMoving(x); setMoveOpen(true); }}
+                      p={p}
+                      canWrite={canWrite}
+                      canMove={canMove}
+                      onEdit={(x) => {
+                        setEditing(x);
+                        setFormOpen(true);
+                      }}
+                      onMove={(x) => {
+                        setMoving(x);
+                        setMoveOpen(true);
+                      }}
                     />
                   </TableCell>
                 </TableRow>
@@ -150,7 +189,9 @@ export default function InventoryPage() {
       {/* Mobile */}
       <div className="space-y-3 md:hidden">
         {isLoading ? (
-          <div className="grid h-24 place-items-center"><CarLoader className="size-5 animate-spin text-muted-foreground" /></div>
+          <div className="grid h-24 place-items-center">
+            <CarLoader className="size-5 animate-spin text-muted-foreground" />
+          </div>
         ) : parts.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma peça encontrada.</p>
         ) : (
@@ -162,9 +203,17 @@ export default function InventoryPage() {
                   <p className="text-sm text-muted-foreground">{p.sku ?? p.brand ?? '—'}</p>
                 </div>
                 <RowActions
-                  p={p} canWrite={canWrite} canMove={canMove}
-                  onEdit={(x) => { setEditing(x); setFormOpen(true); }}
-                  onMove={(x) => { setMoving(x); setMoveOpen(true); }}
+                  p={p}
+                  canWrite={canWrite}
+                  canMove={canMove}
+                  onEdit={(x) => {
+                    setEditing(x);
+                    setFormOpen(true);
+                  }}
+                  onMove={(x) => {
+                    setMoving(x);
+                    setMoveOpen(true);
+                  }}
                 />
               </div>
               <div className="mt-3 flex items-center justify-between text-sm">
@@ -180,10 +229,26 @@ export default function InventoryPage() {
 
       {meta && meta.totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">{meta.total} item(s) · página {meta.page} de {meta.totalPages}</span>
+          <span className="text-muted-foreground">
+            {meta.total} item(s) · página {meta.page} de {meta.totalPages}
+          </span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
-            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Próxima</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Próxima
+            </Button>
           </div>
         </div>
       )}
@@ -194,15 +259,26 @@ export default function InventoryPage() {
   );
 }
 
-function RowActions({ p, canWrite, canMove, onEdit, onMove }: {
-  p: PartDto; canWrite: boolean; canMove: boolean;
-  onEdit: (p: PartDto) => void; onMove: (p: PartDto) => void;
+function RowActions({
+  p,
+  canWrite,
+  canMove,
+  onEdit,
+  onMove,
+}: {
+  p: PartDto;
+  canWrite: boolean;
+  canMove: boolean;
+  onEdit: (p: PartDto) => void;
+  onMove: (p: PartDto) => void;
 }) {
   if (!canWrite && !canMove) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Ações"><MoreHorizontal className="size-4" /></Button>
+        <Button variant="ghost" size="icon" aria-label="Ações">
+          <MoreHorizontal className="size-4" />
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {canMove && (

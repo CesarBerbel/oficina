@@ -41,8 +41,10 @@ function AlertList({
         >
           {kind === 'arrival' && `${timeOnly(lead.appointmentStartAt)} · ${lead.name}`}
           {kind === 'late' && `${timeOnly(lead.appointmentStartAt)} · ${lead.name}`}
-          {kind === 'followup' && `${lead.name}${lead.nextFollowUpAt ? ` · retorno ${timeOnly(lead.nextFollowUpAt)}` : ''}`}
-          {kind === 'checked-in' && `${lead.name}${lead.checkedInAt ? ` · chegou ${timeOnly(lead.checkedInAt)}` : ''}`}
+          {kind === 'followup' &&
+            `${lead.name}${lead.nextFollowUpAt ? ` · retorno ${timeOnly(lead.nextFollowUpAt)}` : ''}`}
+          {kind === 'checked-in' &&
+            `${lead.name}${lead.checkedInAt ? ` · chegou ${timeOnly(lead.checkedInAt)}` : ''}`}
           {lead.minutesUntilAppointment !== null ? ` · em ${lead.minutesUntilAppointment} min` : ''}
           {lead.minutesLate !== null ? ` · ${lead.minutesLate} min` : ''}
         </button>
@@ -118,7 +120,8 @@ export function ReceptionAlertsPanel({
         <div>
           <p className="text-sm font-semibold">Alertas da recepção</p>
           <p className="text-xs text-muted-foreground">
-            Calculados pela API a cada minuto para chegada, atrasos, retornos e clientes aguardando OS.
+            Calculados pela API a cada minuto para chegada, atrasos, retornos e clientes aguardando
+            OS.
           </p>
         </div>
       </div>

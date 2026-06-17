@@ -2,15 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import {
-  Plus, MoreHorizontal, Search, Pencil, Trash2, Eye, Car } from 'lucide-react';
+import { Plus, MoreHorizontal, Search, Pencil, Trash2, Eye, Car } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import {
-  CUSTOMER_TYPE_LABELS,
-  CustomerType,
-  type CustomerDto,
-} from '@oficina/shared';
+import { CUSTOMER_TYPE_LABELS, CustomerType, type CustomerDto } from '@oficina/shared';
 import { ApiError } from '@/lib/api';
 import { maskCpfCnpj, maskPhone } from '@/lib/masks';
 import { useAuth } from '@/lib/auth-context';
@@ -152,16 +147,25 @@ export default function CustomersPage() {
               customers.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
-                    <Link href={`/clientes/${c.id}?returnTo=${encodeURIComponent('/clientes')}`} className="font-medium hover:underline">
+                    <Link
+                      href={`/clientes/${c.id}?returnTo=${encodeURIComponent('/clientes')}`}
+                      className="font-medium hover:underline"
+                    >
                       {c.name}
                     </Link>
                     <div className="mt-0.5">
                       <Badge variant="secondary">{CUSTOMER_TYPE_LABELS[c.type]}</Badge>
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{c.document ? maskCpfCnpj(c.document) : '—'}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {c.phone ? maskPhone(c.phone) : c.whatsapp ? maskPhone(c.whatsapp) : c.email ?? '—'}
+                    {c.document ? maskCpfCnpj(c.document) : '—'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {c.phone
+                      ? maskPhone(c.phone)
+                      : c.whatsapp
+                        ? maskPhone(c.whatsapp)
+                        : (c.email ?? '—')}
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -169,7 +173,15 @@ export default function CustomersPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <RowActions c={c} canWrite={canWrite} onEdit={(x) => { setEditing(x); setDialogOpen(true); }} onDelete={handleDelete} />
+                    <RowActions
+                      c={c}
+                      canWrite={canWrite}
+                      onEdit={(x) => {
+                        setEditing(x);
+                        setDialogOpen(true);
+                      }}
+                      onDelete={handleDelete}
+                    />
                   </TableCell>
                 </TableRow>
               ))
@@ -185,20 +197,37 @@ export default function CustomersPage() {
             <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : customers.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Nenhum cliente encontrado.
+          </p>
         ) : (
           customers.map((c) => (
             <div key={c.id} className="rounded-xl border bg-card p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <Link href={`/clientes/${c.id}?returnTo=${encodeURIComponent('/clientes')}`} className="block truncate font-medium hover:underline">
+                  <Link
+                    href={`/clientes/${c.id}?returnTo=${encodeURIComponent('/clientes')}`}
+                    className="block truncate font-medium hover:underline"
+                  >
                     {c.name}
                   </Link>
                   <p className="truncate text-sm text-muted-foreground">
-                    {c.document ? maskCpfCnpj(c.document) : c.phone ? maskPhone(c.phone) : c.email ?? '—'}
+                    {c.document
+                      ? maskCpfCnpj(c.document)
+                      : c.phone
+                        ? maskPhone(c.phone)
+                        : (c.email ?? '—')}
                   </p>
                 </div>
-                <RowActions c={c} canWrite={canWrite} onEdit={(x) => { setEditing(x); setDialogOpen(true); }} onDelete={handleDelete} />
+                <RowActions
+                  c={c}
+                  canWrite={canWrite}
+                  onEdit={(x) => {
+                    setEditing(x);
+                    setDialogOpen(true);
+                  }}
+                  onDelete={handleDelete}
+                />
               </div>
               <div className="mt-3 flex items-center gap-2">
                 <Badge variant="secondary">{CUSTOMER_TYPE_LABELS[c.type]}</Badge>
@@ -217,10 +246,20 @@ export default function CustomersPage() {
             {meta.total} cliente(s) · página {meta.page} de {meta.totalPages}
           </span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
               Anterior
             </Button>
-            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
               Próxima
             </Button>
           </div>

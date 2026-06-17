@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreateUserInput,
   ListUsersQuery,
@@ -43,8 +38,7 @@ export function useCreateUser() {
 export function useUpdateUser(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateUserInput) =>
-      api.put<UserDto>(`/users/${id}`, input),
+    mutationFn: (input: UpdateUserInput) => api.put<UserDto>(`/users/${id}`, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   });
 }

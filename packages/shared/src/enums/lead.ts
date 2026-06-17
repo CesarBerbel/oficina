@@ -64,8 +64,7 @@ export const LeadContactChannel = {
   PRESENCIAL: 'PRESENCIAL',
 } as const;
 
-export type LeadContactChannel =
-  (typeof LeadContactChannel)[keyof typeof LeadContactChannel];
+export type LeadContactChannel = (typeof LeadContactChannel)[keyof typeof LeadContactChannel];
 
 export const LEAD_CONTACT_CHANNEL_LABELS: Record<LeadContactChannel, string> = {
   TELEFONE: 'Ligação',
@@ -74,9 +73,7 @@ export const LEAD_CONTACT_CHANNEL_LABELS: Record<LeadContactChannel, string> = {
   PRESENCIAL: 'Presencial',
 };
 
-export const LEAD_CONTACT_CHANNELS = Object.values(
-  LeadContactChannel,
-) as LeadContactChannel[];
+export const LEAD_CONTACT_CHANNELS = Object.values(LeadContactChannel) as LeadContactChannel[];
 
 export const LeadContactOutcome = {
   ATENDEU: 'ATENDEU',
@@ -95,8 +92,7 @@ export const LeadContactOutcome = {
   CONVERTIDO_OS: 'CONVERTIDO_OS',
 } as const;
 
-export type LeadContactOutcome =
-  (typeof LeadContactOutcome)[keyof typeof LeadContactOutcome];
+export type LeadContactOutcome = (typeof LeadContactOutcome)[keyof typeof LeadContactOutcome];
 
 export const LEAD_CONTACT_OUTCOME_LABELS: Record<LeadContactOutcome, string> = {
   ATENDEU: 'Atendeu',
@@ -115,9 +111,7 @@ export const LEAD_CONTACT_OUTCOME_LABELS: Record<LeadContactOutcome, string> = {
   CONVERTIDO_OS: 'Convertido em OS',
 };
 
-export const LEAD_CONTACT_OUTCOMES = Object.values(
-  LeadContactOutcome,
-) as LeadContactOutcome[];
+export const LEAD_CONTACT_OUTCOMES = Object.values(LeadContactOutcome) as LeadContactOutcome[];
 
 export const LeadConflictLevel = {
   OK: 'OK',
@@ -126,8 +120,7 @@ export const LeadConflictLevel = {
   SEM_DADOS: 'SEM_DADOS',
 } as const;
 
-export type LeadConflictLevel =
-  (typeof LeadConflictLevel)[keyof typeof LeadConflictLevel];
+export type LeadConflictLevel = (typeof LeadConflictLevel)[keyof typeof LeadConflictLevel];
 
 export const LEAD_CONFLICT_LEVEL_LABELS: Record<LeadConflictLevel, string> = {
   OK: 'Conferido',

@@ -2,12 +2,11 @@ import {
   BadRequestException,
   Controller,
   Post,
-  Req,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Request } from 'express';
 import { Permission } from '@oficina/shared';
 import { StorageService } from '../../infra/storage/storage.service';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -29,12 +28,7 @@ function detectImage(buffer: Buffer): DetectedImage | null {
     return { mime: 'image/png', extension: '.png' };
   }
 
-  if (
-    buffer.length >= 3 &&
-    buffer[0] === 0xff &&
-    buffer[1] === 0xd8 &&
-    buffer[2] === 0xff
-  ) {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
     return { mime: 'image/jpeg', extension: '.jpg' };
   }
 
@@ -59,28 +53,27 @@ function detectImage(buffer: Buffer): DetectedImage | null {
 
 @Controller('uploads')
 export class UploadsController {
-  constructor(private readonly storage: StorageService) {}
+  constructor(
+    private readonly storage: StorageService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Post()
   @RequirePermission(Permission.UPLOADS_WRITE)
-  @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
-  )
-  async upload(
-    @UploadedFile() file: Express.Multer.File | undefined,
-    @Req() req: Request,
-  ): Promise<{ url: string }> {
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  async upload(@UploadedFile() file: Express.Multer.File | undefined): Promise<{ url: string }> {
     if (!file) throw new BadRequestException('Nenhum arquivo enviado');
 
     const detected = detectImage(file.buffer);
     if (!detected) {
-      throw new BadRequestException(
-        'Formato inválido. Envie PNG, JPG, WEBP ou GIF.',
-      );
+      throw new BadRequestException('Formato inválido. Envie PNG, JPG, WEBP ou GIF.');
     }
 
     const filename = await this.storage.save(file.buffer, detected.extension);
-    const base = `${req.protocol}://${req.get('host')}`;
-    return { url: `${base}${this.storage.publicPath(filename)}` };
+    const path = this.storage.publicPath(filename);
+    // Base confiável via APP_URL (configurada); sem ela, retorna URL relativa.
+    // Nunca usa o Host do request (evita host-header injection na URL salva).
+    const base = (this.config.get<string>('APP_URL') ?? '').replace(/\/+$/, '');
+    return { url: `${base}${path}` };
   }
 }

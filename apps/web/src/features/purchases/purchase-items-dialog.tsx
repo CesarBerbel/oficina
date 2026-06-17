@@ -1,10 +1,6 @@
 'use client';
 
-
-import {
-  PURCHASE_ORDER_STATUS_LABELS,
-  type PurchaseOrderDto,
-} from '@oficina/shared';
+import { PURCHASE_ORDER_STATUS_LABELS, type PurchaseOrderDto } from '@oficina/shared';
 import { CarLoader } from '@/components/car-loader';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -31,16 +27,12 @@ export function PurchaseItemsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            Produtos do pedido{purchase ? ` #${purchase.number}` : ''}
-          </DialogTitle>
+          <DialogTitle>Produtos do pedido{purchase ? ` #${purchase.number}` : ''}</DialogTitle>
           <DialogDescription>
             {purchase ? (
               <>
                 {purchase.supplierName ?? 'Sem fornecedor'} ·{' '}
-                <Badge variant="secondary">
-                  {PURCHASE_ORDER_STATUS_LABELS[purchase.status]}
-                </Badge>
+                <Badge variant="secondary">{PURCHASE_ORDER_STATUS_LABELS[purchase.status]}</Badge>
                 {purchase.serviceOrderNumber != null &&
                   ` · gerado pela OS #${purchase.serviceOrderNumber}`}
               </>

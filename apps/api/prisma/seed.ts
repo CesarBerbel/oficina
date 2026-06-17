@@ -43,8 +43,6 @@ async function main(): Promise<void> {
     },
   });
 
-
-
   await seedMessageTemplates(prisma, tenant.id);
   await seedDefaultCategories(prisma, tenant.id);
 

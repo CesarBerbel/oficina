@@ -26,7 +26,9 @@ export function PushToggleButton() {
     setSupported(ok);
     setPermission(currentNotificationPermission());
     if (ok) {
-      isPushEnabled().then(setEnabled).catch(() => setEnabled(false));
+      isPushEnabled()
+        .then(setEnabled)
+        .catch(() => setEnabled(false));
     }
   }, []);
 

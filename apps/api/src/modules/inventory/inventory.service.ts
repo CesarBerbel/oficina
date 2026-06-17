@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
   CreatePartInput,
@@ -18,8 +14,7 @@ import { AuditService } from '../audit/audit.service';
 import { applyStockMovement } from './stock.helper';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 const round3 = (n: number): number => Math.round(n * 1000) / 1000;
 
 // Catálogo é do grupo; o saldo (PartStock) é da filial. O include traz só o
@@ -73,10 +68,7 @@ export class InventoryService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(
-    actor: AuthenticatedUser,
-    query: ListPartsQuery,
-  ): Promise<Paginated<PartDto>> {
+  async list(actor: AuthenticatedUser, query: ListPartsQuery): Promise<Paginated<PartDto>> {
     const { groupId, tenantId } = actor;
     const { page, pageSize, search, type, lowStock, sortBy, sortOrder } = query;
 
@@ -148,10 +140,7 @@ export class InventoryService {
   }
 
   /** Garante que o fornecedor informado existe no grupo. */
-  private async assertSupplier(
-    groupId: string,
-    supplierId: string | undefined,
-  ): Promise<void> {
+  private async assertSupplier(groupId: string, supplierId: string | undefined): Promise<void> {
     if (!supplierId) return;
     const s = await this.prisma.supplier.findFirst({
       where: { id: supplierId, tenantId: groupId },
@@ -160,10 +149,7 @@ export class InventoryService {
     if (!s) throw new NotFoundException('Fornecedor inválido');
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreatePartInput,
-  ): Promise<PartDto> {
+  async create(actor: AuthenticatedUser, input: CreatePartInput): Promise<PartDto> {
     if (input.sku) {
       const clash = await this.prisma.part.findFirst({
         where: { tenantId: actor.groupId, sku: input.sku },
@@ -212,11 +198,7 @@ export class InventoryService {
     return toDto(part);
   }
 
-  async update(
-    actor: AuthenticatedUser,
-    id: string,
-    input: UpdatePartInput,
-  ): Promise<PartDto> {
+  async update(actor: AuthenticatedUser, id: string, input: UpdatePartInput): Promise<PartDto> {
     const current = await this.prisma.part.findFirst({
       where: { id, tenantId: actor.groupId },
     });
@@ -247,10 +229,7 @@ export class InventoryService {
     return this.findOne(actor, id);
   }
 
-  async movements(
-    actor: AuthenticatedUser,
-    partId: string,
-  ): Promise<StockMovementDto[]> {
+  async movements(actor: AuthenticatedUser, partId: string): Promise<StockMovementDto[]> {
     const part = await this.prisma.part.findFirst({
       where: { id: partId, tenantId: actor.groupId },
       select: { id: true },

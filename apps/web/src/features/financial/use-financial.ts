@@ -40,7 +40,8 @@ export function useFinancialEntries(params: Partial<ListFinancialEntriesQuery>) 
 export function useCreateFinancialEntry() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: CreateFinancialEntryInput) => api.post<FinancialEntryDto>('/financial/entries', body),
+    mutationFn: (body: CreateFinancialEntryInput) =>
+      api.post<FinancialEntryDto>('/financial/entries', body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['financial-entries'] });
       void qc.invalidateQueries({ queryKey: ['financial-summary'] });
@@ -51,7 +52,8 @@ export function useCreateFinancialEntry() {
 export function usePayFinancialEntry(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: PayFinancialEntryInput) => api.post<FinancialEntryDto>(`/financial/entries/${id}/pay`, body),
+    mutationFn: (body: PayFinancialEntryInput) =>
+      api.post<FinancialEntryDto>(`/financial/entries/${id}/pay`, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['financial-entries'] });
       void qc.invalidateQueries({ queryKey: ['financial-summary'] });
@@ -73,7 +75,8 @@ export function useCancelFinancialEntry(id: string) {
 export function useSyncServiceOrderFinancial() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: SyncServiceOrderFinancialInput) => api.post<FinancialEntryDto>('/financial/sync/service-order', body),
+    mutationFn: (body: SyncServiceOrderFinancialInput) =>
+      api.post<FinancialEntryDto>('/financial/sync/service-order', body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['financial-entries'] });
       void qc.invalidateQueries({ queryKey: ['financial-summary'] });
@@ -84,7 +87,8 @@ export function useSyncServiceOrderFinancial() {
 export function useSyncPurchaseFinancial() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: SyncPurchaseFinancialInput) => api.post<FinancialEntryDto>('/financial/sync/purchase-order', body),
+    mutationFn: (body: SyncPurchaseFinancialInput) =>
+      api.post<FinancialEntryDto>('/financial/sync/purchase-order', body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['financial-entries'] });
       void qc.invalidateQueries({ queryKey: ['financial-summary'] });

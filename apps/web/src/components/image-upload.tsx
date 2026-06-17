@@ -55,11 +55,26 @@ export function ImageUpload({
             e.target.value = '';
           }}
         />
-        <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={busy} onClick={() => ref.current?.click()} aria-label="Enviar imagem">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="shrink-0"
+          disabled={busy}
+          onClick={() => ref.current?.click()}
+          aria-label="Enviar imagem"
+        >
           {busy ? <CarLoader className="size-4 animate-spin" /> : <Upload className="size-4" />}
         </Button>
         {value && (
-          <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => onChange('')} aria-label="Remover">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="shrink-0"
+            onClick={() => onChange('')}
+            aria-label="Remover"
+          >
             <X className="size-4" />
           </Button>
         )}

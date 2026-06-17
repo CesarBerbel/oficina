@@ -29,11 +29,7 @@ export default async function SiteSobre() {
           {s?.address && (
             <div>
               <p className="text-sm font-semibold text-muted-foreground">Endereço</p>
-              <SiteAddressLinks
-                address={s.address}
-                className="mt-1"
-                showIcon={false}
-              />
+              <SiteAddressLinks address={s.address} className="mt-1" showIcon={false} />
             </div>
           )}
           {s?.hours && (

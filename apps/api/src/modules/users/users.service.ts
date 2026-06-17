@@ -52,10 +52,7 @@ export class UsersService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(
-    tenantId: string,
-    query: ListUsersQuery,
-  ): Promise<Paginated<UserDto>> {
+  async list(tenantId: string, query: ListUsersQuery): Promise<Paginated<UserDto>> {
     const { page, pageSize, search, role, active, sortBy, sortOrder } = query;
 
     const where: Prisma.UserWhereInput = {
@@ -73,9 +70,7 @@ export class UsersService {
     };
 
     const orderBy: Prisma.UserOrderByWithRelationInput = {
-      [sortBy && ['name', 'email', 'createdAt'].includes(sortBy)
-        ? sortBy
-        : 'createdAt']: sortOrder,
+      [sortBy && ['name', 'email', 'createdAt'].includes(sortBy) ? sortBy : 'createdAt']: sortOrder,
     };
 
     const [total, rows] = await this.prisma.$transaction([
@@ -109,10 +104,7 @@ export class UsersService {
     return toDto(user);
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreateUserInput,
-  ): Promise<UserDto> {
+  async create(actor: AuthenticatedUser, input: CreateUserInput): Promise<UserDto> {
     const email = input.email.toLowerCase();
     const exists = await this.prisma.user.findUnique({
       where: { tenantId_email: { tenantId: actor.tenantId, email } },
@@ -145,11 +137,7 @@ export class UsersService {
     return toDto(created);
   }
 
-  async update(
-    actor: AuthenticatedUser,
-    id: string,
-    input: UpdateUserInput,
-  ): Promise<UserDto> {
+  async update(actor: AuthenticatedUser, id: string, input: UpdateUserInput): Promise<UserDto> {
     const current = await this.prisma.user.findFirst({
       where: { id, tenantId: actor.tenantId },
       select: userSelect,
@@ -200,11 +188,7 @@ export class UsersService {
     return toDto(updated);
   }
 
-  async setActive(
-    actor: AuthenticatedUser,
-    id: string,
-    active: boolean,
-  ): Promise<UserDto> {
+  async setActive(actor: AuthenticatedUser, id: string, active: boolean): Promise<UserDto> {
     if (id === actor.id && !active) {
       throw new BadRequestException('Você não pode inativar a si mesmo');
     }
@@ -220,9 +204,7 @@ export class UsersService {
         where: { tenantId: actor.tenantId, role: 'ADMIN', active: true },
       });
       if (activeAdmins <= 1) {
-        throw new ForbiddenException(
-          'Não é possível inativar o último administrador ativo',
-        );
+        throw new ForbiddenException('Não é possível inativar o último administrador ativo');
       }
     }
 

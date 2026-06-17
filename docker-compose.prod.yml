@@ -30,12 +30,26 @@ services:
       API_PORT: 3333
       API_GLOBAL_PREFIX: api
       WEB_ORIGIN: ${WEB_ORIGIN}
+      # Base pública confiável para URLs absolutas (uploads). Vazio = URL relativa.
+      APP_URL: ${APP_URL:-}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       APP_VERSION: ${APP_VERSION:-0.1.0}
       STORAGE_LOCAL_DIR: /app/apps/api/uploads
+      # E-mail (SMTP). MAIL_DRIVER=log apenas simula no log do container.
+      MAIL_DRIVER: ${MAIL_DRIVER:-smtp}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      # Web push (VAPID) — opcional.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@oficina.local}
     volumes:
       - oficina_uploads:/app/apps/api/uploads
     expose:

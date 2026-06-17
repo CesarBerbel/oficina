@@ -16,10 +16,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
 export default function ServicesPage() {
@@ -44,8 +52,12 @@ export default function ServicesPage() {
       confirmLabel: 'Excluir',
     });
     if (!ok) return;
-    try { await del.mutateAsync(s.id); toast.success('Serviço excluído'); }
-    catch (err) { toast.error(err instanceof ApiError ? err.message : 'Erro'); }
+    try {
+      await del.mutateAsync(s.id);
+      toast.success('Serviço excluído');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro');
+    }
   }
 
   return (
@@ -56,7 +68,12 @@ export default function ServicesPage() {
           <p className="text-muted-foreground">Serviços e combos da oficina.</p>
         </div>
         {canWrite && (
-          <Button onClick={() => { setEditing(null); setOpen(true); }}>
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+          >
             <Plus className="size-4" /> Novo serviço
           </Button>
         )}
@@ -66,7 +83,15 @@ export default function ServicesPage() {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Buscar serviço..." className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        <Input
+          placeholder="Buscar serviço..."
+          className="pl-9"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
       </div>
 
       <div className="rounded-xl border">
@@ -82,28 +107,61 @@ export default function ServicesPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                  <CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" />
+                </TableCell>
+              </TableRow>
             ) : services.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Nenhum serviço.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  Nenhum serviço.
+                </TableCell>
+              </TableRow>
             ) : (
               services.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">
                     {s.name}
-                    {s.category && <span className="block text-xs text-muted-foreground">{s.category}</span>}
+                    {s.category && (
+                      <span className="block text-xs text-muted-foreground">{s.category}</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {s.defaultParts.length === 0 ? '—' : s.defaultParts.map((p) => `${p.partName} (${p.quantity})`).join(', ')}
+                    {s.defaultParts.length === 0
+                      ? '—'
+                      : s.defaultParts.map((p) => `${p.partName} (${p.quantity})`).join(', ')}
                   </TableCell>
-                  <TableCell className="text-right font-medium">{formatCurrency(s.salePrice)}</TableCell>
-                  <TableCell>{s.active ? <Badge variant="success">Ativo</Badge> : <Badge variant="secondary">Inativo</Badge>}</TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(s.salePrice)}
+                  </TableCell>
+                  <TableCell>
+                    {s.active ? (
+                      <Badge variant="success">Ativo</Badge>
+                    ) : (
+                      <Badge variant="secondary">Inativo</Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {canWrite && (
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setEditing(s); setOpen(true); }}><Pencil className="size-4" /> Editar</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDelete(s)}><Trash2 className="size-4" /> Excluir</DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditing(s);
+                              setOpen(true);
+                            }}
+                          >
+                            <Pencil className="size-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDelete(s)}>
+                            <Trash2 className="size-4" /> Excluir
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -119,8 +177,22 @@ export default function ServicesPage() {
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{meta.total} serviço(s)</span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
-            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Próxima</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Próxima
+            </Button>
           </div>
         </div>
       )}

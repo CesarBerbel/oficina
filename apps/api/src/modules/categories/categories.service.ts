@@ -1,14 +1,6 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type CategoryKind } from '@prisma/client';
-import type {
-  CategoryDto,
-  CreateCategoryInput,
-  UpdateCategoryInput,
-} from '@oficina/shared';
+import type { CategoryDto, CreateCategoryInput, UpdateCategoryInput } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -33,10 +25,7 @@ export class CategoriesService {
     return rows.map(toDto);
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreateCategoryInput,
-  ): Promise<CategoryDto> {
+  async create(actor: AuthenticatedUser, input: CreateCategoryInput): Promise<CategoryDto> {
     const clash = await this.prisma.category.findFirst({
       where: { tenantId: actor.groupId, kind: input.kind, name: input.name },
       select: { id: true },

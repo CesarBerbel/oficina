@@ -91,7 +91,11 @@ function KindTab({ kind, canManage }: { kind: CategoryKind; canManage: boolean }
             className="max-w-sm"
           />
           <Button type="submit" disabled={create.isPending}>
-            {create.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            {create.isPending ? (
+              <CarLoader className="size-4 animate-spin" />
+            ) : (
+              <Plus className="size-4" />
+            )}
             Adicionar
           </Button>
         </form>

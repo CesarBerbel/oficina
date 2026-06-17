@@ -2,7 +2,16 @@
 
 import { useState } from 'react';
 import {
-  Plus, MoreHorizontal, PackageCheck, Send, XCircle, Sparkles, Pencil, Package2, CircleDollarSign } from 'lucide-react';
+  Plus,
+  MoreHorizontal,
+  PackageCheck,
+  Send,
+  XCircle,
+  Sparkles,
+  Pencil,
+  Package2,
+  CircleDollarSign,
+} from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import {
@@ -15,7 +24,11 @@ import { ApiError } from '@/lib/api';
 import { maskCpfCnpj, maskPhone } from '@/lib/masks';
 import { useAuth } from '@/lib/auth-context';
 import {
-  usePurchases, usePurchase, useCreateFromShortages, useSetPurchaseStatus, useSuppliers,
+  usePurchases,
+  usePurchase,
+  useCreateFromShortages,
+  useSetPurchaseStatus,
+  useSuppliers,
 } from '@/features/purchases/use-purchases';
 import { useSyncPurchaseFinancial } from '@/features/financial/use-financial';
 import { PurchaseFormDialog } from '@/features/purchases/purchase-form-dialog';
@@ -26,10 +39,18 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
 const STATUS_VARIANT: Record<PurchaseOrderStatus, BadgeProps['variant']> = {
@@ -60,7 +81,9 @@ export default function PurchasesPage() {
             onClick={() => setTab(t)}
             className={cn(
               '-mb-px border-b-2 px-4 py-2 text-sm font-medium capitalize transition-colors',
-              tab === t ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
+              tab === t
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
             {t}
@@ -68,7 +91,11 @@ export default function PurchasesPage() {
         ))}
       </div>
 
-      {tab === 'pedidos' ? <PedidosTab canWrite={canWrite} canFinance={canFinance} /> : <FornecedoresTab canWrite={canWrite} />}
+      {tab === 'pedidos' ? (
+        <PedidosTab canWrite={canWrite} canFinance={canFinance} />
+      ) : (
+        <FornecedoresTab canWrite={canWrite} />
+      )}
     </div>
   );
 }
@@ -90,9 +117,7 @@ function PedidosTab({ canWrite, canFinance }: { canWrite: boolean; canFinance: b
   async function generateShortages() {
     try {
       const { created } = await fromShortages.mutateAsync();
-      toast.success(
-        `${created} pedido(s) gerado(s) — agrupados por fornecedor`,
-      );
+      toast.success(`${created} pedido(s) gerado(s) — agrupados por fornecedor`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Erro');
     }
@@ -102,9 +127,15 @@ function PedidosTab({ canWrite, canFinance }: { canWrite: boolean; canFinance: b
     <div className="space-y-4">
       {canWrite && (
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setFormOpen(true)}><Plus className="size-4" /> Novo pedido</Button>
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="size-4" /> Novo pedido
+          </Button>
           <Button variant="outline" onClick={generateShortages} disabled={fromShortages.isPending}>
-            {fromShortages.isPending ? <CarLoader className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+            {fromShortages.isPending ? (
+              <CarLoader className="size-4 animate-spin" />
+            ) : (
+              <Sparkles className="size-4" />
+            )}
             Gerar de peças em falta
           </Button>
         </div>
@@ -124,15 +155,25 @@ function PedidosTab({ canWrite, canFinance }: { canWrite: boolean; canFinance: b
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  <CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" />
+                </TableCell>
+              </TableRow>
             ) : orders.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Nenhum pedido.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  Nenhum pedido.
+                </TableCell>
+              </TableRow>
             ) : (
               orders.map((o) => (
                 <TableRow key={o.id}>
                   <TableCell className="font-semibold">
                     #{o.number}
-                    <span className="block text-xs font-normal text-muted-foreground">{formatDate(o.createdAt)}</span>
+                    <span className="block text-xs font-normal text-muted-foreground">
+                      {formatDate(o.createdAt)}
+                    </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {o.supplierName ?? '—'}
@@ -143,8 +184,14 @@ function PedidosTab({ canWrite, canFinance }: { canWrite: boolean; canFinance: b
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{o.itemsCount}</TableCell>
-                  <TableCell><Badge variant={STATUS_VARIANT[o.status]}>{PURCHASE_ORDER_STATUS_LABELS[o.status]}</Badge></TableCell>
-                  <TableCell className="text-right font-medium">{formatCurrency(o.total)}</TableCell>
+                  <TableCell>
+                    <Badge variant={STATUS_VARIANT[o.status]}>
+                      {PURCHASE_ORDER_STATUS_LABELS[o.status]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(o.total)}
+                  </TableCell>
                   <TableCell>
                     <RowActions
                       o={o}
@@ -165,8 +212,22 @@ function PedidosTab({ canWrite, canFinance }: { canWrite: boolean; canFinance: b
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{meta.total} pedido(s)</span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
-            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Próxima</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Próxima
+            </Button>
           </div>
         </div>
       )}
@@ -187,29 +248,69 @@ function PedidosTab({ canWrite, canFinance }: { canWrite: boolean; canFinance: b
   );
 }
 
-function RowActions({ o, canWrite, canFinance, onReceive, onView }: {
-  o: PurchaseOrderSummaryDto; canWrite: boolean; canFinance: boolean; onReceive: () => void; onView: () => void;
+function RowActions({
+  o,
+  canWrite,
+  canFinance,
+  onReceive,
+  onView,
+}: {
+  o: PurchaseOrderSummaryDto;
+  canWrite: boolean;
+  canFinance: boolean;
+  onReceive: () => void;
+  onView: () => void;
 }) {
   const setStatus = useSetPurchaseStatus(o.id);
   const syncFinancial = useSyncPurchaseFinancial();
   const finalized = o.status === 'RECEBIDO' || o.status === 'CANCELADO';
   async function change(status: 'ENVIADO' | 'CANCELADO') {
-    try { await setStatus.mutateAsync(status); toast.success('Status atualizado'); }
-    catch (err) { toast.error(err instanceof ApiError ? err.message : 'Erro'); }
+    try {
+      await setStatus.mutateAsync(status);
+      toast.success('Status atualizado');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro');
+    }
   }
   async function generatePayable() {
-    try { await syncFinancial.mutateAsync({ purchaseOrderId: o.id }); toast.success('Conta a pagar gerada/atualizada'); }
-    catch (err) { toast.error(err instanceof ApiError ? err.message : 'Erro ao gerar financeiro'); }
+    try {
+      await syncFinancial.mutateAsync({ purchaseOrderId: o.id });
+      toast.success('Conta a pagar gerada/atualizada');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao gerar financeiro');
+    }
   }
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onView}><Package2 className="size-4" /> Ver produtos</DropdownMenuItem>
-        {canWrite && !finalized && <DropdownMenuItem onClick={onReceive}><PackageCheck className="size-4" /> Receber</DropdownMenuItem>}
-        {canFinance && <DropdownMenuItem onClick={generatePayable}><CircleDollarSign className="size-4" /> Gerar conta a pagar</DropdownMenuItem>}
-        {canWrite && o.status === 'ABERTO' && <DropdownMenuItem onClick={() => change('ENVIADO')}><Send className="size-4" /> Marcar enviado</DropdownMenuItem>}
-        {canWrite && !finalized && <DropdownMenuItem onClick={() => change('CANCELADO')}><XCircle className="size-4" /> Cancelar</DropdownMenuItem>}
+        <DropdownMenuItem onClick={onView}>
+          <Package2 className="size-4" /> Ver produtos
+        </DropdownMenuItem>
+        {canWrite && !finalized && (
+          <DropdownMenuItem onClick={onReceive}>
+            <PackageCheck className="size-4" /> Receber
+          </DropdownMenuItem>
+        )}
+        {canFinance && (
+          <DropdownMenuItem onClick={generatePayable}>
+            <CircleDollarSign className="size-4" /> Gerar conta a pagar
+          </DropdownMenuItem>
+        )}
+        {canWrite && o.status === 'ABERTO' && (
+          <DropdownMenuItem onClick={() => change('ENVIADO')}>
+            <Send className="size-4" /> Marcar enviado
+          </DropdownMenuItem>
+        )}
+        {canWrite && !finalized && (
+          <DropdownMenuItem onClick={() => change('CANCELADO')}>
+            <XCircle className="size-4" /> Cancelar
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -223,7 +324,16 @@ function FornecedoresTab({ canWrite }: { canWrite: boolean }) {
 
   return (
     <div className="space-y-4">
-      {canWrite && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" /> Novo fornecedor</Button>}
+      {canWrite && (
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
+        >
+          <Plus className="size-4" /> Novo fornecedor
+        </Button>
+      )}
       <div className="rounded-xl border">
         <Table>
           <TableHeader>
@@ -236,18 +346,37 @@ function FornecedoresTab({ canWrite }: { canWrite: boolean }) {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={4} className="h-24 text-center"><CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" /></TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center">
+                  <CarLoader className="mx-auto size-5 animate-spin text-muted-foreground" />
+                </TableCell>
+              </TableRow>
             ) : suppliers.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">Nenhum fornecedor.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                  Nenhum fornecedor.
+                </TableCell>
+              </TableRow>
             ) : (
               suppliers.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{s.document ? maskCpfCnpj(s.document) : '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">{s.phone ? maskPhone(s.phone) : s.email ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {s.document ? maskCpfCnpj(s.document) : '—'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {s.phone ? maskPhone(s.phone) : (s.email ?? '—')}
+                  </TableCell>
                   <TableCell>
                     {canWrite && (
-                      <Button variant="ghost" size="icon" onClick={() => { setEditing(s); setOpen(true); }}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditing(s);
+                          setOpen(true);
+                        }}
+                      >
                         <Pencil className="size-4" />
                       </Button>
                     )}

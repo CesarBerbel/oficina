@@ -164,9 +164,7 @@ export default function GaragemPage() {
         )}
       </section>
 
-      <p className="pt-2 text-center text-xs text-muted-foreground">
-        {data.shopName}
-      </p>
+      <p className="pt-2 text-center text-xs text-muted-foreground">{data.shopName}</p>
     </div>
   );
 }
@@ -175,22 +173,14 @@ function InfoCard({ title, value }: { title: string; value: string }) {
   return (
     <Card>
       <CardContent className="p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {title}
-        </p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
         <p className="mt-1 text-lg font-semibold">{value}</p>
       </CardContent>
     </Card>
   );
 }
 
-function OrderCard({
-  order,
-  highlight,
-}: {
-  order: GarageOrderDto;
-  highlight?: boolean;
-}) {
+function OrderCard({ order, highlight }: { order: GarageOrderDto; highlight?: boolean }) {
   const services = order.items.filter((item) => item.kind === 'SERVICE');
   const parts = order.items.filter((item) => item.kind === 'PART');
 
@@ -255,16 +245,17 @@ function OrderItems({
       </p>
       <ul className="space-y-1">
         {items.map((item, index) => (
-          <li key={`${item.description}-${index}`} className="flex items-center justify-between gap-3">
+          <li
+            key={`${item.description}-${index}`}
+            className="flex items-center justify-between gap-3"
+          >
             <span>
               {item.description}
               {item.quantity > 1 && (
                 <span className="text-muted-foreground"> ×{item.quantity}</span>
               )}
             </span>
-            <span className="tabular-nums text-muted-foreground">
-              {formatCurrency(item.total)}
-            </span>
+            <span className="tabular-nums text-muted-foreground">{formatCurrency(item.total)}</span>
           </li>
         ))}
       </ul>
@@ -325,7 +316,8 @@ function QuoteSection({ order }: { order: GarageOrderWithQuote }) {
           </p>
           <p className="text-xs text-muted-foreground">
             Status: {QUOTE_STATUS_LABELS[quote.status]}
-            {quote.decidedAt && ` · respondido em ${new Date(quote.decidedAt).toLocaleString('pt-BR')}`}
+            {quote.decidedAt &&
+              ` · respondido em ${new Date(quote.decidedAt).toLocaleString('pt-BR')}`}
           </p>
         </div>
         <a href={`/acompanhar/${quote.token}`} target="_blank" rel="noreferrer">
@@ -343,7 +335,10 @@ function QuoteSection({ order }: { order: GarageOrderWithQuote }) {
 
       <div className="divide-y rounded-lg border bg-background">
         {groupedQuoteItems.map(({ item, linked }) => (
-          <div key={item.id} className={`flex items-center justify-between gap-3 p-3 ${linked ? 'pl-8' : ''}`}>
+          <div
+            key={item.id}
+            className={`flex items-center justify-between gap-3 p-3 ${linked ? 'pl-8' : ''}`}
+          >
             <div className="flex items-center gap-2">
               {canDecide && (
                 <input
@@ -367,7 +362,9 @@ function QuoteSection({ order }: { order: GarageOrderWithQuote }) {
       <div className="mt-3 space-y-1 text-sm">
         <Row label="Serviços" value={formatCurrency(quote.totalServices)} />
         <Row label="Peças" value={formatCurrency(quote.totalParts)} />
-        {quote.discount > 0 && <Row label="Desconto" value={`- ${formatCurrency(quote.discount)}`} />}
+        {quote.discount > 0 && (
+          <Row label="Desconto" value={`- ${formatCurrency(quote.discount)}`} />
+        )}
         <div className="flex justify-between pt-1 text-base font-semibold">
           <span>Total</span>
           <span>{formatCurrency(quote.total)}</span>
@@ -378,12 +375,17 @@ function QuoteSection({ order }: { order: GarageOrderWithQuote }) {
         <div className="mt-4 space-y-3 rounded-lg border bg-background p-3">
           <p className="text-sm font-medium">Aprovação digital</p>
           <p className="text-xs text-muted-foreground">
-            Desmarque itens que não deseja aprovar. A confirmação registra data, assinatura e origem da resposta.
+            Desmarque itens que não deseja aprovar. A confirmação registra data, assinatura e origem
+            da resposta.
           </p>
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Seu nome completo</Label>
-              <Input value={signature} onChange={(event) => setSignature(event.target.value)} placeholder="Nome completo" />
+              <Input
+                value={signature}
+                onChange={(event) => setSignature(event.target.value)}
+                placeholder="Nome completo"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>CPF ou CNPJ</Label>
@@ -454,9 +456,19 @@ function TimelineSection({ order }: { order: GarageOrderDto }) {
               {event.photos.length > 0 && (
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   {event.photos.map((url) => (
-                    <a key={url} href={url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-md border bg-muted">
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="overflow-hidden rounded-md border bg-muted"
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="Foto da OS" className="aspect-square w-full object-cover" />
+                      <img
+                        src={url}
+                        alt="Foto da OS"
+                        className="aspect-square w-full object-cover"
+                      />
                     </a>
                   ))}
                 </div>

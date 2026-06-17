@@ -70,10 +70,7 @@ export class AiService {
     return this.toDto(await this.getOrCreate(tenantId));
   }
 
-  async update(
-    actor: AuthenticatedUser,
-    input: UpdateAiConfigInput,
-  ): Promise<AiConfigDto> {
+  async update(actor: AuthenticatedUser, input: UpdateAiConfigInput): Promise<AiConfigDto> {
     await this.getOrCreate(actor.tenantId);
     // Normaliza o mapa por campo: mantém só valores preenchidos.
     let fieldInstructions: Record<string, string> | undefined;
@@ -89,9 +86,7 @@ export class AiService {
       where: { tenantId: actor.tenantId },
       data: {
         ...(input.provider !== undefined ? { provider: input.provider } : {}),
-        ...(input.instructions !== undefined
-          ? { instructions: input.instructions ?? null }
-          : {}),
+        ...(input.instructions !== undefined ? { instructions: input.instructions ?? null } : {}),
         ...(fieldInstructions !== undefined
           ? { fieldInstructions: fieldInstructions as Prisma.InputJsonValue }
           : {}),

@@ -1,9 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type {
-  NfeConfirmInput,
-  NfeConfirmResult,
-  NfeParseResult,
-} from '@oficina/shared';
+import type { NfeConfirmInput, NfeConfirmResult, NfeParseResult } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { applyStockMovement } from '../inventory/stock.helper';
@@ -19,18 +15,12 @@ export class NfeImportService {
 
   /** Lê o arquivo e devolve os itens para conferência (não grava nada). */
   // Fornecedores e peças são do grupo (catálogo compartilhado).
-  async parse(
-    groupId: string,
-    buffer: Buffer,
-    filename: string,
-  ): Promise<NfeParseResult> {
+  async parse(groupId: string, buffer: Buffer, filename: string): Promise<NfeParseResult> {
     let raw;
     try {
       raw = parseNfeBuffer(buffer, filename);
     } catch (err) {
-      throw new BadRequestException(
-        err instanceof Error ? err.message : 'Falha ao ler o XML',
-      );
+      throw new BadRequestException(err instanceof Error ? err.message : 'Falha ao ler o XML');
     }
 
     // Localiza fornecedor por CNPJ.
@@ -75,19 +65,13 @@ export class NfeImportService {
         ncm: i.ncm,
         cest: i.cest,
         cfop: i.cfop,
-        matchedPartId:
-          (i.cProd && bySku.get(i.cProd)) ||
-          (i.ean && byEan.get(i.ean)) ||
-          null,
+        matchedPartId: (i.cProd && bySku.get(i.cProd)) || (i.ean && byEan.get(i.ean)) || null,
       })),
     };
   }
 
   /** Cadastra/atualiza as peças conferidas e, opcionalmente, dá entrada no estoque. */
-  async confirm(
-    actor: AuthenticatedUser,
-    input: NfeConfirmInput,
-  ): Promise<NfeConfirmResult> {
+  async confirm(actor: AuthenticatedUser, input: NfeConfirmInput): Promise<NfeConfirmResult> {
     const items = input.items.filter((i) => i.include);
     if (items.length === 0) {
       throw new BadRequestException('Nenhum item selecionado para importar');

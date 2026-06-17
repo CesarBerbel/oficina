@@ -7,8 +7,7 @@ import {
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 /** OS que representam faturamento (aprovadas em diante, exceto canceladas). */
@@ -160,9 +159,7 @@ export class ReportsService {
       ),
     );
 
-    const revenueTotal = round2(
-      revenueOrders.reduce((acc, o) => acc + dec(o.total), 0),
-    );
+    const revenueTotal = round2(revenueOrders.reduce((acc, o) => acc + dec(o.total), 0));
     const grossProfit = round2(revenueTotal - servicesCost - partsCost);
 
     const monthBuckets = new Map<string, number>();
@@ -191,7 +188,10 @@ export class ReportsService {
       }
       const technician = order.technician?.name ?? 'Sem técnico';
       byTechnician.set(technician, (byTechnician.get(technician) ?? 0) + dec(order.total));
-      byCustomer.set(order.customer.name, (byCustomer.get(order.customer.name) ?? 0) + dec(order.total));
+      byCustomer.set(
+        order.customer.name,
+        (byCustomer.get(order.customer.name) ?? 0) + dec(order.total),
+      );
     }
 
     const convertedLeads = leadFunnelRaw
@@ -202,8 +202,7 @@ export class ReportsService {
     return {
       revenueTotal,
       deliveredCount: delivered,
-      averageTicket:
-        revenueOrders.length > 0 ? round2(revenueTotal / revenueOrders.length) : 0,
+      averageTicket: revenueOrders.length > 0 ? round2(revenueTotal / revenueOrders.length) : 0,
       periodDays: safePeriodDays,
       openedOrders,
       approvalRate: openedOrders > 0 ? round2((revenueOrders.length / openedOrders) * 100) : 0,

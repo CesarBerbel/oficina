@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  Post,
-  Put,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   createCustomerSchema,
   listCustomersQuerySchema,
@@ -37,8 +27,6 @@ export class CustomersController {
   ) {
     return this.customers.list(actor.groupId, query);
   }
-
-
 
   @Get(':id/360')
   @RequirePermission(Permission.CUSTOMERS_READ)

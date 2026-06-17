@@ -16,9 +16,7 @@ describe('password flow schemas', () => {
   });
 
   it('exige senha forte mínima no reset público', () => {
-    expect(() =>
-      resetPasswordSchema.parse({ token: 'a'.repeat(64), password: '123' }),
-    ).toThrow();
+    expect(() => resetPasswordSchema.parse({ token: 'a'.repeat(64), password: '123' })).toThrow();
     expect(
       resetPasswordSchema.parse({
         token: 'a'.repeat(64),

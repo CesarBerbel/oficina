@@ -5,11 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Car, KeyRound, ArrowLeft } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import {
-  requestGarageCode,
-  verifyGarageCode,
-  setGarageToken,
-} from '@/features/garage/garage-api';
+import { requestGarageCode, verifyGarageCode, setGarageToken } from '@/features/garage/garage-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,9 +21,7 @@ export default function ConsultaPage() {
   // Link do e-mail (…/site/consulta?placa=XXX): pré-preenche a placa e vai
   // direto para a etapa de digitar o código, já que ele acabou de ser enviado.
   useEffect(() => {
-    const value = new URLSearchParams(window.location.search)
-      .get('placa')
-      ?.toUpperCase();
+    const value = new URLSearchParams(window.location.search).get('placa')?.toUpperCase();
     if (value) {
       setPlate(value);
       setStep('code');
@@ -110,8 +104,7 @@ export default function ConsultaPage() {
                   className="uppercase tracking-widest"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Enviaremos um código de acesso para o e-mail do proprietário
-                  cadastrado.
+                  Enviaremos um código de acesso para o e-mail do proprietário cadastrado.
                 </p>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
@@ -126,17 +119,15 @@ export default function ConsultaPage() {
                 <Input
                   id="code"
                   value={code}
-                  onChange={(e) =>
-                    setCode(e.target.value.replace(/\D/g, '').slice(0, 6))
-                  }
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="000000"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   className="text-center text-lg tracking-[0.5em]"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Verifique a caixa de entrada (e o spam) do e-mail cadastrado. O
-                  código vale por 5 horas.
+                  Verifique a caixa de entrada (e o spam) do e-mail cadastrado. O código vale por 5
+                  horas.
                 </p>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>

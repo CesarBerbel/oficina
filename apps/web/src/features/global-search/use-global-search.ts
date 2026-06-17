@@ -21,9 +21,7 @@ export function useGlobalSearch(query: string, open: boolean) {
   return useQuery({
     queryKey: ['global-search', normalized],
     queryFn: () =>
-      api.get<GlobalSearchResponseDto>(
-        `/global-search${qs({ q: normalized, limit: 8 })}`,
-      ),
+      api.get<GlobalSearchResponseDto>(`/global-search${qs({ q: normalized, limit: 8 })}`),
     enabled: open && normalized.length >= 2,
     staleTime: 15_000,
   });

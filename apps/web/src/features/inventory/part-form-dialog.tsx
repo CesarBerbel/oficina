@@ -153,36 +153,74 @@ export function PartFormDialog({ open, onOpenChange, part, onCreated }: Props) {
             <F label="Tipo" required>
               <Select value={form.type} onChange={(e) => set('type', e.target.value)}>
                 {PART_TYPES.map((t) => (
-                  <option key={t} value={t}>{PART_TYPE_LABELS[t]}</option>
+                  <option key={t} value={t}>
+                    {PART_TYPE_LABELS[t]}
+                  </option>
                 ))}
               </Select>
             </F>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-4">
-            <F label="SKU" error={errors.sku}><Input value={form.sku} onChange={(e) => set('sku', e.target.value)} /></F>
-            <F label="Código de barras"><Input value={form.ean} onChange={(e) => set('ean', e.target.value)} /></F>
-            <F label="Marca"><Input value={form.brand} onChange={(e) => set('brand', e.target.value)} /></F>
+            <F label="SKU" error={errors.sku}>
+              <Input value={form.sku} onChange={(e) => set('sku', e.target.value)} />
+            </F>
+            <F label="Código de barras">
+              <Input value={form.ean} onChange={(e) => set('ean', e.target.value)} />
+            </F>
+            <F label="Marca">
+              <Input value={form.brand} onChange={(e) => set('brand', e.target.value)} />
+            </F>
             <F label="Categoria">
               <Select value={form.category} onChange={(e) => set('category', e.target.value)}>
                 <option value="">Sem categoria</option>
                 {categoryOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
                 ))}
               </Select>
             </F>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-4">
-            <F label="Unidade" required><Input value={form.unit} onChange={(e) => set('unit', e.target.value)} /></F>
-            <F label="Estoque mínimo" required><Input type="number" step="any" value={form.minStock} onChange={(e) => set('minStock', e.target.value)} /></F>
-            <F label="Preço de custo" required><Input type="number" step="0.01" value={form.costPrice} onChange={(e) => set('costPrice', e.target.value)} /></F>
-            <F label="Preço de venda" required><Input type="number" step="0.01" value={form.salePrice} onChange={(e) => set('salePrice', e.target.value)} /></F>
+            <F label="Unidade" required>
+              <Input value={form.unit} onChange={(e) => set('unit', e.target.value)} />
+            </F>
+            <F label="Estoque mínimo" required>
+              <Input
+                type="number"
+                step="any"
+                value={form.minStock}
+                onChange={(e) => set('minStock', e.target.value)}
+              />
+            </F>
+            <F label="Preço de custo" required>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.costPrice}
+                onChange={(e) => set('costPrice', e.target.value)}
+              />
+            </F>
+            <F label="Preço de venda" required>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.salePrice}
+                onChange={(e) => set('salePrice', e.target.value)}
+              />
+            </F>
           </div>
 
           {!isEdit && (
             <F label="Estoque inicial (gera entrada)" required>
-              <Input type="number" step="any" value={form.initialStock} onChange={(e) => set('initialStock', e.target.value)} />
+              <Input
+                type="number"
+                step="any"
+                value={form.initialStock}
+                onChange={(e) => set('initialStock', e.target.value)}
+              />
             </F>
           )}
 
@@ -190,14 +228,23 @@ export function PartFormDialog({ open, onOpenChange, part, onCreated }: Props) {
             <Select value={form.supplierId} onChange={(e) => set('supplierId', e.target.value)}>
               <option value="">Sem fornecedor</option>
               {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
             </Select>
           </F>
-          <F label="Descrição"><Textarea value={form.description} onChange={(e) => set('description', e.target.value)} /></F>
+          <F label="Descrição">
+            <Textarea
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+            />
+          </F>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={pending}>
               {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Cadastrar'}
@@ -209,7 +256,19 @@ export function PartFormDialog({ open, onOpenChange, part, onCreated }: Props) {
   );
 }
 
-function F({ label, error, className, required, children }: { label: string; error?: string; className?: string; required?: boolean; children: React.ReactNode }) {
+function F({
+  label,
+  error,
+  className,
+  required,
+  children,
+}: {
+  label: string;
+  error?: string;
+  className?: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <div className={`space-y-1.5 ${className ?? ''}`}>
       <Label required={required}>{label}</Label>

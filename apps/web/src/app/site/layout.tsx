@@ -27,11 +27,7 @@ const NAV = [
   { href: '/site/contato', label: 'Contato' },
 ];
 
-export default async function SiteLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const data = await getPublicSite();
   const s = data?.settings;
   const name = s?.shopName ?? 'Oficina';
@@ -61,7 +57,11 @@ export default async function SiteLayout({
           </Link>
           <nav className="hidden gap-6 text-base font-semibold md:ml-8 md:flex lg:ml-12">
             {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className="text-muted-foreground hover:text-foreground">
+              <Link
+                key={n.href}
+                href={n.href}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 {n.label}
               </Link>
             ))}
@@ -95,11 +95,21 @@ export default async function SiteLayout({
           <div>
             <p className="font-semibold">{name}</p>
             {s?.tagline && <p className="mt-1 text-sm text-muted-foreground">{s.tagline}</p>}
-            {s?.cnpj && <p className="mt-2 text-xs text-muted-foreground">CNPJ: {maskCnpj(s.cnpj)}</p>}
+            {s?.cnpj && (
+              <p className="mt-2 text-xs text-muted-foreground">CNPJ: {maskCnpj(s.cnpj)}</p>
+            )}
           </div>
           <div className="space-y-1 text-sm text-muted-foreground">
-            {s?.phone && <p className="flex items-center gap-2"><Phone className="size-4" /> {maskPhone(s.phone)}</p>}
-            {s?.email && <p className="flex items-center gap-2"><Mail className="size-4" /> {s.email}</p>}
+            {s?.phone && (
+              <p className="flex items-center gap-2">
+                <Phone className="size-4" /> {maskPhone(s.phone)}
+              </p>
+            )}
+            {s?.email && (
+              <p className="flex items-center gap-2">
+                <Mail className="size-4" /> {s.email}
+              </p>
+            )}
             {s?.address && (
               <SiteAddressLinks
                 address={s.address}
@@ -108,16 +118,36 @@ export default async function SiteLayout({
                 textClassName="text-muted-foreground group-hover:text-foreground"
               />
             )}
-            {s?.hours && <p className="flex items-center gap-2"><Clock className="size-4" /> {s.hours}</p>}
+            {s?.hours && (
+              <p className="flex items-center gap-2">
+                <Clock className="size-4" /> {s.hours}
+              </p>
+            )}
           </div>
           <div className="flex gap-4 text-sm sm:justify-end">
-            {s?.instagram && <a href={s.instagram} className="text-muted-foreground hover:text-foreground" target="_blank" rel="noopener noreferrer">Instagram</a>}
-            {s?.facebook && <a href={s.facebook} className="text-muted-foreground hover:text-foreground" target="_blank" rel="noopener noreferrer">Facebook</a>}
+            {s?.instagram && (
+              <a
+                href={s.instagram}
+                className="text-muted-foreground hover:text-foreground"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Instagram
+              </a>
+            )}
+            {s?.facebook && (
+              <a
+                href={s.facebook}
+                className="text-muted-foreground hover:text-foreground"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Facebook
+              </a>
+            )}
           </div>
         </div>
-        <div className="border-t py-4 text-center text-xs text-muted-foreground">
-          © {name}
-        </div>
+        <div className="border-t py-4 text-center text-xs text-muted-foreground">© {name}</div>
       </footer>
 
       {/* Botão flutuante do WhatsApp */}

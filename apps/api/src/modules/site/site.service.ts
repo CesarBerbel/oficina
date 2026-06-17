@@ -11,8 +11,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 
 export interface PublicTenantLookup {
   tenantSlug?: string | null;
@@ -87,17 +86,12 @@ export class SiteService {
     return `<iframe src="${src}" width="100%" height="360" style="border:0" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
   }
 
-  async update(
-    actor: AuthenticatedUser,
-    input: UpdateSiteSettingsInput,
-  ): Promise<SiteSettingsDto> {
+  async update(actor: AuthenticatedUser, input: UpdateSiteSettingsInput): Promise<SiteSettingsDto> {
     const current = await this.getOrCreate(actor.tenantId);
 
     // Rodapé do PDF: HTML simples sanitizado (negrito/itálico/sublinhado/listas).
     const footer =
-      input.pdfFooterText !== undefined
-        ? sanitizeRichHtml(input.pdfFooterText) || null
-        : undefined;
+      input.pdfFooterText !== undefined ? sanitizeRichHtml(input.pdfFooterText) || null : undefined;
 
     // `address` (exibição) é recomposto sempre que algum campo estruturado vem
     // no payload, mesclando com o que já está salvo (campos não enviados).
@@ -112,7 +106,7 @@ export class SiteService {
     ] as const;
     const addressTouched = addressKeys.some((k) => input[k] !== undefined);
     const pick = (k: (typeof addressKeys)[number]): string | null =>
-      input[k] !== undefined ? input[k] ?? null : current[k];
+      input[k] !== undefined ? (input[k] ?? null) : current[k];
     const composedAddress = addressTouched
       ? composeAddress({
           addressZip: pick('addressZip'),
@@ -195,9 +189,7 @@ export class SiteService {
     return published.length === 1 ? published[0].tenantId : null;
   }
 
-  private async resolvePublishedTenantId(
-    lookup?: PublicTenantLookup,
-  ): Promise<string | null> {
+  private async resolvePublishedTenantId(lookup?: PublicTenantLookup): Promise<string | null> {
     const explicitSlug = this.normalizeSlug(lookup?.tenantSlug);
     const hostSlug = this.slugFromHost(lookup?.host);
 

@@ -4,8 +4,7 @@ import type { PublicTrackingDto } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { quoteInclude, toQuoteDto } from '../quotes/quote.mapper';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 
 @Injectable()
 export class PublicService {
@@ -36,8 +35,7 @@ export class PublicService {
     // Orçamento aprovado não fica mais acessível publicamente (não pode ser
     // reaberto/aprovado de novo pelo link). O acompanhamento da OS continua.
     const quoteDecided =
-      order.quote?.status === 'APROVADO' ||
-      order.quote?.status === 'APROVADO_PARCIAL';
+      order.quote?.status === 'APROVADO' || order.quote?.status === 'APROVADO_PARCIAL';
 
     return {
       shopName: order.tenant.name,
@@ -50,7 +48,7 @@ export class PublicService {
       vehiclePlate: order.vehicle.plate,
       reportedProblem: order.reportedProblem,
       diagnosis: order.diagnosis,
-      publicNotes: quoteDecided ? null : order.quote?.publicNotes ?? null,
+      publicNotes: quoteDecided ? null : (order.quote?.publicNotes ?? null),
       items: order.items.map((it) => ({
         kind: it.kind,
         description: it.description,
@@ -78,10 +76,7 @@ export class PublicService {
               photos: [],
               createdAt: h.createdAt.toISOString(),
             })),
-      quote:
-        order.quote && !quoteDecided
-          ? toQuoteDto(order.quote, order.publicToken)
-          : null,
+      quote: order.quote && !quoteDecided ? toQuoteDto(order.quote, order.publicToken) : null,
     };
   }
 }

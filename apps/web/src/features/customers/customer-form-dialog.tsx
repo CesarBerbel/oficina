@@ -127,7 +127,8 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onCreated }: 
     [categoryData],
   );
   const availableCategories = configuredCategories.filter(
-    (category) => !form.categories.some((selected) => selected.toLowerCase() === category.toLowerCase()),
+    (category) =>
+      !form.categories.some((selected) => selected.toLowerCase() === category.toLowerCase()),
   );
 
   const create = useCreateCustomer();
@@ -249,9 +250,7 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onCreated }: 
         await update.mutateAsync(parsed.data);
         toast.success('Cliente atualizado');
       } else {
-        const createdCustomer = (await create.mutateAsync(
-          parsed.data as never,
-        )) as CustomerDto;
+        const createdCustomer = (await create.mutateAsync(parsed.data as never)) as CustomerDto;
         toast.success('Cliente criado');
         onCreated?.(createdCustomer.id);
       }
@@ -266,9 +265,7 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onCreated }: 
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Editar cliente' : 'Novo cliente'}</DialogTitle>
-          <DialogDescription>
-            Dados cadastrais, contato e endereço.
-          </DialogDescription>
+          <DialogDescription>Dados cadastrais, contato e endereço.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-4">
@@ -293,7 +290,10 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onCreated }: 
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label={form.type === 'PJ' ? 'CNPJ (opcional)' : 'CPF (opcional)'} error={errors.document}>
+            <Field
+              label={form.type === 'PJ' ? 'CNPJ (opcional)' : 'CPF (opcional)'}
+              error={errors.document}
+            >
               <Input
                 inputMode="numeric"
                 maxLength={form.type === 'PJ' ? 18 : 14}
@@ -381,7 +381,11 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onCreated }: 
               <Input value={form.district} onChange={(e) => set('district', e.target.value)} />
             </Field>
             <Field label="Cidade" className="sm:col-span-5">
-              <Input value={form.city} onChange={(e) => set('city', e.target.value)} placeholder="Cidade" />
+              <Input
+                value={form.city}
+                onChange={(e) => set('city', e.target.value)}
+                placeholder="Cidade"
+              />
             </Field>
             <Field label="UF" className="sm:col-span-1">
               <Input
@@ -417,9 +421,13 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onCreated }: 
             </Select>
             <p className="text-xs text-muted-foreground">
               As opções são cadastradas em{' '}
-              <Link href="/categorias" className="font-medium text-primary underline-offset-4 hover:underline">
+              <Link
+                href="/categorias"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
                 Configurações › Categorias
-              </Link>.
+              </Link>
+              .
             </p>
             {form.categories.length > 0 && (
               <div className="flex flex-wrap gap-2 pt-1">

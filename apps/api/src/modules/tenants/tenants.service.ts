@@ -117,9 +117,7 @@ export class TenantsService {
       createdId = tenant.id;
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw new ConflictException(
-          'Já existe uma oficina com esse identificador. Escolha outro.',
-        );
+        throw new ConflictException('Já existe uma oficina com esse identificador. Escolha outro.');
       }
       throw err;
     }
@@ -187,9 +185,7 @@ export class TenantsService {
     });
     if (!tenant) throw new NotFoundException('Oficina não encontrada');
     if (tenant.parentId === null && tenant._count.branches > 0) {
-      throw new BadRequestException(
-        'Esta é a matriz e possui filiais. Exclua as filiais antes.',
-      );
+      throw new BadRequestException('Esta é a matriz e possui filiais. Exclua as filiais antes.');
     }
 
     await this.prisma.tenant.delete({ where: { id } });

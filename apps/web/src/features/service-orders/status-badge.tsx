@@ -1,7 +1,4 @@
-import {
-  SERVICE_ORDER_STATUS_LABELS,
-  type ServiceOrderStatus,
-} from '@oficina/shared';
+import { SERVICE_ORDER_STATUS_LABELS, type ServiceOrderStatus } from '@oficina/shared';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 
 const VARIANT: Record<ServiceOrderStatus, BadgeProps['variant']> = {
@@ -20,9 +17,5 @@ const VARIANT: Record<ServiceOrderStatus, BadgeProps['variant']> = {
 };
 
 export function StatusBadge({ status }: { status: ServiceOrderStatus }) {
-  return (
-    <Badge variant={VARIANT[status]}>
-      {SERVICE_ORDER_STATUS_LABELS[status]}
-    </Badge>
-  );
+  return <Badge variant={VARIANT[status]}>{SERVICE_ORDER_STATUS_LABELS[status]}</Badge>;
 }

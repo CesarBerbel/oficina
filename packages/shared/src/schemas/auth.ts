@@ -9,10 +9,7 @@ export const loginSchema = z.object({
     .toLowerCase()
     .min(2, 'Informe a oficina')
     .max(80, 'Identificador da oficina muito longo')
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      'Use apenas letras minúsculas, números e hífens',
-    ),
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use apenas letras minúsculas, números e hífens'),
   email: z.string().trim().toLowerCase().email('E-mail inválido'),
   password: z.string().min(1, 'Informe a senha'),
 });
@@ -40,10 +37,7 @@ export const installSystemSchema = z.object({
     .toLowerCase()
     .min(2, 'Informe o identificador da oficina')
     .max(80, 'Identificador muito longo')
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      'Use apenas letras minúsculas, números e hífens',
-    ),
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use apenas letras minúsculas, números e hífens'),
   cnpj: optionalInstallText(20),
   // Dados do site / contato
   tagline: optionalInstallText(200),
@@ -66,10 +60,7 @@ export const installSystemSchema = z.object({
   // Super usuário (administrador da plataforma)
   adminName: z.string().trim().min(2, 'Informe seu nome').max(120),
   adminEmail: z.string().trim().toLowerCase().email('E-mail inválido'),
-  password: z
-    .string()
-    .min(8, 'Mínimo de 8 caracteres')
-    .max(72, 'Máximo de 72 caracteres'),
+  password: z.string().min(8, 'Mínimo de 8 caracteres').max(72, 'Máximo de 72 caracteres'),
 });
 
 export type InstallSystemInput = z.infer<typeof installSystemSchema>;
@@ -77,10 +68,7 @@ export type InstallSystemInput = z.infer<typeof installSystemSchema>;
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, 'Nome muito curto').max(120),
   email: z.string().trim().toLowerCase().email('E-mail inválido'),
-  password: z
-    .string()
-    .min(8, 'Mínimo de 8 caracteres')
-    .max(72, 'Máximo de 72 caracteres'),
+  password: z.string().min(8, 'Mínimo de 8 caracteres').max(72, 'Máximo de 72 caracteres'),
   role: z.enum(USER_ROLES as [string, ...string[]]),
   forcePasswordChange: z.boolean().optional().default(true),
 });
@@ -101,7 +89,6 @@ export const listUsersQuerySchema = paginationQuerySchema.extend({
     .optional(),
 });
 
-
 export const forgotPasswordSchema = z.object({
   tenantSlug: z
     .string()
@@ -109,10 +96,7 @@ export const forgotPasswordSchema = z.object({
     .toLowerCase()
     .min(2, 'Informe a oficina')
     .max(80, 'Identificador da oficina muito longo')
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      'Use apenas letras minúsculas, números e hífens',
-    ),
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use apenas letras minúsculas, números e hífens'),
   email: z.string().trim().toLowerCase().email('E-mail inválido'),
 });
 
@@ -120,10 +104,7 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
 export const resetPasswordSchema = z.object({
   token: z.string().trim().min(32, 'Token inválido'),
-  password: z
-    .string()
-    .min(8, 'Mínimo de 8 caracteres')
-    .max(72, 'Máximo de 72 caracteres'),
+  password: z.string().min(8, 'Mínimo de 8 caracteres').max(72, 'Máximo de 72 caracteres'),
 });
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
@@ -131,10 +112,7 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Informe a senha atual').optional(),
-    password: z
-      .string()
-      .min(8, 'Mínimo de 8 caracteres')
-      .max(72, 'Máximo de 72 caracteres'),
+    password: z.string().min(8, 'Mínimo de 8 caracteres').max(72, 'Máximo de 72 caracteres'),
     confirmPassword: z.string().min(1, 'Confirme a nova senha'),
   })
   .refine((data) => data.password === data.confirmPassword, {

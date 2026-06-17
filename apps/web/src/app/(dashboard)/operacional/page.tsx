@@ -14,7 +14,9 @@ const PRIORITY: Record<string, BadgeProps['variant']> = {
 };
 
 function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(
+    new Date(value),
+  );
 }
 
 function formatAge(minutes: number | null): string {
@@ -31,7 +33,9 @@ export default function OperacionalPage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard operacional</h1>
-          <p className="text-muted-foreground">O que exige atenção hoje na Recepção e na oficina.</p>
+          <p className="text-muted-foreground">
+            O que exige atenção hoje na Recepção e na oficina.
+          </p>
         </div>
         <Button asChild variant="outline">
           <Link href="/configuracoes/operacional">Configurar regras</Link>
@@ -64,18 +68,29 @@ export default function OperacionalPage() {
               <CalendarClock className="size-5 text-primary" />
               <div>
                 <h2 className="font-semibold">Próximas chegadas</h2>
-                <p className="text-sm text-muted-foreground">Agenda dentro da janela configurada.</p>
+                <p className="text-sm text-muted-foreground">
+                  Agenda dentro da janela configurada.
+                </p>
               </div>
             </div>
             <div className="space-y-2">
               {(data?.upcomingArrivals ?? []).length === 0 ? (
-                <p className="rounded-lg border p-4 text-sm text-muted-foreground">Nenhuma chegada próxima.</p>
+                <p className="rounded-lg border p-4 text-sm text-muted-foreground">
+                  Nenhuma chegada próxima.
+                </p>
               ) : (
                 data!.upcomingArrivals.map((item) => (
-                  <Link key={item.id} href={item.href} className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent">
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent"
+                  >
                     <div>
                       <p className="font-medium">{item.customerName}</p>
-                      <p className="text-sm text-muted-foreground">{item.vehicleLabel ?? 'Veículo não informado'} · {item.serviceType ?? 'Serviço não informado'}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.vehicleLabel ?? 'Veículo não informado'} ·{' '}
+                        {item.serviceType ?? 'Serviço não informado'}
+                      </p>
                     </div>
                     <div className="text-right text-sm">
                       <p>{formatDateTime(item.startAt)}</p>
@@ -94,23 +109,35 @@ export default function OperacionalPage() {
               <AlertTriangle className="size-5 text-primary" />
               <div>
                 <h2 className="font-semibold">Alertas operacionais</h2>
-                <p className="text-sm text-muted-foreground">Prioridades calculadas pelas regras configuráveis.</p>
+                <p className="text-sm text-muted-foreground">
+                  Prioridades calculadas pelas regras configuráveis.
+                </p>
               </div>
             </div>
             <div className="space-y-2">
               {(data?.alerts ?? []).length === 0 ? (
-                <p className="rounded-lg border p-4 text-sm text-muted-foreground">Nenhum alerta operacional ativo.</p>
+                <p className="rounded-lg border p-4 text-sm text-muted-foreground">
+                  Nenhum alerta operacional ativo.
+                </p>
               ) : (
                 data!.alerts.map((alert) => (
-                  <Link key={alert.id} href={alert.href} className="block rounded-lg border p-3 hover:bg-accent">
+                  <Link
+                    key={alert.id}
+                    href={alert.href}
+                    className="block rounded-lg border p-3 hover:bg-accent"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-medium">{alert.title}</p>
                         <p className="text-sm text-muted-foreground">{alert.description}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <Badge variant={PRIORITY[alert.priority] ?? 'secondary'}>{alert.priority}</Badge>
-                        <span className="text-xs text-muted-foreground">{formatAge(alert.ageMinutes)}</span>
+                        <Badge variant={PRIORITY[alert.priority] ?? 'secondary'}>
+                          {alert.priority}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {formatAge(alert.ageMinutes)}
+                        </span>
                       </div>
                     </div>
                   </Link>
@@ -124,19 +151,27 @@ export default function OperacionalPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardContent className="flex items-center gap-3 p-5">
-            <span className="rounded-lg bg-primary/10 p-3 text-primary"><Users className="size-5" /></span>
+            <span className="rounded-lg bg-primary/10 p-3 text-primary">
+              <Users className="size-5" />
+            </span>
             <div>
               <p className="font-medium">Recepção primeiro</p>
-              <p className="text-sm text-muted-foreground">Clientes aguardando e chegadas próximas ficam em destaque.</p>
+              <p className="text-sm text-muted-foreground">
+                Clientes aguardando e chegadas próximas ficam em destaque.
+              </p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex items-center gap-3 p-5">
-            <span className="rounded-lg bg-primary/10 p-3 text-primary"><ClipboardList className="size-5" /></span>
+            <span className="rounded-lg bg-primary/10 p-3 text-primary">
+              <ClipboardList className="size-5" />
+            </span>
             <div>
               <p className="font-medium">Oficina sem gargalos</p>
-              <p className="text-sm text-muted-foreground">OS paradas e aprovações vencidas aparecem antes que virem problema.</p>
+              <p className="text-sm text-muted-foreground">
+                OS paradas e aprovações vencidas aparecem antes que virem problema.
+              </p>
             </div>
           </CardContent>
         </Card>

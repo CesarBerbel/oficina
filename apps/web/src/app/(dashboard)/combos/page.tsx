@@ -15,7 +15,10 @@ import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
 export default function CombosPage() {
@@ -37,8 +40,12 @@ export default function CombosPage() {
       confirmLabel: 'Excluir',
     });
     if (!ok) return;
-    try { await del.mutateAsync(c.id); toast.success('Combo excluído'); }
-    catch (err) { toast.error(err instanceof ApiError ? err.message : 'Erro'); }
+    try {
+      await del.mutateAsync(c.id);
+      toast.success('Combo excluído');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Erro');
+    }
   }
 
   return (
@@ -49,7 +56,12 @@ export default function CombosPage() {
           <p className="text-muted-foreground">Serviços e combos da oficina.</p>
         </div>
         {canWrite && (
-          <Button onClick={() => { setEditing(null); setOpen(true); }}>
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+          >
             <Plus className="size-4" /> Novo combo
           </Button>
         )}
@@ -58,12 +70,14 @@ export default function CombosPage() {
       <CatalogTabs />
 
       <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-        Combo é um agrupamento interno. Ao adicioná-lo na OS, ele expande nos
-        serviços que o compõem — o combo não aparece para o cliente.
+        Combo é um agrupamento interno. Ao adicioná-lo na OS, ele expande nos serviços que o compõem
+        — o combo não aparece para o cliente.
       </p>
 
       {isLoading ? (
-        <div className="grid h-40 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>
+        <div className="grid h-40 place-items-center">
+          <CarLoader className="size-6 animate-spin text-muted-foreground" />
+        </div>
       ) : combos.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">Nenhum combo cadastrado.</p>
       ) : (
@@ -74,14 +88,29 @@ export default function CombosPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-semibold">{c.name}</h3>
-                    {c.description && <p className="text-sm text-muted-foreground">{c.description}</p>}
+                    {c.description && (
+                      <p className="text-sm text-muted-foreground">{c.description}</p>
+                    )}
                   </div>
                   {canWrite && (
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="size-4" /> Editar</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete(c)}><Trash2 className="size-4" /> Excluir</DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setEditing(c);
+                            setOpen(true);
+                          }}
+                        >
+                          <Pencil className="size-4" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDelete(c)}>
+                          <Trash2 className="size-4" /> Excluir
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}

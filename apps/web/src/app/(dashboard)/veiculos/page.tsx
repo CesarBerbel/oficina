@@ -3,16 +3,10 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import {
-  Plus, MoreHorizontal, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, MoreHorizontal, Search, Pencil, Trash2 } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import {
-  FUEL_TYPES,
-  FUEL_TYPE_LABELS,
-  type FuelType,
-  type VehicleDto,
-} from '@oficina/shared';
+import { FUEL_TYPES, FUEL_TYPE_LABELS, type FuelType, type VehicleDto } from '@oficina/shared';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useVehicles, useDeleteVehicle } from '@/features/vehicles/use-vehicles';
@@ -158,7 +152,9 @@ function VehiclesContent() {
               vehicles.map((v) => (
                 <TableRow key={v.id}>
                   <TableCell>
-                    <Badge variant="outline" className="font-mono">{v.plate}</Badge>
+                    <Badge variant="outline" className="font-mono">
+                      {v.plate}
+                    </Badge>
                   </TableCell>
                   <TableCell className="font-medium">
                     {v.manufacturer} {v.model}
@@ -168,7 +164,10 @@ function VehiclesContent() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Link href={`/clientes/${v.customerId}?returnTo=${encodeURIComponent('/veiculos')}`} className="text-muted-foreground hover:underline">
+                    <Link
+                      href={`/clientes/${v.customerId}?returnTo=${encodeURIComponent('/veiculos')}`}
+                      className="text-muted-foreground hover:underline"
+                    >
                       {v.customerName}
                     </Link>
                   </TableCell>
@@ -177,7 +176,14 @@ function VehiclesContent() {
                   </TableCell>
                   <TableCell>
                     {canWrite && (
-                      <RowActions v={v} onEdit={(x) => { setEditing(x); setDialogOpen(true); }} onDelete={handleDelete} />
+                      <RowActions
+                        v={v}
+                        onEdit={(x) => {
+                          setEditing(x);
+                          setDialogOpen(true);
+                        }}
+                        onDelete={handleDelete}
+                      />
                     )}
                   </TableCell>
                 </TableRow>
@@ -194,7 +200,9 @@ function VehiclesContent() {
             <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : vehicles.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Nenhum veículo encontrado.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Nenhum veículo encontrado.
+          </p>
         ) : (
           vehicles.map((v) => (
             <div key={v.id} className="rounded-xl border bg-card p-4">
@@ -203,16 +211,28 @@ function VehiclesContent() {
                   <p className="truncate font-medium">
                     {v.manufacturer} {v.model}
                   </p>
-                  <Link href={`/clientes/${v.customerId}?returnTo=${encodeURIComponent('/veiculos')}`} className="truncate text-sm text-muted-foreground hover:underline">
+                  <Link
+                    href={`/clientes/${v.customerId}?returnTo=${encodeURIComponent('/veiculos')}`}
+                    className="truncate text-sm text-muted-foreground hover:underline"
+                  >
                     {v.customerName}
                   </Link>
                 </div>
                 {canWrite && (
-                  <RowActions v={v} onEdit={(x) => { setEditing(x); setDialogOpen(true); }} onDelete={handleDelete} />
+                  <RowActions
+                    v={v}
+                    onEdit={(x) => {
+                      setEditing(x);
+                      setDialogOpen(true);
+                    }}
+                    onDelete={handleDelete}
+                  />
                 )}
               </div>
               <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className="font-mono">{v.plate}</Badge>
+                <Badge variant="outline" className="font-mono">
+                  {v.plate}
+                </Badge>
                 {v.modelYear && <span>{v.modelYear}</span>}
                 {v.currentKm != null && <span>{v.currentKm.toLocaleString('pt-BR')} km</span>}
               </div>
@@ -227,10 +247,20 @@ function VehiclesContent() {
             {meta.total} veículo(s) · página {meta.page} de {meta.totalPages}
           </span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
               Anterior
             </Button>
-            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
               Próxima
             </Button>
           </div>
@@ -249,7 +279,13 @@ function VehiclesContent() {
 
 export default function VehiclesPage() {
   return (
-    <Suspense fallback={<div className="grid h-64 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>}>
+    <Suspense
+      fallback={
+        <div className="grid h-64 place-items-center">
+          <CarLoader className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
       <VehiclesContent />
     </Suspense>
   );

@@ -1,9 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import {
-  globalSearchQuerySchema,
-  Permission,
-  type GlobalSearchQuery,
-} from '@oficina/shared';
+import { globalSearchQuerySchema, Permission, type GlobalSearchQuery } from '@oficina/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';

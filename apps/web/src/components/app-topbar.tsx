@@ -69,9 +69,7 @@ export function AppTopbar({ onMenu }: { onMenu?: () => void }) {
               {initials}
             </span>
             <span className="hidden text-left sm:block">
-              <span className="block text-sm font-medium leading-tight">
-                {user?.name}
-              </span>
+              <span className="block text-sm font-medium leading-tight">{user?.name}</span>
               <span className="block text-xs text-muted-foreground">
                 {user ? USER_ROLE_LABELS[user.role as UserRole] : ''}
               </span>
@@ -81,9 +79,7 @@ export function AppTopbar({ onMenu }: { onMenu?: () => void }) {
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel>
             <div className="font-medium">{user?.name}</div>
-            <div className="text-xs font-normal text-muted-foreground">
-              {user?.email}
-            </div>
+            <div className="text-xs font-normal text-muted-foreground">{user?.email}</div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => router.push('/trocar-senha')}>

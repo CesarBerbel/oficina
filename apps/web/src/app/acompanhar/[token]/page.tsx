@@ -13,11 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { maskCpfCnpj } from '@/lib/masks';
 
-export default function PublicTrackingPage({
-  params,
-}: {
-  params: Promise<{ token: string }>;
-}) {
+export default function PublicTrackingPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const { data, isLoading, isError } = usePublicTracking(token);
   const decide = useQuoteDecision(token);
@@ -83,9 +79,7 @@ export default function PublicTrackingPage({
   function toggleItem(item: QuoteItemDto, checked: boolean) {
     if (!quote) return;
     const key = groupKeyOf(item);
-    const members = quote.items
-      .filter((q) => groupKeyOf(q) === key)
-      .map((q) => q.id);
+    const members = quote.items.filter((q) => groupKeyOf(q) === key).map((q) => q.id);
     setDecisions((d) => {
       const next = { ...d };
       for (const id of members) next[id] = checked;
@@ -126,9 +120,7 @@ export default function PublicTrackingPage({
       <div className="container max-w-3xl space-y-5 py-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Ordem de Serviço #{data.number}
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">Ordem de Serviço #{data.number}</h1>
             <p className="text-muted-foreground">{data.customerName}</p>
           </div>
         </div>
@@ -200,9 +192,7 @@ export default function PublicTrackingPage({
                         )}
                         <div className="min-w-0">
                           <p className={rejected ? 'line-through' : ''}>
-                            {linked && (
-                              <span className="mr-1 text-muted-foreground">↳</span>
-                            )}
+                            {linked && <span className="mr-1 text-muted-foreground">↳</span>}
                             {it.description}
                           </p>
                           <p className="text-xs text-muted-foreground">
@@ -222,7 +212,9 @@ export default function PublicTrackingPage({
             <div className="space-y-1 border-t pt-2 text-sm">
               <Row label="Serviços" value={formatCurrency(shownServices)} />
               <Row label="Peças" value={formatCurrency(shownParts)} />
-              {data.discount > 0 && <Row label="Desconto" value={`- ${formatCurrency(data.discount)}`} />}
+              {data.discount > 0 && (
+                <Row label="Desconto" value={`- ${formatCurrency(data.discount)}`} />
+              )}
               <div className="flex justify-between pt-1 text-base font-semibold">
                 <span>Total</span>
                 <span className="tabular-nums">{formatCurrency(shownTotal)}</span>
@@ -238,12 +230,16 @@ export default function PublicTrackingPage({
               <div className="space-y-3 rounded-lg border bg-muted/40 p-3">
                 <p className="text-sm font-medium">Aprovação do orçamento</p>
                 <p className="text-xs text-muted-foreground">
-                  Desmarque itens que não deseja aprovar. Confirme com seu nome e
-                  CPF/CNPJ (assinatura).
+                  Desmarque itens que não deseja aprovar. Confirme com seu nome e CPF/CNPJ
+                  (assinatura).
                 </p>
                 <div className="space-y-1.5">
                   <Label>Seu nome (assinatura)</Label>
-                  <Input value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="Nome completo" />
+                  <Input
+                    value={signature}
+                    onChange={(e) => setSignature(e.target.value)}
+                    placeholder="Nome completo"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>CPF ou CNPJ</Label>
@@ -254,9 +250,7 @@ export default function PublicTrackingPage({
                     inputMode="numeric"
                   />
                   {signerDoc.length > 0 && !docOk && (
-                    <p className="text-xs text-destructive">
-                      Informe um CPF ou CNPJ válido.
-                    </p>
+                    <p className="text-xs text-destructive">Informe um CPF ou CNPJ válido.</p>
                   )}
                 </div>
                 <div className="flex gap-2">
@@ -265,7 +259,11 @@ export default function PublicTrackingPage({
                     disabled={decide.isPending || !canSubmit}
                     className="flex-1"
                   >
-                    {decide.isPending ? <CarLoader className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                    {decide.isPending ? (
+                      <CarLoader className="size-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="size-4" />
+                    )}
                     Aprovar
                   </Button>
                   <Button

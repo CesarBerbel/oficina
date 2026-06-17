@@ -33,11 +33,7 @@ const COLUMNS: { label: string; statuses: ServiceOrderStatus[] }[] = [
   { label: 'Pronta / retirada', statuses: ['PRONTA', 'PRONTO_RETIRAR'] },
 ];
 
-const HIDDEN_BOARD_STATUSES: ServiceOrderStatus[] = [
-  'ORCAMENTO_RECUSADO',
-  'CANCELADA',
-  'ENTREGUE',
-];
+const HIDDEN_BOARD_STATUSES: ServiceOrderStatus[] = ['ORCAMENTO_RECUSADO', 'CANCELADA', 'ENTREGUE'];
 
 const HIDDEN_QUICK_ACTION_STATUSES: ServiceOrderStatus[] = ['CANCELADA'];
 
@@ -51,9 +47,9 @@ export default function KanbanPage() {
 
   function allOrders(): ServiceOrderBoardItemDto[] {
     if (!data) return [];
-    return Object.values(data).flat().filter(
-      (order) => !HIDDEN_BOARD_STATUSES.includes(order.status),
-    );
+    return Object.values(data)
+      .flat()
+      .filter((order) => !HIDDEN_BOARD_STATUSES.includes(order.status));
   }
 
   function ordersFor(statuses: ServiceOrderStatus[]): ServiceOrderBoardItemDto[] {
@@ -84,9 +80,7 @@ export default function KanbanPage() {
         status: transition.status,
       });
       await qc.invalidateQueries({ queryKey: ['service-orders'] });
-      toast.success(
-        `OS #${order.number}: ${SERVICE_ORDER_STATUS_LABELS[transition.status]}`,
-      );
+      toast.success(`OS #${order.number}: ${SERVICE_ORDER_STATUS_LABELS[transition.status]}`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Transição inválida');
     } finally {
@@ -99,12 +93,10 @@ export default function KanbanPage() {
       <div className="mb-4 shrink-0 space-y-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Kanban técnico
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">Kanban técnico</h1>
             <p className="max-w-3xl text-sm text-muted-foreground">
-              Fluxo das OS em andamento. A página não gera rolagem própria: se
-              uma coluna tiver muitas OS, a rolagem fica somente dentro dela.
+              Fluxo das OS em andamento. A página não gera rolagem própria: se uma coluna tiver
+              muitas OS, a rolagem fica somente dentro dela.
             </p>
           </div>
           <div className="rounded-lg border bg-card px-3 py-2 text-xs text-muted-foreground">
@@ -122,9 +114,7 @@ export default function KanbanPage() {
           <select
             id="kanban-column"
             value={selectedColumnIndex}
-            onChange={(event) =>
-              setSelectedColumnIndex(Number(event.target.value))
-            }
+            onChange={(event) => setSelectedColumnIndex(Number(event.target.value))}
             className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
             {COLUMNS.map((column, index) => (
@@ -250,8 +240,7 @@ function KanbanOrderCard({
   const confirm = useConfirm();
   const enabledTransitions = order.availableTransitions.filter(
     (transition) =>
-      !transition.disabledReason &&
-      !HIDDEN_QUICK_ACTION_STATUSES.includes(transition.status),
+      !transition.disabledReason && !HIDDEN_QUICK_ACTION_STATUSES.includes(transition.status),
   );
 
   async function moveTo(transition: ServiceOrderTransitionDto) {
@@ -271,9 +260,7 @@ function KanbanOrderCard({
 
     try {
       await changeStatus.mutateAsync({ status: transition.status });
-      toast.success(
-        `OS #${order.number}: ${SERVICE_ORDER_STATUS_LABELS[transition.status]}`,
-      );
+      toast.success(`OS #${order.number}: ${SERVICE_ORDER_STATUS_LABELS[transition.status]}`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Transição inválida');
     }
@@ -294,13 +281,9 @@ function KanbanOrderCard({
         className="block min-w-0 space-y-1"
       >
         <div className="flex min-w-0 items-start justify-between gap-2">
-          <span className="min-w-0 truncate text-sm font-semibold">
-            #{order.number}
-          </span>
+          <span className="min-w-0 truncate text-sm font-semibold">#{order.number}</span>
           <div className="flex shrink-0 items-center gap-1.5">
-            {order.isOverdue && (
-              <AlertTriangle className="size-3.5 text-destructive" />
-            )}
+            {order.isOverdue && <AlertTriangle className="size-3.5 text-destructive" />}
             <StatusBadge status={order.status} />
           </div>
         </div>
@@ -316,9 +299,7 @@ function KanbanOrderCard({
       {canChangeStatus && (
         <div className="mt-3 border-t pt-3">
           {enabledTransitions.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Sem ação rápida disponível.
-            </p>
+            <p className="text-xs text-muted-foreground">Sem ação rápida disponível.</p>
           ) : (
             <div className="grid gap-1.5">
               {enabledTransitions.map((transition) => (

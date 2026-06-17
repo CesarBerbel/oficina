@@ -1,9 +1,5 @@
 import { z } from 'zod';
-import {
-  MessageChannel,
-  MessageEvent,
-  MessageStatus,
-} from '../enums/message.js';
+import { MessageChannel, MessageEvent, MessageStatus } from '../enums/message.js';
 import { paginationQuerySchema } from './common.js';
 
 export const createTemplateSchema = z.object({

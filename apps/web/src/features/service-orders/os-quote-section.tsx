@@ -1,14 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, Copy, CheckCircle2, XCircle, ExternalLink, Mail, RotateCcw, ShoppingCart } from 'lucide-react';
+import {
+  FileText,
+  Copy,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
+  Mail,
+  RotateCcw,
+  ShoppingCart,
+} from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import {
-  QUOTE_STATUS_LABELS,
-  type QuoteDto,
-  type ServiceOrderStatus,
-} from '@oficina/shared';
+import { QUOTE_STATUS_LABELS, type QuoteDto, type ServiceOrderStatus } from '@oficina/shared';
 import { ApiError } from '@/lib/api';
 import {
   useGenerateQuote,
@@ -101,9 +106,7 @@ export function OsQuoteSection({
       const { to } = await sendEmail.mutateAsync();
       toast.success(`Orçamento enviado para ${to}`);
     } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.message : 'Erro ao enviar o orçamento',
-      );
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao enviar o orçamento');
     }
   }
 
@@ -112,9 +115,7 @@ export function OsQuoteSection({
       const { created } = await generatePurchase.mutateAsync();
       toast.success(`${created} pedido(s) de compra gerado(s)`);
     } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.message : 'Erro ao gerar pedido de compra',
-      );
+      toast.error(err instanceof ApiError ? err.message : 'Erro ao gerar pedido de compra');
     }
   }
 
@@ -141,9 +142,7 @@ export function OsQuoteSection({
           <FileText className="size-4" /> Orçamento
         </CardTitle>
         {quote && (
-          <Badge variant={STATUS_VARIANT[quote.status]}>
-            {QUOTE_STATUS_LABELS[quote.status]}
-          </Badge>
+          <Badge variant={STATUS_VARIANT[quote.status]}>{QUOTE_STATUS_LABELS[quote.status]}</Badge>
         )}
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
@@ -181,7 +180,11 @@ export function OsQuoteSection({
               onClick={onGenerate}
               disabled={generate.isPending || (isResend && !reason.trim())}
             >
-              {generate.isPending ? <CarLoader className="size-4 animate-spin" /> : <FileText className="size-4" />}
+              {generate.isPending ? (
+                <CarLoader className="size-4 animate-spin" />
+              ) : (
+                <FileText className="size-4" />
+              )}
               {isRejected
                 ? 'Gerar novo orçamento'
                 : quote
@@ -206,7 +209,12 @@ export function OsQuoteSection({
                   <Button size="icon" variant="ghost" onClick={copyLink} aria-label="Copiar link">
                     <Copy className="size-4" />
                   </Button>
-                  <a href={trackUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                  <a
+                    href={trackUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
                     <ExternalLink className="size-4" />
                   </a>
                 </div>

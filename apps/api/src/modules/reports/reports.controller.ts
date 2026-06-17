@@ -11,10 +11,7 @@ export class ReportsController {
 
   @Get('summary')
   @RequirePermission(Permission.DASHBOARD_READ)
-  summary(
-    @CurrentUser() actor: AuthenticatedUser,
-    @Query('periodDays') periodDays?: string,
-  ) {
+  summary(@CurrentUser() actor: AuthenticatedUser, @Query('periodDays') periodDays?: string) {
     return this.reports.summary(actor.tenantId, Number(periodDays) || 180);
   }
 }

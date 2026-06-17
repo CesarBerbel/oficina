@@ -132,52 +132,51 @@ export async function seedE2eData(): Promise<SeedData> {
     },
   });
 
-  const [admin, atendente, tecnico, estoquista, inactive, otherAdmin] =
-    await Promise.all([
-      createUser({
-        tenantId: tenant.id,
-        name: 'Administrador E2E',
-        email: 'admin@oficina.local',
-        role: Role.ADMIN,
-        passwordHash,
-      }),
-      createUser({
-        tenantId: tenant.id,
-        name: 'Atendente E2E',
-        email: 'atendente@oficina.local',
-        role: Role.ATENDENTE,
-        passwordHash,
-      }),
-      createUser({
-        tenantId: tenant.id,
-        name: 'Técnico E2E',
-        email: 'tecnico@oficina.local',
-        role: Role.TECNICO,
-        passwordHash,
-      }),
-      createUser({
-        tenantId: tenant.id,
-        name: 'Estoquista E2E',
-        email: 'estoque@oficina.local',
-        role: Role.ESTOQUISTA,
-        passwordHash,
-      }),
-      createUser({
-        tenantId: tenant.id,
-        name: 'Usuário Inativo E2E',
-        email: 'inativo@oficina.local',
-        role: Role.ATENDENTE,
-        active: false,
-        passwordHash,
-      }),
-      createUser({
-        tenantId: otherTenant.id,
-        name: 'Admin Outra Oficina',
-        email: 'admin@concorrente.local',
-        role: Role.ADMIN,
-        passwordHash,
-      }),
-    ]);
+  const [admin, atendente, tecnico, estoquista, inactive, otherAdmin] = await Promise.all([
+    createUser({
+      tenantId: tenant.id,
+      name: 'Administrador E2E',
+      email: 'admin@oficina.local',
+      role: Role.ADMIN,
+      passwordHash,
+    }),
+    createUser({
+      tenantId: tenant.id,
+      name: 'Atendente E2E',
+      email: 'atendente@oficina.local',
+      role: Role.ATENDENTE,
+      passwordHash,
+    }),
+    createUser({
+      tenantId: tenant.id,
+      name: 'Técnico E2E',
+      email: 'tecnico@oficina.local',
+      role: Role.TECNICO,
+      passwordHash,
+    }),
+    createUser({
+      tenantId: tenant.id,
+      name: 'Estoquista E2E',
+      email: 'estoque@oficina.local',
+      role: Role.ESTOQUISTA,
+      passwordHash,
+    }),
+    createUser({
+      tenantId: tenant.id,
+      name: 'Usuário Inativo E2E',
+      email: 'inativo@oficina.local',
+      role: Role.ATENDENTE,
+      active: false,
+      passwordHash,
+    }),
+    createUser({
+      tenantId: otherTenant.id,
+      name: 'Admin Outra Oficina',
+      email: 'admin@concorrente.local',
+      role: Role.ADMIN,
+      passwordHash,
+    }),
+  ]);
 
   await Promise.all([
     createPublishedSite(tenant.id, 'Oficina Modelo'),

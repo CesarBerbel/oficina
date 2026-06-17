@@ -12,7 +12,6 @@ const optionalText = (max: number) =>
     return value;
   }, z.string().max(max).nullable().optional());
 
-
 const optionalCnpj = z
   .preprocess((value) => {
     if (value === undefined) return undefined;
@@ -20,7 +19,7 @@ const optionalCnpj = z
     if (typeof value === 'string' && value.trim() === '') return null;
     return value;
   }, cnpjSchema.nullable().optional())
-  .transform((value) => (value === undefined ? undefined : value ?? null));
+  .transform((value) => (value === undefined ? undefined : (value ?? null)));
 
 const optionalCapacity = z.preprocess((value) => {
   if (value === undefined) return undefined;
@@ -159,15 +158,9 @@ export function composeAddress(parts: {
   addressZip?: string | null;
 }): string | null {
   const v = (s?: string | null) => (s ?? '').trim();
-  const streetLine = [v(parts.addressStreet), v(parts.addressNumber)]
-    .filter(Boolean)
-    .join(', ');
-  const withComplement = [streetLine, v(parts.addressComplement)]
-    .filter(Boolean)
-    .join(' - ');
-  const cityUf = [v(parts.addressCity), v(parts.addressState)]
-    .filter(Boolean)
-    .join('/');
+  const streetLine = [v(parts.addressStreet), v(parts.addressNumber)].filter(Boolean).join(', ');
+  const withComplement = [streetLine, v(parts.addressComplement)].filter(Boolean).join(' - ');
+  const cityUf = [v(parts.addressCity), v(parts.addressState)].filter(Boolean).join('/');
   const cep = v(parts.addressZip) ? `CEP ${v(parts.addressZip)}` : '';
   const composed = [withComplement, v(parts.addressDistrict), cityUf, cep]
     .filter(Boolean)

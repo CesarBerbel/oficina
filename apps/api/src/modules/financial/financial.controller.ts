@@ -76,7 +76,8 @@ export class FinancialController {
   @RequirePermission(Permission.FINANCE_WRITE)
   syncServiceOrder(
     @CurrentUser() actor: AuthenticatedUser,
-    @Body(new ZodValidationPipe(syncServiceOrderFinancialSchema)) body: SyncServiceOrderFinancialInput,
+    @Body(new ZodValidationPipe(syncServiceOrderFinancialSchema))
+    body: SyncServiceOrderFinancialInput,
   ) {
     return this.financial.syncServiceOrder(actor, body);
   }

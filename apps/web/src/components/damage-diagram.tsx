@@ -32,10 +32,7 @@ export function DamageDiagram({
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
     const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
-    onChange([
-      ...value,
-      { x, y, severity: DamageSeverity.LEVE, description: '' },
-    ]);
+    onChange([...value, { x, y, severity: DamageSeverity.LEVE, description: '' }]);
   }
 
   function update(i: number, patch: Partial<DamagePoint>) {
@@ -77,7 +74,16 @@ export function DamageDiagram({
             strokeWidth="2"
             className="text-muted-foreground/40"
           />
-          <line x1="250" y1="35" x2="250" y2="165" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" className="text-muted-foreground/30" />
+          <line
+            x1="250"
+            y1="35"
+            x2="250"
+            y2="165"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray="4 4"
+            className="text-muted-foreground/30"
+          />
         </svg>
         {value.map((p, i) => (
           <span
@@ -111,9 +117,7 @@ export function DamageDiagram({
               <Select
                 className="w-32"
                 value={p.severity}
-                onChange={(e) =>
-                  update(i, { severity: e.target.value as DamageSeverity })
-                }
+                onChange={(e) => update(i, { severity: e.target.value as DamageSeverity })}
               >
                 {DAMAGE_SEVERITIES.map((s) => (
                   <option key={s} value={s}>

@@ -18,7 +18,13 @@ export function ReceptionMetricsGrid({
   wide?: boolean;
 }) {
   return (
-    <div className={wide ? 'mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 lg:grid-cols-6' : 'mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 xl:grid-cols-2'}>
+    <div
+      className={
+        wide
+          ? 'mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 lg:grid-cols-6'
+          : 'mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 xl:grid-cols-2'
+      }
+    >
       <Metric label="Novos" value={metrics.newItems} />
       <Metric label="Retornos" value={metrics.awaitingReturn} />
       <Metric label="Hoje" value={metrics.scheduledToday} />

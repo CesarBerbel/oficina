@@ -15,7 +15,9 @@ const PRIORITY: Record<string, BadgeProps['variant']> = {
 };
 
 function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(
+    new Date(value),
+  );
 }
 
 export default function CentralNotificacoesPage() {
@@ -28,9 +30,15 @@ export default function CentralNotificacoesPage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Inbox de notificações</h1>
-          <p className="text-muted-foreground">Central unificada de Recepção, Oficina, CRM, Financeiro e Sistema.</p>
+          <p className="text-muted-foreground">
+            Central unificada de Recepção, Oficina, CRM, Financeiro e Sistema.
+          </p>
         </div>
-        <Button variant="outline" onClick={() => markAllRead.mutate()} disabled={markAllRead.isPending || !data?.unreadTotal}>
+        <Button
+          variant="outline"
+          onClick={() => markAllRead.mutate()}
+          disabled={markAllRead.isPending || !data?.unreadTotal}
+        >
           <CheckCheck className="mr-2 size-4" /> Marcar tudo como lido
         </Button>
       </div>
@@ -53,9 +61,13 @@ export default function CentralNotificacoesPage() {
             <Bell className="size-5 text-primary" />
             <h2 className="font-semibold">Notificações recentes</h2>
           </div>
-          {isLoading ? <p className="text-sm text-muted-foreground">Carregando notificações...</p> : null}
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando notificações...</p>
+          ) : null}
           {(data?.items ?? []).length === 0 ? (
-            <p className="rounded-lg border p-4 text-sm text-muted-foreground">Nenhuma notificação encontrada.</p>
+            <p className="rounded-lg border p-4 text-sm text-muted-foreground">
+              Nenhuma notificação encontrada.
+            </p>
           ) : (
             <div className="space-y-2">
               {data!.items.map((item) => {
@@ -66,11 +78,17 @@ export default function CentralNotificacoesPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium">{item.title}</p>
                           {!item.read ? <Badge>nova</Badge> : null}
-                          <Badge variant={PRIORITY[item.priority] ?? 'secondary'}>{item.priority}</Badge>
+                          <Badge variant={PRIORITY[item.priority] ?? 'secondary'}>
+                            {item.priority}
+                          </Badge>
                           <Badge variant="outline">{item.category}</Badge>
                         </div>
-                        {item.body ? <p className="mt-1 text-sm text-muted-foreground">{item.body}</p> : null}
-                        <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(item.createdAt)}</p>
+                        {item.body ? (
+                          <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
+                        ) : null}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatDateTime(item.createdAt)}
+                        </p>
                       </div>
                       {!item.read ? (
                         <Button
@@ -87,7 +105,13 @@ export default function CentralNotificacoesPage() {
                     </div>
                   </div>
                 );
-                return item.link ? <Link key={item.id} href={item.link}>{content}</Link> : <div key={item.id}>{content}</div>;
+                return item.link ? (
+                  <Link key={item.id} href={item.link}>
+                    {content}
+                  </Link>
+                ) : (
+                  <div key={item.id}>{content}</div>
+                );
               })}
             </div>
           )}
