@@ -14,4 +14,5 @@ export interface AuthenticatedUser {
   tenantId: string;
   role: Role;
   email: string;
+  superAdmin: boolean;
 }

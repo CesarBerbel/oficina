@@ -44,6 +44,31 @@ export const DEFAULT_CATEGORIES: Partial<Record<CategoryKind, string[]>> = {
     'Acessórios',
     'Consumíveis',
   ],
+  // Marcas de autopeças mais usadas nas oficinas do Brasil.
+  BRAND: [
+    'Bosch',
+    'NGK',
+    'Cofap',
+    'Monroe',
+    'Nakata',
+    'SKF',
+    'Mahle',
+    'Magneti Marelli',
+    'Valeo',
+    'Continental',
+    'TRW',
+    'Fras-le',
+    'Tecfil',
+    'Mann-Filter',
+    'Wega',
+    'Gates',
+    'Dayco',
+    'Sabó',
+    'Moura',
+    'Heliar',
+    'Philips',
+    'Osram',
+  ],
 };
 
 /** Cria as categorias padrão de um tenant (idempotente). Retorna quantas criou. */

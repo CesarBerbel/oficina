@@ -19,8 +19,20 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
-/** Auto-cadastro de uma nova oficina (onboarding SaaS). */
-export const registerTenantSchema = z.object({
+const optionalInstallText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .or(z.literal('').transform(() => undefined));
+
+/**
+ * Instalação do sistema: cria a oficina matriz (dados completos + site) e o
+ * super usuário. Só é permitida com o sistema vazio.
+ */
+export const installSystemSchema = z.object({
+  // Oficina matriz
   shopName: z.string().trim().min(2, 'Informe o nome da oficina').max(160),
   slug: z
     .string()
@@ -32,18 +44,26 @@ export const registerTenantSchema = z.object({
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
       'Use apenas letras minúsculas, números e hífens',
     ),
-  cnpj: z
+  cnpj: optionalInstallText(20),
+  // Dados do site / contato
+  tagline: optionalInstallText(200),
+  phone: optionalInstallText(40),
+  whatsapp: optionalInstallText(40),
+  email: z
     .string()
     .trim()
-    .max(20)
+    .toLowerCase()
+    .email('E-mail inválido')
     .optional()
     .or(z.literal('').transform(() => undefined)),
-  phone: z
-    .string()
-    .trim()
-    .max(40)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
+  addressZip: optionalInstallText(12),
+  addressStreet: optionalInstallText(160),
+  addressNumber: optionalInstallText(20),
+  addressComplement: optionalInstallText(120),
+  addressDistrict: optionalInstallText(80),
+  addressCity: optionalInstallText(80),
+  addressState: optionalInstallText(2),
+  // Super usuário (administrador da plataforma)
   adminName: z.string().trim().min(2, 'Informe seu nome').max(120),
   adminEmail: z.string().trim().toLowerCase().email('E-mail inválido'),
   password: z
@@ -52,7 +72,7 @@ export const registerTenantSchema = z.object({
     .max(72, 'Máximo de 72 caracteres'),
 });
 
-export type RegisterTenantInput = z.infer<typeof registerTenantSchema>;
+export type InstallSystemInput = z.infer<typeof installSystemSchema>;
 
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, 'Nome muito curto').max(120),

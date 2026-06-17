@@ -32,13 +32,14 @@ async function main(): Promise<void> {
 
   await prisma.user.upsert({
     where: { tenantId_email: { tenantId: tenant.id, email: adminEmail } },
-    update: { passwordHash, role: Role.ADMIN, active: true },
+    update: { passwordHash, role: Role.ADMIN, active: true, superAdmin: true },
     create: {
       tenantId: tenant.id,
       name: 'Administrador',
       email: adminEmail,
       passwordHash,
       role: Role.ADMIN,
+      superAdmin: true,
     },
   });
 

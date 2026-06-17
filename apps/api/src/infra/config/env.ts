@@ -22,14 +22,6 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
-  // Permite o auto-cadastro de novas oficinas (onboarding SaaS).
-  ALLOW_TENANT_SIGNUP: z
-    .enum(['true', 'false'])
-    .default('true')
-    .transform((v) => v === 'true'),
-  // E-mails (separados por vírgula) dos administradores da plataforma — acesso à
-  // gestão de oficinas (ativar/desativar/excluir tenants).
-  PLATFORM_ADMIN_EMAILS: z.string().default(''),
 
   ENCRYPTION_KEY: z
     .string()

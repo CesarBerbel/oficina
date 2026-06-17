@@ -12,7 +12,7 @@ import type {
   AuthUser,
   LoginResponse,
   Permission,
-  RegisterTenantInput,
+  InstallSystemInput,
 } from '@oficina/shared';
 import { api, setAccessToken, API_URL } from './api';
 
@@ -22,7 +22,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   status: Status;
   login: (tenantSlug: string, email: string, password: string) => Promise<void>;
-  register: (input: RegisterTenantInput) => Promise<void>;
+  install: (input: InstallSystemInput) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (permission: Permission | string) => boolean;
 }
@@ -75,8 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus('authenticated');
   }, []);
 
-  const register = useCallback(async (input: RegisterTenantInput) => {
-    const data = await api.post<LoginResponse>('/auth/register', input, {
+  const install = useCallback(async (input: InstallSystemInput) => {
+    const data = await api.post<LoginResponse>('/auth/install', input, {
       skipAuthRetry: true,
     });
     setAccessToken(data.accessToken);
@@ -102,8 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ user, status, login, register, logout, hasPermission }),
-    [user, status, login, register, logout, hasPermission],
+    () => ({ user, status, login, install, logout, hasPermission }),
+    [user, status, login, install, logout, hasPermission],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

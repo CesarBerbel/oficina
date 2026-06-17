@@ -244,8 +244,13 @@ model Tenant {
   cnpj      String?
   slug      String   @unique
   active    Boolean  @default(true)
+  // Hierarquia matriz/filial: matriz tem parentId null; filiais apontam p/ a matriz.
+  parentId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  parent   Tenant?  @relation("TenantBranches", fields: [parentId], references: [id], onDelete: SetNull)
+  branches Tenant[] @relation("TenantBranches")
 
   users         User[]
   loginAttempts LoginAttempt[]
@@ -286,6 +291,8 @@ model User {
   passwordHash String
   role         Role     @default(ATENDENTE)
   active       Boolean  @default(true)
+  // Super usuário: acesso global a todas as oficinas (gestão da plataforma).
+  superAdmin   Boolean  @default(false)
   forcePasswordChange Boolean @default(false)
   lastLoginAt  DateTime?
   createdAt    DateTime @default(now())

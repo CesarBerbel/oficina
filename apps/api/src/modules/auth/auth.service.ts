@@ -10,9 +10,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'node:crypto';
 import {
+  composeAddress,
   permissionsForRole,
+  type InstallSystemInput,
   type LoginResponse,
-  type RegisterTenantInput,
 } from '@oficina/shared';
 import { Prisma, type Role } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -60,14 +61,6 @@ export class AuthService {
     ).replace(/\/$/, '');
   }
 
-  private isPlatformAdmin(email: string): boolean {
-    const list = (this.config.get<string>('PLATFORM_ADMIN_EMAILS') ?? '')
-      .split(',')
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
-    return list.includes(email.trim().toLowerCase());
-  }
-
   private buildAuthUser(user: {
     id: string;
     tenantId: string;
@@ -75,6 +68,7 @@ export class AuthService {
     email: string;
     role: Role;
     forcePasswordChange: boolean;
+    superAdmin: boolean;
   }) {
     return {
       id: user.id,
@@ -84,7 +78,7 @@ export class AuthService {
       role: user.role,
       permissions: permissionsForRole(user.role),
       forcePasswordChange: user.forcePasswordChange,
-      platformAdmin: this.isPlatformAdmin(user.email),
+      platformAdmin: user.superAdmin,
     };
   }
 
@@ -190,23 +184,27 @@ export class AuthService {
     };
   }
 
-  /** Auto-cadastro de uma nova oficina: cria tenant + admin + settings e já loga. */
-  async registerTenant(
-    input: RegisterTenantInput,
+  /** O sistema já foi instalado (existe ao menos uma oficina)? */
+  async installStatus(): Promise<{ installed: boolean }> {
+    const count = await this.prisma.tenant.count();
+    return { installed: count > 0 };
+  }
+
+  /**
+   * Instalação do sistema: cria a oficina matriz + super usuário + configurações
+   * do site + categorias/marcas/templates padrão e já autentica. Só é permitida
+   * com o sistema vazio (nenhuma oficina cadastrada).
+   */
+  async install(
+    input: InstallSystemInput,
     meta: RequestMeta,
   ): Promise<IssuedSession> {
-    const slug = input.slug.trim().toLowerCase();
-
-    const existing = await this.prisma.tenant.findUnique({
-      where: { slug },
-      select: { id: true },
-    });
-    if (existing) {
-      throw new ConflictException(
-        'Já existe uma oficina com esse identificador. Escolha outro.',
-      );
+    const count = await this.prisma.tenant.count();
+    if (count > 0) {
+      throw new ConflictException('O sistema já está instalado.');
     }
 
+    const slug = input.slug.trim().toLowerCase();
     const passwordHash = await this.passwords.hash(input.password);
 
     let tenantId: string;
@@ -217,12 +215,20 @@ export class AuthService {
       email: string;
       role: Role;
       forcePasswordChange: boolean;
+      superAdmin: boolean;
     };
     try {
       const result = await this.prisma.$transaction(async (tx) => {
+        // Matriz: parentId null.
         const tenant = await tx.tenant.create({
-          data: { name: input.shopName, slug, cnpj: input.cnpj ?? null },
+          data: {
+            name: input.shopName,
+            slug,
+            cnpj: input.cnpj ?? null,
+            parentId: null,
+          },
         });
+        // Super usuário (acesso global a todas as oficinas).
         const user = await tx.user.create({
           data: {
             tenantId: tenant.id,
@@ -231,6 +237,7 @@ export class AuthService {
             passwordHash,
             role: 'ADMIN',
             active: true,
+            superAdmin: true,
             forcePasswordChange: false,
           },
         });
@@ -240,6 +247,25 @@ export class AuthService {
             shopName: input.shopName,
             cnpj: input.cnpj ?? null,
             phone: input.phone ?? null,
+            whatsapp: input.whatsapp ?? null,
+            email: input.email ?? null,
+            tagline: input.tagline ?? null,
+            addressZip: input.addressZip ?? null,
+            addressStreet: input.addressStreet ?? null,
+            addressNumber: input.addressNumber ?? null,
+            addressComplement: input.addressComplement ?? null,
+            addressDistrict: input.addressDistrict ?? null,
+            addressCity: input.addressCity ?? null,
+            addressState: input.addressState ?? null,
+            address: composeAddress({
+              addressStreet: input.addressStreet,
+              addressNumber: input.addressNumber,
+              addressComplement: input.addressComplement,
+              addressDistrict: input.addressDistrict,
+              addressCity: input.addressCity,
+              addressState: input.addressState,
+              addressZip: input.addressZip,
+            }),
           },
         });
         return { tenant, user };
@@ -247,22 +273,19 @@ export class AuthService {
       tenantId = result.tenant.id;
       admin = result.user;
     } catch (err) {
-      // Corrida na criação do slug (constraint única).
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw new ConflictException(
-          'Já existe uma oficina com esse identificador. Escolha outro.',
-        );
+        throw new ConflictException('O sistema já está instalado.');
       }
       throw err;
     }
 
-    // Templates e categorias padrão (best-effort: não bloqueiam o cadastro).
+    // Categorias/marcas e templates padrão (best-effort: não bloqueiam a instalação).
     try {
-      await seedMessageTemplates(this.prisma, tenantId);
       await seedDefaultCategories(this.prisma, tenantId);
+      await seedMessageTemplates(this.prisma, tenantId);
     } catch (err) {
       this.logger.warn(
-        `Falha ao semear dados padrão do tenant ${tenantId}: ${
+        `Falha ao semear dados padrão na instalação (${tenantId}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
@@ -271,7 +294,7 @@ export class AuthService {
     await this.audit.record({
       tenantId,
       userId: admin.id,
-      action: 'REGISTER_TENANT',
+      action: 'INSTALL_SYSTEM',
       module: 'auth',
       entity: 'Tenant',
       entityId: tenantId,
