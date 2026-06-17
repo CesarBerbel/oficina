@@ -24,9 +24,10 @@ export class CategoriesService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(tenantId: string, kind?: CategoryKind): Promise<CategoryDto[]> {
+  // Categorias são compartilhadas no grupo (matriz + filiais): escopo por groupId.
+  async list(groupId: string, kind?: CategoryKind): Promise<CategoryDto[]> {
     const rows = await this.prisma.category.findMany({
-      where: { tenantId, ...(kind ? { kind } : {}) },
+      where: { tenantId: groupId, ...(kind ? { kind } : {}) },
       orderBy: [{ kind: 'asc' }, { name: 'asc' }],
     });
     return rows.map(toDto);
@@ -37,14 +38,14 @@ export class CategoriesService {
     input: CreateCategoryInput,
   ): Promise<CategoryDto> {
     const clash = await this.prisma.category.findFirst({
-      where: { tenantId: actor.tenantId, kind: input.kind, name: input.name },
+      where: { tenantId: actor.groupId, kind: input.kind, name: input.name },
       select: { id: true },
     });
     if (clash) throw new ConflictException('Já existe uma categoria com este nome');
 
     const created = await this.prisma.category.create({
       data: {
-        tenantId: actor.tenantId,
+        tenantId: actor.groupId,
         kind: input.kind,
         name: input.name,
         active: input.active,
@@ -68,14 +69,14 @@ export class CategoriesService {
     input: UpdateCategoryInput,
   ): Promise<CategoryDto> {
     const current = await this.prisma.category.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
     });
     if (!current) throw new NotFoundException('Categoria não encontrada');
 
     if (input.name && input.name !== current.name) {
       const clash = await this.prisma.category.findFirst({
         where: {
-          tenantId: actor.tenantId,
+          tenantId: actor.groupId,
           kind: current.kind,
           name: input.name,
           NOT: { id },
@@ -105,7 +106,7 @@ export class CategoriesService {
 
   async remove(actor: AuthenticatedUser, id: string): Promise<void> {
     const res = await this.prisma.category.deleteMany({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
     });
     if (res.count === 0) throw new NotFoundException('Categoria não encontrada');
     await this.audit.record({

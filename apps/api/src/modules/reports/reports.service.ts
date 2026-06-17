@@ -130,13 +130,14 @@ export class ReportsService {
     const [services, parts] = await Promise.all([
       serviceIds.length
         ? this.prisma.service.findMany({
-            where: { tenantId, id: { in: serviceIds } },
+            // Catálogo é do grupo; os ids vêm das OS desta oficina (já autorizados).
+            where: { id: { in: serviceIds } },
             select: { id: true, cost: true },
           })
         : Promise.resolve([]),
       partIds.length
         ? this.prisma.part.findMany({
-            where: { tenantId, id: { in: partIds } },
+            where: { id: { in: partIds } },
             select: { id: true, costPrice: true },
           })
         : Promise.resolve([]),

@@ -32,7 +32,7 @@ export class NfeImportController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('Envie um arquivo .xml ou .zip');
-    return this.nfe.parse(actor.tenantId, file.buffer, file.originalname);
+    return this.nfe.parse(actor.groupId, file.buffer, file.originalname);
   }
 
   @Post('confirm')

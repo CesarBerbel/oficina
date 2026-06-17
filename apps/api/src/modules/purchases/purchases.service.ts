@@ -161,9 +161,19 @@ export class PurchasesService {
     return this.toDto(row);
   }
 
-  private async assertParts(tenantId: string, partIds: string[]): Promise<void> {
+  /** Resolve o grupo (matriz) a partir do tenant da oficina. */
+  private async groupOf(tx: Tx, tenantId: string): Promise<string> {
+    const t = await tx.tenant.findUnique({
+      where: { id: tenantId },
+      select: { parentId: true },
+    });
+    return t?.parentId ?? tenantId;
+  }
+
+  // Peças/fornecedores são do grupo (catálogo compartilhado).
+  private async assertParts(groupId: string, partIds: string[]): Promise<void> {
     const count = await this.prisma.part.count({
-      where: { tenantId, id: { in: partIds } },
+      where: { tenantId: groupId, id: { in: partIds } },
     });
     if (count !== new Set(partIds).size) {
       throw new BadRequestException('Uma ou mais peças são inválidas');
@@ -175,12 +185,12 @@ export class PurchasesService {
     input: CreatePurchaseInput,
   ): Promise<PurchaseOrderDto> {
     await this.assertParts(
-      actor.tenantId,
+      actor.groupId,
       input.items.map((i) => i.partId),
     );
     if (input.supplierId) {
       const s = await this.prisma.supplier.findFirst({
-        where: { id: input.supplierId, tenantId: actor.tenantId },
+        where: { id: input.supplierId, tenantId: actor.groupId },
         select: { id: true },
       });
       if (!s) throw new BadRequestException('Fornecedor inválido');
@@ -235,14 +245,15 @@ export class PurchasesService {
   async createFromShortages(
     actor: AuthenticatedUser,
   ): Promise<{ created: number }> {
-    const parts = await this.prisma.part.findMany({
-      where: {
-        tenantId: actor.tenantId,
-        active: true,
-        currentStock: { lt: this.prisma.part.fields.minStock },
-      },
-      select: { id: true },
-    });
+    // Peças abaixo do mínimo NA OFICINA do usuário (saldo por filial, mínimo do grupo).
+    const parts = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT p."id"
+      FROM "parts" p
+      LEFT JOIN "part_stock" ps ON ps."partId" = p."id" AND ps."tenantId" = ${actor.tenantId}
+      WHERE p."tenantId" = ${actor.groupId}
+        AND p."active" = true
+        AND COALESCE(ps."currentStock", 0) < p."minStock"
+    `;
     if (parts.length === 0) {
       throw new BadRequestException('Nenhuma peça abaixo do estoque mínimo');
     }
@@ -530,16 +541,22 @@ export class PurchasesService {
     orderId: string,
   ): Promise<
     {
-      part: {
-        id: string;
-        currentStock: Prisma.Decimal;
-        reservedStock: Prisma.Decimal;
-        costPrice: Prisma.Decimal;
-        supplierId: string | null;
-      };
+      partId: string;
+      branchId: string;
+      currentStock: number;
+      reservedStock: number;
+      costPrice: number;
+      supplierId: string | null;
       needed: number;
     }[]
   > {
+    const order = await tx.serviceOrder.findUnique({
+      where: { id: orderId },
+      select: { tenantId: true },
+    });
+    if (!order) return [];
+    const branchId = order.tenantId;
+
     const items = await tx.serviceOrderItem.findMany({
       where: { serviceOrderId: orderId, kind: 'PART', sourcePartId: { not: null } },
       select: { sourcePartId: true, quantity: true },
@@ -550,17 +567,29 @@ export class PurchasesService {
       byPart.set(id, round3((byPart.get(id) ?? 0) + dec(it.quantity)));
     }
     if (byPart.size === 0) return [];
-    const parts = await tx.part.findMany({
-      where: { id: { in: [...byPart.keys()] } },
-      select: {
-        id: true,
-        currentStock: true,
-        reservedStock: true,
-        costPrice: true,
-        supplierId: true,
-      },
-    });
-    return parts.map((part) => ({ part, needed: byPart.get(part.id) ?? 0 }));
+
+    const partIds = [...byPart.keys()];
+    // Catálogo (custo/fornecedor) é do grupo; saldo/reserva são da filial da OS.
+    const [parts, stocks] = await Promise.all([
+      tx.part.findMany({
+        where: { id: { in: partIds } },
+        select: { id: true, costPrice: true, supplierId: true },
+      }),
+      tx.partStock.findMany({
+        where: { tenantId: branchId, partId: { in: partIds } },
+        select: { partId: true, currentStock: true, reservedStock: true },
+      }),
+    ]);
+    const stockByPart = new Map(stocks.map((s) => [s.partId, s]));
+    return parts.map((part) => ({
+      partId: part.id,
+      branchId,
+      currentStock: dec(stockByPart.get(part.id)?.currentStock),
+      reservedStock: dec(stockByPart.get(part.id)?.reservedStock),
+      costPrice: dec(part.costPrice),
+      supplierId: part.supplierId,
+      needed: byPart.get(part.id) ?? 0,
+    }));
   }
 
   /** Cancela pedidos de compra em aberto (não recebidos) gerados pela OS. */
@@ -634,13 +663,14 @@ export class PurchasesService {
 
     let anyShortfall = false;
     for (const n of needs) {
-      const available = dec(n.part.currentStock) - dec(n.part.reservedStock);
+      const available = n.currentStock - n.reservedStock;
       if (round3(Math.max(0, n.needed - available)) > 0) anyShortfall = true;
-      // Reserva a demanda completa (só uma vez por OS).
+      // Reserva a demanda completa na filial (só uma vez por OS).
       if (!order.partsReserved) {
-        await tx.part.update({
-          where: { id: n.part.id },
-          data: { reservedStock: { increment: n.needed } },
+        await tx.partStock.upsert({
+          where: { tenantId_partId: { tenantId: n.branchId, partId: n.partId } },
+          create: { tenantId: n.branchId, partId: n.partId, reservedStock: n.needed },
+          update: { reservedStock: { increment: n.needed } },
         });
       }
     }
@@ -678,14 +708,12 @@ export class PurchasesService {
     const needs = await this.orderPartNeeds(this.prisma, orderId);
     const lines = needs
       .map((n) => {
-        const uncovered = round3(
-          Math.max(0, dec(n.part.reservedStock) - dec(n.part.currentStock)),
-        );
+        const uncovered = round3(Math.max(0, n.reservedStock - n.currentStock));
         return {
-          partId: n.part.id,
-          supplierId: n.part.supplierId,
+          partId: n.partId,
+          supplierId: n.supplierId,
           qty: round3(Math.min(n.needed, uncovered)),
-          costPrice: dec(n.part.costPrice),
+          costPrice: n.costPrice,
         };
       })
       .filter((l) => l.qty > 0);
@@ -728,11 +756,9 @@ export class PurchasesService {
     const needs = await this.orderPartNeeds(tx, orderId);
     for (const n of needs) {
       if (n.needed <= 0) continue;
-      const newReserved = round3(
-        Math.max(0, dec(n.part.reservedStock) - n.needed),
-      );
-      await tx.part.update({
-        where: { id: n.part.id },
+      const newReserved = round3(Math.max(0, n.reservedStock - n.needed));
+      await tx.partStock.updateMany({
+        where: { tenantId: n.branchId, partId: n.partId },
         data: { reservedStock: newReserved },
       });
     }
@@ -751,9 +777,7 @@ export class PurchasesService {
   /** O estoque já cobre todas as reservas das peças da OS (disponível ≥ 0)? */
   async isOrderStockCovered(tx: Tx, orderId: string): Promise<boolean> {
     const needs = await this.orderPartNeeds(tx, orderId);
-    return needs.every(
-      (n) => dec(n.part.currentStock) - dec(n.part.reservedStock) >= 0,
-    );
+    return needs.every((n) => n.currentStock - n.reservedStock >= 0);
   }
 
   /**
@@ -771,10 +795,10 @@ export class PurchasesService {
       if (n.needed <= 0) continue;
       await applyStockMovement(tx, {
         tenantId,
-        partId: n.part.id,
+        partId: n.partId,
         type: 'CONSUMO_OS',
         quantity: n.needed,
-        unitCost: dec(n.part.costPrice),
+        unitCost: n.costPrice,
         note: 'Consumo em OS (execução)',
         serviceOrderId: orderId,
         userId,
@@ -785,7 +809,7 @@ export class PurchasesService {
     await this.replenishBelowMin(
       tx,
       tenantId,
-      needs.map((n) => n.part.id),
+      needs.map((n) => n.partId),
       userId,
     );
   }
@@ -802,16 +826,25 @@ export class PurchasesService {
     _userId: string | null,
   ): Promise<number> {
     if (partIds.length === 0) return 0;
-    const parts = await tx.part.findMany({
-      where: { id: { in: partIds }, tenantId, active: true },
-      select: {
-        id: true,
-        currentStock: true,
-        minStock: true,
-        costPrice: true,
-        supplierId: true,
-      },
-    });
+    const groupId = await this.groupOf(tx, tenantId);
+    const [parts, stocks] = await Promise.all([
+      tx.part.findMany({
+        where: { id: { in: partIds }, tenantId: groupId, active: true },
+        select: {
+          id: true,
+          minStock: true,
+          costPrice: true,
+          supplierId: true,
+        },
+      }),
+      tx.partStock.findMany({
+        where: { tenantId, partId: { in: partIds } },
+        select: { partId: true, currentStock: true },
+      }),
+    ]);
+    const currentByPart = new Map(
+      stocks.map((s) => [s.partId, dec(s.currentStock)]),
+    );
     const lines: {
       partId: string;
       supplierId: string | null;
@@ -819,7 +852,7 @@ export class PurchasesService {
       costPrice: number;
     }[] = [];
     for (const p of parts) {
-      const deficit = round3(dec(p.minStock) - dec(p.currentStock));
+      const deficit = round3(dec(p.minStock) - (currentByPart.get(p.id) ?? 0));
       if (deficit <= 0) continue;
       // Já há pedido em aberto cobrindo a peça? Então não duplica.
       const pending = await tx.purchaseOrderItem.findFirst({

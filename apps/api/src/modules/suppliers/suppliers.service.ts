@@ -32,13 +32,14 @@ export class SuppliersService {
     private readonly audit: AuditService,
   ) {}
 
+  // Fornecedores são compartilhados no grupo (matriz + filiais): escopo por groupId.
   async list(
-    tenantId: string,
+    groupId: string,
     query: ListSuppliersQuery,
   ): Promise<Paginated<SupplierDto>> {
     const { page, pageSize, search } = query;
     const where: Prisma.SupplierWhereInput = {
-      tenantId,
+      tenantId: groupId,
       ...(search
         ? {
             OR: [
@@ -73,7 +74,7 @@ export class SuppliersService {
     input: CreateSupplierInput,
   ): Promise<SupplierDto> {
     const created = await this.prisma.supplier.create({
-      data: { tenantId: actor.tenantId, ...input },
+      data: { tenantId: actor.groupId, ...input },
     });
     await this.audit.record({
       tenantId: actor.tenantId,
@@ -93,7 +94,7 @@ export class SuppliersService {
     input: UpdateSupplierInput,
   ): Promise<SupplierDto> {
     const current = await this.prisma.supplier.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
       select: { id: true },
     });
     if (!current) throw new NotFoundException('Fornecedor não encontrado');
@@ -112,21 +113,21 @@ export class SuppliersService {
     return toDto(updated);
   }
 
-  /** Localiza por CNPJ ou cria (usado pela importação de NF-e). */
+  /** Localiza por CNPJ ou cria (usado pela importação de NF-e). Escopo de grupo. */
   async findOrCreateByDocument(
-    tenantId: string,
+    groupId: string,
     document: string | null,
     name: string,
   ): Promise<string | null> {
     if (document) {
       const existing = await this.prisma.supplier.findFirst({
-        where: { tenantId, document },
+        where: { tenantId: groupId, document },
         select: { id: true },
       });
       if (existing) return existing.id;
     }
     const created = await this.prisma.supplier.create({
-      data: { tenantId, name, document: document ?? null },
+      data: { tenantId: groupId, name, document: document ?? null },
       select: { id: true },
     });
     return created.id;

@@ -35,7 +35,7 @@ export class CustomersController {
     @Query(new ZodValidationPipe(listCustomersQuerySchema))
     query: ListCustomersQuery,
   ) {
-    return this.customers.list(actor.tenantId, query);
+    return this.customers.list(actor.groupId, query);
   }
 
 
@@ -43,13 +43,13 @@ export class CustomersController {
   @Get(':id/360')
   @RequirePermission(Permission.CUSTOMERS_READ)
   find360(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
-    return this.customers.find360(actor.tenantId, id);
+    return this.customers.find360(actor, id);
   }
 
   @Get(':id')
   @RequirePermission(Permission.CUSTOMERS_READ)
   findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
-    return this.customers.findOne(actor.tenantId, id);
+    return this.customers.findOne(actor.groupId, id);
   }
 
   @Post()

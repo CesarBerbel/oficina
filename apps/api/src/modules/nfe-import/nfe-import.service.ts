@@ -18,8 +18,9 @@ export class NfeImportService {
   ) {}
 
   /** Lê o arquivo e devolve os itens para conferência (não grava nada). */
+  // Fornecedores e peças são do grupo (catálogo compartilhado).
   async parse(
-    tenantId: string,
+    groupId: string,
     buffer: Buffer,
     filename: string,
   ): Promise<NfeParseResult> {
@@ -36,7 +37,7 @@ export class NfeImportService {
     let matchedSupplierId: string | null = null;
     if (raw.supplierCnpj) {
       const supplier = await this.prisma.supplier.findFirst({
-        where: { tenantId, document: raw.supplierCnpj.replace(/\D/g, '') },
+        where: { tenantId: groupId, document: raw.supplierCnpj.replace(/\D/g, '') },
         select: { id: true },
       });
       matchedSupplierId = supplier?.id ?? null;
@@ -47,7 +48,7 @@ export class NfeImportService {
     const eans = raw.items.map((i) => i.ean).filter(Boolean) as string[];
     const existing = await this.prisma.part.findMany({
       where: {
-        tenantId,
+        tenantId: groupId,
         OR: [
           ...(skus.length ? [{ sku: { in: skus } }] : []),
           ...(eans.length ? [{ ean: { in: eans } }] : []),
@@ -102,7 +103,7 @@ export class NfeImportService {
         let partId = item.partId ?? null;
         if (!partId && item.sku) {
           const found = await tx.part.findFirst({
-            where: { tenantId: actor.tenantId, sku: item.sku },
+            where: { tenantId: actor.groupId, sku: item.sku },
             select: { id: true },
           });
           partId = found?.id ?? null;
@@ -128,7 +129,7 @@ export class NfeImportService {
           updated++;
         } else {
           const part = await tx.part.create({
-            data: { tenantId: actor.tenantId, ...data, currentStock: 0 },
+            data: { tenantId: actor.groupId, ...data },
             select: { id: true },
           });
           partId = part.id;

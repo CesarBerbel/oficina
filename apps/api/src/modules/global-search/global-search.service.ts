@@ -6,6 +6,7 @@ import {
   type GlobalSearchResultDto,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 function digits(value: string): string {
   return value.replace(/\D/g, '');
@@ -41,7 +42,9 @@ function compact(parts: Array<string | number | null | undefined>): string {
 export class GlobalSearchService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(tenantId: string, query: GlobalSearchQuery): Promise<GlobalSearchResponseDto> {
+  async search(actor: AuthenticatedUser, query: GlobalSearchQuery): Promise<GlobalSearchResponseDto> {
+    // Clientes/veículos vêm do grupo (groupId); OS/leads continuam por filial.
+    const { tenantId, groupId } = actor;
     const q = query.q.trim();
     const limit = query.limit;
     const numeric = digits(q);
@@ -52,7 +55,7 @@ export class GlobalSearchService {
     const [customers, vehicles, serviceOrders, leads, parts, services] = await this.prisma.$transaction([
       this.prisma.customer.findMany({
         where: {
-          tenantId,
+          tenantId: groupId,
           OR: [
             { name: { contains: q, mode: 'insensitive' } },
             { email: { contains: q, mode: 'insensitive' } },
@@ -68,7 +71,7 @@ export class GlobalSearchService {
       }),
       this.prisma.vehicle.findMany({
         where: {
-          tenantId,
+          tenantId: groupId,
           OR: [
             { plate: { contains: plate || q, mode: 'insensitive' } },
             { manufacturer: { contains: q, mode: 'insensitive' } },
@@ -113,8 +116,9 @@ export class GlobalSearchService {
         take: limit,
       }),
       this.prisma.part.findMany({
+        include: { stocks: { where: { tenantId }, select: { currentStock: true } } },
         where: {
-          tenantId,
+          tenantId: groupId,
           OR: [
             { name: { contains: q, mode: 'insensitive' } },
             { sku: { contains: q, mode: 'insensitive' } },
@@ -129,7 +133,7 @@ export class GlobalSearchService {
       }),
       this.prisma.service.findMany({
         where: {
-          tenantId,
+          tenantId: groupId,
           OR: [
             { name: { contains: q, mode: 'insensitive' } },
             { category: { contains: q, mode: 'insensitive' } },
@@ -201,7 +205,7 @@ export class GlobalSearchService {
         type: GlobalSearchEntityType.PART,
         title: part.name,
         subtitle: compact([part.sku ? `Código ${part.sku}` : null, part.ncm ? `NCM ${part.ncm}` : null, part.brand]),
-        description: compact([part.category, `${part.currentStock.toString()} ${part.unit}`]),
+        description: compact([part.category, `${Number(part.stocks[0]?.currentStock ?? 0)} ${part.unit}`]),
         badge: part.active ? 'Ativa' : 'Inativa',
         href: `/estoque?search=${encodeURIComponent(part.name)}`,
         score: 12 + scoreText([part.name, part.sku, part.ncm, part.brand, part.category, part.description], q),

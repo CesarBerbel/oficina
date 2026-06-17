@@ -9,7 +9,6 @@ import type { CreateBranchInput, PlatformTenantDto } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
 import { AuditService } from '../audit/audit.service';
-import { seedDefaultCategories } from '../categories/default-categories';
 import { seedMessageTemplates } from '../messaging/default-templates';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
@@ -125,9 +124,9 @@ export class TenantsService {
       throw err;
     }
 
-    // Categorias/marcas e templates padrão da filial (best-effort).
+    // Categorias/marcas são compartilhadas do grupo (matriz) — a filial não semeia
+    // as suas. Apenas os templates de mensagem são por filial.
     try {
-      await seedDefaultCategories(this.prisma, createdId);
       await seedMessageTemplates(this.prisma, createdId);
     } catch {
       /* não bloqueia a criação da filial */

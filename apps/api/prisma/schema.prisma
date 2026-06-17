@@ -261,6 +261,7 @@ model Tenant {
   services       Service[]
   combos         Combo[]
   parts          Part[]
+  partStocks     PartStock[]
   stockMovements StockMovement[]
   suppliers      Supplier[]
   purchaseOrders PurchaseOrder[]
@@ -675,10 +676,7 @@ model Part {
   category     String?
   brand        String?
   unit         String   @default("UN")
-  currentStock Decimal  @default(0) @db.Decimal(12, 3)
-  // Quantidade comprometida com OS aprovadas e ainda não consumidas (reserva).
-  // Disponível = currentStock - reservedStock.
-  reservedStock Decimal @default(0) @db.Decimal(12, 3)
+  // Ponto de reposição (padrão do grupo). Saldo/reserva são por filial (PartStock).
   minStock     Decimal  @default(0) @db.Decimal(12, 3)
   costPrice    Decimal  @default(0) @db.Decimal(12, 2)
   salePrice    Decimal  @default(0) @db.Decimal(12, 2)
@@ -695,11 +693,32 @@ model Part {
   movements     StockMovement[]
   defaultForms  ServiceDefaultPart[]
   purchaseItems PurchaseOrderItem[]
+  stocks        PartStock[]
 
   @@index([tenantId])
   @@index([tenantId, name])
   @@index([supplierId])
   @@map("parts")
+}
+
+/// Saldo de estoque de uma peça em UMA oficina (filial). Catálogo é do grupo,
+/// estoque é por filial.
+model PartStock {
+  id            String   @id @default(cuid())
+  tenantId      String
+  partId        String
+  currentStock  Decimal  @default(0) @db.Decimal(12, 3)
+  // Comprometido com OS aprovadas e ainda não consumidas. Disponível = current - reserved.
+  reservedStock Decimal  @default(0) @db.Decimal(12, 3)
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  part   Part   @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, partId])
+  @@index([tenantId])
+  @@index([partId])
+  @@map("part_stock")
 }
 
 /// Fornecedor (usado em compras e na importação de NF-e).

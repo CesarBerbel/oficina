@@ -39,6 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: true,
         email: true,
         superAdmin: true,
+        tenant: { select: { parentId: true } },
       },
     });
 
@@ -46,6 +47,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Sessão inválida');
     }
 
-    return user;
+    // Grupo = matriz. Para a matriz, parentId é null → grupo é o próprio tenant.
+    return {
+      id: user.id,
+      tenantId: user.tenantId,
+      groupId: user.tenant.parentId ?? user.tenantId,
+      role: user.role,
+      email: user.email,
+      superAdmin: user.superAdmin,
+    };
   }
 }

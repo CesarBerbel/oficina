@@ -53,10 +53,11 @@ export class ServicesService {
     private readonly audit: AuditService,
   ) {}
 
-  private async assertParts(tenantId: string, partIds: string[]): Promise<void> {
+  // Serviços (catálogo) são compartilhados no grupo: escopo por groupId.
+  private async assertParts(groupId: string, partIds: string[]): Promise<void> {
     if (partIds.length === 0) return;
     const count = await this.prisma.part.count({
-      where: { tenantId, id: { in: partIds } },
+      where: { tenantId: groupId, id: { in: partIds } },
     });
     if (count !== new Set(partIds).size) {
       throw new BadRequestException('Uma ou mais peças padrão são inválidas');
@@ -64,12 +65,12 @@ export class ServicesService {
   }
 
   async list(
-    tenantId: string,
+    groupId: string,
     query: ListServicesQuery,
   ): Promise<Paginated<ServiceDto>> {
     const { page, pageSize, search, active } = query;
     const where: Prisma.ServiceWhereInput = {
-      tenantId,
+      tenantId: groupId,
       ...(active !== undefined ? { active } : {}),
       ...(search
         ? {
@@ -103,9 +104,9 @@ export class ServicesService {
     };
   }
 
-  async findOne(tenantId: string, id: string): Promise<ServiceDto> {
+  async findOne(groupId: string, id: string): Promise<ServiceDto> {
     const service = await this.prisma.service.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId: groupId },
       include,
     });
     if (!service) throw new NotFoundException('Serviço não encontrado');
@@ -117,13 +118,13 @@ export class ServicesService {
     input: CreateServiceInput,
   ): Promise<ServiceDto> {
     await this.assertParts(
-      actor.tenantId,
+      actor.groupId,
       input.defaultParts.map((p) => p.partId),
     );
 
     const created = await this.prisma.service.create({
       data: {
-        tenantId: actor.tenantId,
+        tenantId: actor.groupId,
         name: input.name,
         category: input.category ?? null,
         description: input.description ?? null,
@@ -161,14 +162,14 @@ export class ServicesService {
     input: UpdateServiceInput,
   ): Promise<ServiceDto> {
     const current = await this.prisma.service.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
       select: { id: true },
     });
     if (!current) throw new NotFoundException('Serviço não encontrado');
 
     if (input.defaultParts) {
       await this.assertParts(
-        actor.tenantId,
+        actor.groupId,
         input.defaultParts.map((p) => p.partId),
       );
     }
@@ -217,12 +218,12 @@ export class ServicesService {
       entityId: id,
     });
 
-    return this.findOne(actor.tenantId, id);
+    return this.findOne(actor.groupId, id);
   }
 
   async remove(actor: AuthenticatedUser, id: string): Promise<void> {
     const current = await this.prisma.service.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
       select: { id: true },
     });
     if (!current) throw new NotFoundException('Serviço não encontrado');
