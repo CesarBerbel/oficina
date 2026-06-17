@@ -34,6 +34,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customer?: CustomerDto | null;
+  /** Chamado com o id do cliente recém-criado (ex.: seleção no wizard de OS). */
+  onCreated?: (id: string) => void;
 }
 
 interface CustomerFormState {
@@ -109,7 +111,7 @@ function normalizeCategory(value: string): string {
   return value.trim().replace(/\s+/g, ' ');
 }
 
-export function CustomerFormDialog({ open, onOpenChange, customer }: Props) {
+export function CustomerFormDialog({ open, onOpenChange, customer, onCreated }: Props) {
   const isEdit = !!customer;
   const [form, setForm] = useState<CustomerFormState>(empty);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -247,8 +249,11 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: Props) {
         await update.mutateAsync(parsed.data);
         toast.success('Cliente atualizado');
       } else {
-        await create.mutateAsync(parsed.data as never);
+        const createdCustomer = (await create.mutateAsync(
+          parsed.data as never,
+        )) as CustomerDto;
         toast.success('Cliente criado');
+        onCreated?.(createdCustomer.id);
       }
       onOpenChange(false);
     } catch (err) {
