@@ -281,8 +281,24 @@ model Tenant {
   operationalSettings OperationalSettings?
   outboxMessages OutboxMessage[]
   financialLedger FinancialLedgerEntry[]
+  domains TenantDomain[]
 
   @@map("tenants")
+}
+
+/// Domínio próprio de uma oficina (SaaS multi-domínio): resolve o tenant pelo host.
+model TenantDomain {
+  id         String    @id @default(cuid())
+  tenantId   String
+  domain     String    @unique
+  isPrimary  Boolean   @default(false)
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("tenant_domains")
 }
 
 /// Outbox transacional: eventos de notificação/mensagem persistidos junto com a
