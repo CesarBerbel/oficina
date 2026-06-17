@@ -1,18 +1,19 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createE2eApp } from './support/e2e-app';
-import { prisma, resetAndSeed } from './support/e2e-db';
+import { partStockOf, resetAndSeed, type SeedData } from './support/e2e-db';
 import { authHeader, loginAs } from './support/e2e-http';
 
 describe('Compras e recebimento de estoque (e2e)', () => {
   let app: INestApplication;
+  let seed: SeedData;
 
   beforeAll(async () => {
     app = await createE2eApp();
   });
 
   beforeEach(async () => {
-    await resetAndSeed();
+    seed = await resetAndSeed();
   });
 
   afterAll(async () => {
@@ -63,8 +64,8 @@ describe('Compras e recebimento de estoque (e2e)', () => {
     expect(firstReceipt.body.status).toBe('PARCIALMENTE_RECEBIDO');
     expect(firstReceipt.body.items[0].receivedQuantity).toBe(2);
 
-    let freshPart = await prisma.part.findUniqueOrThrow({ where: { id: part.id } });
-    expect(Number(freshPart.currentStock)).toBe(2);
+    let stock = await partStockOf(seed.tenant.id, part.id);
+    expect(stock.currentStock).toBe(2);
 
     const secondReceipt = await request(app.getHttpServer())
       .post(`/api/purchase-orders/${purchase.id}/receive`)
@@ -75,8 +76,8 @@ describe('Compras e recebimento de estoque (e2e)', () => {
     expect(secondReceipt.body.status).toBe('RECEBIDO');
     expect(secondReceipt.body.items[0].receivedQuantity).toBe(4);
 
-    freshPart = await prisma.part.findUniqueOrThrow({ where: { id: part.id } });
-    expect(Number(freshPart.currentStock)).toBe(4);
+    stock = await partStockOf(seed.tenant.id, part.id);
+    expect(stock.currentStock).toBe(4);
   });
 
   it('bloqueia recebimento inválido: item duplicado, item externo, quantidade zero e excesso', async () => {

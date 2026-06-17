@@ -1,18 +1,19 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createE2eApp } from './support/e2e-app';
-import { prisma, resetAndSeed } from './support/e2e-db';
+import { partStockOf, resetAndSeed, type SeedData } from './support/e2e-db';
 import { authHeader, loginAs } from './support/e2e-http';
 
 describe('Fluxo completo da oficina: cliente → OS → orçamento → compra → entrega (e2e)', () => {
   let app: INestApplication;
+  let seed: SeedData;
 
   beforeAll(async () => {
     app = await createE2eApp();
   });
 
   beforeEach(async () => {
-    await resetAndSeed();
+    seed = await resetAndSeed();
   });
 
   afterAll(async () => {
@@ -160,11 +161,9 @@ describe('Fluxo completo da oficina: cliente → OS → orçamento → compra �
       .expect(200);
     expect(waitingForPart.body.status).toBe('AGUARDANDO_PECA');
 
-    const stockAfterApproval = await prisma.part.findUniqueOrThrow({
-      where: { id: part.body.id },
-    });
-    expect(Number(stockAfterApproval.currentStock)).toBe(0);
-    expect(Number(stockAfterApproval.reservedStock)).toBe(2);
+    const stockAfterApproval = await partStockOf(seed.tenant.id, part.body.id);
+    expect(stockAfterApproval.currentStock).toBe(0);
+    expect(stockAfterApproval.reservedStock).toBe(2);
 
     const purchaseGeneration = await request(app.getHttpServer())
       .post(`/api/service-orders/${order.body.id}/quote/generate-purchase`)
@@ -201,9 +200,9 @@ describe('Fluxo completo da oficina: cliente → OS → orçamento → compra �
       .expect(201);
     expect(partiallyReceived.body.status).toBe('PARCIALMENTE_RECEBIDO');
 
-    let partStock = await prisma.part.findUniqueOrThrow({ where: { id: part.body.id } });
-    expect(Number(partStock.currentStock)).toBe(1);
-    expect(Number(partStock.reservedStock)).toBe(2);
+    let partStock = await partStockOf(seed.tenant.id, part.body.id);
+    expect(partStock.currentStock).toBe(1);
+    expect(partStock.reservedStock).toBe(2);
 
     const received = await request(app.getHttpServer())
       .post(`/api/purchase-orders/${purchase.body.id}/receive`)
@@ -227,9 +226,9 @@ describe('Fluxo completo da oficina: cliente → OS → orçamento → compra �
       .expect(201);
     expect(inExecution.body.status).toBe('EM_EXECUCAO');
 
-    partStock = await prisma.part.findUniqueOrThrow({ where: { id: part.body.id } });
-    expect(Number(partStock.currentStock)).toBe(0);
-    expect(Number(partStock.reservedStock)).toBe(0);
+    partStock = await partStockOf(seed.tenant.id, part.body.id);
+    expect(partStock.currentStock).toBe(0);
+    expect(partStock.reservedStock).toBe(0);
 
     await request(app.getHttpServer())
       .post(`/api/service-orders/${order.body.id}/status`)
@@ -257,6 +256,30 @@ describe('Fluxo completo da oficina: cliente → OS → orçamento → compra �
 
     expect(delivered.body.status).toBe('ENTREGUE');
     expect(delivered.body.editable).toBe(false);
+
+    // Financeiro: gera a conta a receber da OS e registra o pagamento total.
+    const receivable = await request(app.getHttpServer())
+      .post('/api/financial/sync/service-order')
+      .set(authHeader(admin.token))
+      .send({ serviceOrderId: order.body.id })
+      .expect(201);
+    expect(receivable.body.type).toBe('RECEIVABLE');
+    expect(receivable.body.amount).toBe(420);
+    expect(receivable.body.status).toBe('OPEN');
+
+    const paid = await request(app.getHttpServer())
+      .post(`/api/financial/entries/${receivable.body.id}/pay`)
+      .set(authHeader(admin.token))
+      .send({ amount: 420, method: 'PIX' })
+      .expect(201);
+    expect(paid.body.status).toBe('PAID');
+    expect(Number(paid.body.remainingAmount)).toBe(0);
+
+    const summary = await request(app.getHttpServer())
+      .get('/api/financial/summary')
+      .set(authHeader(admin.token))
+      .expect(200);
+    expect(Number(summary.body.receivedInPeriod)).toBeGreaterThanOrEqual(420);
 
     await request(app.getHttpServer())
       .patch(`/api/service-orders/${order.body.id}/diagnosis`)
