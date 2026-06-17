@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -8,12 +9,17 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'node:crypto';
-import { permissionsForRole, type LoginResponse } from '@oficina/shared';
-import type { Role } from '@prisma/client';
+import {
+  permissionsForRole,
+  type LoginResponse,
+  type RegisterTenantInput,
+} from '@oficina/shared';
+import { Prisma, type Role } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../../infra/mail/mail.service';
+import { seedMessageTemplates } from '../messaging/default-templates';
 import { durationToMs } from '../../common/utils/duration';
 import type { JwtPayload } from '../../common/types/authenticated-user';
 
@@ -169,6 +175,105 @@ export class AuthService {
     return {
       accessToken,
       user: this.buildAuthUser(user),
+      refreshToken: refresh.token,
+      refreshExpiresAt: refresh.expiresAt,
+    };
+  }
+
+  /** Auto-cadastro de uma nova oficina: cria tenant + admin + settings e já loga. */
+  async registerTenant(
+    input: RegisterTenantInput,
+    meta: RequestMeta,
+  ): Promise<IssuedSession> {
+    const slug = input.slug.trim().toLowerCase();
+
+    const existing = await this.prisma.tenant.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'Já existe uma oficina com esse identificador. Escolha outro.',
+      );
+    }
+
+    const passwordHash = await this.passwords.hash(input.password);
+
+    let tenantId: string;
+    let admin: {
+      id: string;
+      tenantId: string;
+      name: string;
+      email: string;
+      role: Role;
+      forcePasswordChange: boolean;
+    };
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const tenant = await tx.tenant.create({
+          data: { name: input.shopName, slug, cnpj: input.cnpj ?? null },
+        });
+        const user = await tx.user.create({
+          data: {
+            tenantId: tenant.id,
+            name: input.adminName,
+            email: input.adminEmail,
+            passwordHash,
+            role: 'ADMIN',
+            active: true,
+            forcePasswordChange: false,
+          },
+        });
+        await tx.siteSettings.create({
+          data: {
+            tenantId: tenant.id,
+            shopName: input.shopName,
+            cnpj: input.cnpj ?? null,
+            phone: input.phone ?? null,
+          },
+        });
+        return { tenant, user };
+      });
+      tenantId = result.tenant.id;
+      admin = result.user;
+    } catch (err) {
+      // Corrida na criação do slug (constraint única).
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException(
+          'Já existe uma oficina com esse identificador. Escolha outro.',
+        );
+      }
+      throw err;
+    }
+
+    // Templates padrão (best-effort: não bloqueia o cadastro).
+    try {
+      await seedMessageTemplates(this.prisma, tenantId);
+    } catch (err) {
+      this.logger.warn(
+        `Falha ao semear templates do tenant ${tenantId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+
+    await this.audit.record({
+      tenantId,
+      userId: admin.id,
+      action: 'REGISTER_TENANT',
+      module: 'auth',
+      entity: 'Tenant',
+      entityId: tenantId,
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    const accessToken = this.issueAccessToken(admin);
+    const refresh = await this.createRefreshToken(admin.id, meta);
+
+    return {
+      accessToken,
+      user: this.buildAuthUser(admin),
       refreshToken: refresh.token,
       refreshExpiresAt: refresh.expiresAt,
     };

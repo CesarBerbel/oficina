@@ -19,6 +19,41 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
+/** Auto-cadastro de uma nova oficina (onboarding SaaS). */
+export const registerTenantSchema = z.object({
+  shopName: z.string().trim().min(2, 'Informe o nome da oficina').max(160),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(2, 'Informe o identificador da oficina')
+    .max(80, 'Identificador muito longo')
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      'Use apenas letras minúsculas, números e hífens',
+    ),
+  cnpj: z
+    .string()
+    .trim()
+    .max(20)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  phone: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  adminName: z.string().trim().min(2, 'Informe seu nome').max(120),
+  adminEmail: z.string().trim().toLowerCase().email('E-mail inválido'),
+  password: z
+    .string()
+    .min(8, 'Mínimo de 8 caracteres')
+    .max(72, 'Máximo de 72 caracteres'),
+});
+
+export type RegisterTenantInput = z.infer<typeof registerTenantSchema>;
+
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, 'Nome muito curto').max(120),
   email: z.string().trim().toLowerCase().email('E-mail inválido'),

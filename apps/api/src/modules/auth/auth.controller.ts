@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Post,
@@ -15,11 +16,13 @@ import {
   changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
+  registerTenantSchema,
   resetPasswordSchema,
   type ChangePasswordInput,
   type ForgotPasswordInput,
   type LoginInput,
   type LoginResponse,
+  type RegisterTenantInput,
   type ResetPasswordInput,
 } from '@oficina/shared';
 import { AuthService, type IssuedSession } from './auth.service';
@@ -75,6 +78,23 @@ export class AuthController {
       body.password,
       this.meta(req),
     );
+    this.setRefreshCookie(res, session);
+    return { accessToken: session.accessToken, user: session.user };
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('register')
+  @HttpCode(201)
+  async register(
+    @Body(new ZodValidationPipe(registerTenantSchema)) body: RegisterTenantInput,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LoginResponse> {
+    if (this.config.get('ALLOW_TENANT_SIGNUP') !== true) {
+      throw new ForbiddenException('O auto-cadastro de oficinas está desativado.');
+    }
+    const session = await this.auth.registerTenant(body, this.meta(req));
     this.setRefreshCookie(res, session);
     return { accessToken: session.accessToken, user: session.user };
   }

@@ -138,6 +138,13 @@ export default function LoginPage() {
             {submitting && <CarLoader className="size-4 animate-spin" />}
             Entrar
           </Button>
+
+          <p className="text-center text-sm text-muted-foreground">
+            Ainda não tem uma oficina?{' '}
+            <Link href="/cadastro" className="font-medium text-primary hover:underline">
+              Criar oficina
+            </Link>
+          </p>
         </div>
       </form>
     </main>

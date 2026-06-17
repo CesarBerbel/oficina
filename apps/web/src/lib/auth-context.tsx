@@ -8,7 +8,12 @@ import {
   useMemo,
   useState,
 } from 'react';
-import type { AuthUser, LoginResponse, Permission } from '@oficina/shared';
+import type {
+  AuthUser,
+  LoginResponse,
+  Permission,
+  RegisterTenantInput,
+} from '@oficina/shared';
 import { api, setAccessToken, API_URL } from './api';
 
 type Status = 'loading' | 'authenticated' | 'unauthenticated';
@@ -17,6 +22,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   status: Status;
   login: (tenantSlug: string, email: string, password: string) => Promise<void>;
+  register: (input: RegisterTenantInput) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (permission: Permission | string) => boolean;
 }
@@ -69,6 +75,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus('authenticated');
   }, []);
 
+  const register = useCallback(async (input: RegisterTenantInput) => {
+    const data = await api.post<LoginResponse>('/auth/register', input, {
+      skipAuthRetry: true,
+    });
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+    setStatus('authenticated');
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await api.post('/auth/logout');
@@ -87,8 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ user, status, login, logout, hasPermission }),
-    [user, status, login, logout, hasPermission],
+    () => ({ user, status, login, register, logout, hasPermission }),
+    [user, status, login, register, logout, hasPermission],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

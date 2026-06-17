@@ -22,6 +22,11 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  // Permite o auto-cadastro de novas oficinas (onboarding SaaS).
+  ALLOW_TENANT_SIGNUP: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
 
   ENCRYPTION_KEY: z
     .string()
