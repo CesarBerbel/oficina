@@ -38,6 +38,44 @@ export async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe('TRUNCATE TABLE "tenants" RESTART IDENTITY CASCADE');
 }
 
+/** Saldo/reserva de estoque de uma peça numa oficina (PartStock por filial). */
+export async function partStockOf(
+  tenantId: string,
+  partId: string,
+): Promise<{ currentStock: number; reservedStock: number }> {
+  const row = await prisma.partStock.findUnique({
+    where: { tenantId_partId: { tenantId, partId } },
+    select: { currentStock: true, reservedStock: true },
+  });
+  return {
+    currentStock: Number(row?.currentStock ?? 0),
+    reservedStock: Number(row?.reservedStock ?? 0),
+  };
+}
+
+/** Cria uma filial sob a matriz (com um admin) para os testes de grupo. */
+export async function createBranchTenant(
+  parentTenantId: string,
+  opts: { slug: string; name?: string; adminEmail?: string },
+): Promise<{ id: string; slug: string; admin: SeedUser }> {
+  const passwordHash = await argon2.hash(TEST_PASSWORD);
+  const branch = await prisma.tenant.create({
+    data: {
+      name: opts.name ?? `Filial ${opts.slug}`,
+      slug: opts.slug,
+      parentId: parentTenantId,
+    },
+  });
+  const admin = await createUser({
+    tenantId: branch.id,
+    name: 'Admin Filial E2E',
+    email: opts.adminEmail ?? `admin@${opts.slug}.local`,
+    role: Role.ADMIN,
+    passwordHash,
+  });
+  return { id: branch.id, slug: branch.slug, admin };
+}
+
 async function createUser(input: {
   tenantId: string;
   name: string;
