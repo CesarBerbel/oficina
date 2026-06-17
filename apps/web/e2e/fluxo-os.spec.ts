@@ -38,10 +38,11 @@ test.describe('Fluxo de frontend', () => {
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await dialog.getByLabel('Nome').fill(nome);
-    await dialog.getByRole('button', { name: /criar|salvar/i }).click();
+    // 1º campo é "Tipo" (combobox); o nome é o 1º textbox do formulário.
+    await dialog.getByRole('textbox').first().fill(nome);
+    await dialog.getByRole('button', { name: /^criar$/i }).click();
 
     // O cliente recém-criado aparece na listagem.
-    await expect(page.getByText(nome)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(nome).first()).toBeVisible({ timeout: 15_000 });
   });
 });
