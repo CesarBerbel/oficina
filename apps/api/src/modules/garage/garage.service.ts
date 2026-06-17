@@ -18,12 +18,12 @@ import { SiteService, type PublicTenantLookup } from '../site/site.service';
 import { QuotesService } from '../quotes/quotes.service';
 import { quoteInclude, toQuoteDto } from '../quotes/quote.mapper';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 
 const CODE_TTL_MS = 15 * 60 * 1000; // 15 minutos (código de acesso de uso curto)
 const MAX_ATTEMPTS = 5;
 const SESSION_TTL = '5h';
+const SESSION_TTL_MS = 5 * 60 * 60 * 1000; // 5h — deve casar com SESSION_TTL
 const GARAGE_SCOPE = 'garage';
 
 interface GaragePayload {
@@ -68,10 +68,7 @@ export class GarageService {
    * existir na oficina publicada e o cliente tiver e-mail. A resposta é sempre
    * genérica para não revelar a existência da placa.
    */
-  async requestCode(
-    plate: string,
-    lookup?: PublicTenantLookup,
-  ): Promise<GarageRequestCodeResult> {
+  async requestCode(plate: string, lookup?: PublicTenantLookup): Promise<GarageRequestCodeResult> {
     const tenantId = await this.publishedTenantId(lookup);
     if (!tenantId) return { ok: true };
 
@@ -204,7 +201,7 @@ export class GarageService {
 
     return {
       token,
-      expiresAt: new Date(Date.now() + CODE_TTL_MS).toISOString(),
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(),
       shopName: vehicle.tenant.name,
       customerName: vehicle.customer.name,
       vehicle: { plate: vehicle.plate, label: this.vehicleLabel(vehicle) },
@@ -213,9 +210,7 @@ export class GarageService {
 
   /** Decodifica e valida o token de sessão da garagem a partir do header. */
   private async authenticate(authHeader: string | undefined): Promise<GaragePayload> {
-    const token = authHeader?.startsWith('Bearer ')
-      ? authHeader.slice(7).trim()
-      : null;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
     if (!token) throw new UnauthorizedException('Sessão inválida.');
     try {
       const payload = await this.jwt.verifyAsync<GaragePayload>(token, {

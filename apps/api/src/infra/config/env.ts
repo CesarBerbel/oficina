@@ -3,9 +3,7 @@ import { z } from 'zod';
 /** Schema base das variáveis de ambiente. O `envSchema` (abaixo) adiciona as
  * regras de produção. Validado no boot. */
 const baseEnvSchema = z.object({
-  NODE_ENV: z
-    .enum(['development', 'test', 'production'])
-    .default('development'),
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_NAME: z.string().default('Oficina'),
 
   DATABASE_URL: z.string().url(),
@@ -13,6 +11,8 @@ const baseEnvSchema = z.object({
   API_PORT: z.coerce.number().int().default(3333),
   API_GLOBAL_PREFIX: z.string().default('api'),
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
+  /** Base pública confiável para montar URLs absolutas (ex.: uploads). Vazio = relativo. */
+  APP_URL: z.string().url().or(z.literal('')).default(''),
 
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_ACCESS_TTL: z.string().default('15m'),
@@ -69,7 +69,8 @@ export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
   for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'] as const) {
     const value = env[key];
     if (value.length < 32) fail(key, 'Em produção precisa de ao menos 32 caracteres.');
-    if (WEAK_SECRET.test(value)) fail(key, 'Segredo de exemplo/placeholder não é permitido em produção.');
+    if (WEAK_SECRET.test(value))
+      fail(key, 'Segredo de exemplo/placeholder não é permitido em produção.');
   }
   if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {
     fail('JWT_REFRESH_SECRET', 'Deve ser diferente de JWT_ACCESS_SECRET.');
