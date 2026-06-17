@@ -18,6 +18,8 @@ const baseEnvSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_SECRET: z.string().min(16),
   JWT_REFRESH_TTL: z.string().default('7d'),
+  /** Segredo dos tokens de sessão da garagem (cliente). Vazio = usa JWT_ACCESS_SECRET. */
+  GARAGE_JWT_SECRET: z.string().optional().default(''),
   AUTH_COOKIE_NAME: z.string().default('oficina_rt'),
   AUTH_COOKIE_SECURE: z
     .enum(['true', 'false'])
@@ -33,7 +35,9 @@ const baseEnvSchema = z.object({
   /** Tentativas de login por minuto (relaxado em CI/e2e). */
   AUTH_LOGIN_RATE_LIMIT: z.coerce.number().int().default(5),
 
-  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  // Apenas 'local' é implementado hoje. (S3/R2 fica para o futuro — não exponha
+  // uma opção que não existe.)
+  STORAGE_DRIVER: z.enum(['local']).default('local'),
   STORAGE_LOCAL_DIR: z.string().default('./uploads'),
 
   VAPID_PUBLIC_KEY: z.string().optional().default(''),
@@ -82,6 +86,20 @@ export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
   }
   if (!env.AUTH_COOKIE_SECURE) {
     fail('AUTH_COOKIE_SECURE', 'Deve ser "true" em produção (cookies sob HTTPS).');
+  }
+  // SMTP incompleto em produção: ou desligue (MAIL_DRIVER=log) ou configure tudo.
+  if (env.MAIL_DRIVER === 'smtp') {
+    for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'] as const) {
+      if (!env[key]?.trim())
+        fail(key, 'Obrigatório quando MAIL_DRIVER=smtp em produção (ou use MAIL_DRIVER=log).');
+    }
+  }
+  // Se um segredo dedicado da garagem foi definido, exija que seja forte.
+  if (env.GARAGE_JWT_SECRET) {
+    if (env.GARAGE_JWT_SECRET.length < 32)
+      fail('GARAGE_JWT_SECRET', 'Em produção precisa de ao menos 32 caracteres.');
+    if (WEAK_SECRET.test(env.GARAGE_JWT_SECRET))
+      fail('GARAGE_JWT_SECRET', 'Segredo de exemplo/placeholder não é permitido em produção.');
   }
 });
 

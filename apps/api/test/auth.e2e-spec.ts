@@ -109,6 +109,24 @@ describe('Auth e sessão (e2e)', () => {
       .expect(401);
   });
 
+  it('rejeita refresh de origem não autorizada (defesa CSRF)', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ tenantSlug: TENANT_SLUG, email: 'admin@oficina.local', password: TEST_PASSWORD })
+      .expect(200);
+    const cookie = getCookie(login.headers['set-cookie'], cookieName);
+
+    // Origem estranha → 403 (não consome o refresh token).
+    await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .set('Cookie', cookie)
+      .set('Origin', 'https://evil.example.com')
+      .expect(403);
+
+    // O mesmo cookie ainda funciona sem origem forjada.
+    await request(app.getHttpServer()).post('/api/auth/refresh').set('Cookie', cookie).expect(200);
+  });
+
   it('mantém /api/auth/me consistente com o usuário autenticado', async () => {
     const session = await loginAs(app);
 

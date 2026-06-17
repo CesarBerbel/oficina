@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Post,
@@ -62,6 +63,26 @@ export class AuthController {
     };
   }
 
+  /**
+   * Defesa CSRF para fluxos baseados em cookie (refresh): se a requisição trouxer
+   * Origin/Referer, ele precisa bater com o WEB_ORIGIN. Requisições sem origem
+   * (server-to-server, testes) passam — o ataque CSRF sempre envia uma origem.
+   */
+  private assertTrustedOrigin(req: Request): void {
+    const allowed = this.config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000';
+    let origin = req.headers.origin ?? null;
+    if (!origin && req.headers.referer) {
+      try {
+        origin = new URL(req.headers.referer).origin;
+      } catch {
+        origin = null;
+      }
+    }
+    if (origin && origin !== allowed) {
+      throw new ForbiddenException('Origem não autorizada');
+    }
+  }
+
   @Public()
   // Limite de tentativas de login por minuto. Relaxável por env em CI/e2e
   // (mesmo padrão de RATE_LIMIT_MAX); padrão de produção = 5.
@@ -113,6 +134,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<LoginResponse> {
+    this.assertTrustedOrigin(req);
     const raw = req.cookies?.[this.cookieName()];
     if (!raw) throw new UnauthorizedException('Sessão expirada');
     const session = await this.auth.refresh(raw, this.meta(req));
