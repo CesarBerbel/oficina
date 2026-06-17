@@ -5,6 +5,7 @@ import {
   FinancialEntryType,
   type CreateFinancialEntryInput,
   type FinancialEntryDto,
+  type FinancialLedgerEntryDto,
   type FinancialSummaryDto,
   type ListFinancialEntriesQuery,
   type Paginated,
@@ -178,26 +179,81 @@ export class FinancialService {
     return this.toDto(row);
   }
 
+  /** Posta um movimento imutável no ledger (dentro da transação do chamador). */
+  private async postLedger(
+    tx: Prisma.TransactionClient,
+    data: {
+      tenantId: string;
+      entryId: string;
+      kind: 'ISSUE' | 'ADJUSTMENT' | 'PAYMENT' | 'CANCELLATION';
+      amount: number;
+      description?: string | null;
+      createdById?: string | null;
+    },
+  ): Promise<void> {
+    await tx.financialLedgerEntry.create({
+      data: {
+        tenantId: data.tenantId,
+        entryId: data.entryId,
+        kind: data.kind,
+        amount: money(data.amount),
+        description: data.description ?? null,
+        createdById: data.createdById ?? null,
+      },
+    });
+  }
+
+  /** Ledger (movimentos imutáveis) de um lançamento financeiro. */
+  async ledger(tenantId: string, entryId: string): Promise<FinancialLedgerEntryDto[]> {
+    const entry = await this.prisma.financialEntry.findFirst({
+      where: { id: entryId, tenantId },
+      select: { id: true },
+    });
+    if (!entry) throw new NotFoundException('Lançamento financeiro não encontrado');
+    const rows = await this.prisma.financialLedgerEntry.findMany({
+      where: { tenantId, entryId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      kind: r.kind,
+      amount: dec(r.amount),
+      description: r.description,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  }
+
   async create(
     actor: AuthenticatedUser,
     input: CreateFinancialEntryInput,
   ): Promise<FinancialEntryDto> {
     const amount = money(input.amount);
-    const row = await this.prisma.financialEntry.create({
-      data: {
+    const row = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.financialEntry.create({
+        data: {
+          tenantId: actor.tenantId,
+          type: input.type,
+          origin: 'MANUAL',
+          description: input.description,
+          category: input.category,
+          customerId: input.customerId,
+          supplierId: input.supplierId,
+          dueDate: new Date(input.dueDate),
+          amount,
+          remainingAmount: amount,
+          notes: input.notes,
+        },
+        include,
+      });
+      await this.postLedger(tx, {
         tenantId: actor.tenantId,
-        type: input.type,
-        origin: 'MANUAL',
-        description: input.description,
-        category: input.category,
-        customerId: input.customerId,
-        supplierId: input.supplierId,
-        dueDate: new Date(input.dueDate),
-        amount,
-        remainingAmount: amount,
-        notes: input.notes,
-      },
-      include,
+        entryId: created.id,
+        kind: 'ISSUE',
+        amount: dec(amount),
+        description: 'Emissão do lançamento',
+        createdById: actor.id,
+      });
+      return created;
     });
     await this.audit.record({
       tenantId: actor.tenantId,
@@ -237,7 +293,7 @@ export class FinancialService {
           notes: input.notes,
         },
       });
-      return tx.financialEntry.update({
+      const updated = await tx.financialEntry.update({
         where: { id },
         data: {
           paidAmount: money(settlement.paidAmount),
@@ -246,6 +302,17 @@ export class FinancialService {
         },
         include,
       });
+      // Movimento de baixa no ledger (reduz o saldo devido).
+      const applied = settlement.paidAmount - dec(entry.paidAmount);
+      await this.postLedger(tx, {
+        tenantId: actor.tenantId,
+        entryId: id,
+        kind: 'PAYMENT',
+        amount: -applied,
+        description: `Baixa (${input.method})`,
+        createdById: actor.id,
+      });
+      return updated;
     });
     await this.audit.record({
       tenantId: actor.tenantId,
@@ -266,10 +333,24 @@ export class FinancialService {
     if (!existing) throw new NotFoundException('Lançamento financeiro não encontrado');
     if (existing.status === 'PAID' || dec(existing.paidAmount) > 0)
       throw new BadRequestException('Lançamento com baixa não pode ser cancelado');
-    const row = await this.prisma.financialEntry.update({
-      where: { id },
-      data: { status: 'CANCELED', canceledAt: new Date(), remainingAmount: money(0) },
-      include,
+    const remaining = dec(existing.remainingAmount);
+    const row = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.financialEntry.update({
+        where: { id },
+        data: { status: 'CANCELED', canceledAt: new Date(), remainingAmount: money(0) },
+        include,
+      });
+      if (remaining > 0) {
+        await this.postLedger(tx, {
+          tenantId: actor.tenantId,
+          entryId: id,
+          kind: 'CANCELLATION',
+          amount: -remaining,
+          description: 'Cancelamento do lançamento',
+          createdById: actor.id,
+        });
+      }
+      return updated;
     });
     await this.audit.record({
       tenantId: actor.tenantId,
@@ -296,7 +377,8 @@ export class FinancialService {
     if (total <= 0)
       throw new BadRequestException('OS sem total financeiro para gerar conta a receber');
     const amount = money(total);
-    const row = await this.prisma.financialEntry.upsert({
+    const description = `Recebimento da OS #${os.number} - ${os.customer.name}`;
+    const existing = await this.prisma.financialEntry.findUnique({
       where: {
         tenantId_serviceOrderId_type: {
           tenantId: actor.tenantId,
@@ -304,26 +386,58 @@ export class FinancialService {
           type: 'RECEIVABLE',
         },
       },
-      create: {
-        tenantId: actor.tenantId,
-        type: 'RECEIVABLE',
-        origin: 'SERVICE_ORDER',
-        description: `Recebimento da OS #${os.number} - ${os.customer.name}`,
-        category: 'Serviços',
-        customerId: os.customerId,
-        serviceOrderId: os.id,
-        dueDate: input.dueDate ? new Date(input.dueDate) : addDays(0),
-        amount,
-        remainingAmount: amount,
-      },
-      update: {
-        description: `Recebimento da OS #${os.number} - ${os.customer.name}`,
-        customerId: os.customerId,
-        dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
-        amount,
-        remainingAmount: amount,
-      },
-      include,
+      select: { id: true, amount: true },
+    });
+    const row = await this.prisma.$transaction(async (tx) => {
+      if (!existing) {
+        const created = await tx.financialEntry.create({
+          data: {
+            tenantId: actor.tenantId,
+            type: 'RECEIVABLE',
+            origin: 'SERVICE_ORDER',
+            description,
+            category: 'Serviços',
+            customerId: os.customerId,
+            serviceOrderId: os.id,
+            dueDate: input.dueDate ? new Date(input.dueDate) : addDays(0),
+            amount,
+            remainingAmount: amount,
+          },
+          include,
+        });
+        await this.postLedger(tx, {
+          tenantId: actor.tenantId,
+          entryId: created.id,
+          kind: 'ISSUE',
+          amount: total,
+          description,
+          createdById: actor.id,
+        });
+        return created;
+      }
+      const updated = await tx.financialEntry.update({
+        where: { id: existing.id },
+        data: {
+          description,
+          customerId: os.customerId,
+          dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
+          amount,
+          remainingAmount: amount,
+        },
+        include,
+      });
+      const delta = total - dec(existing.amount);
+      if (delta !== 0) {
+        await this.postLedger(tx, {
+          tenantId: actor.tenantId,
+          entryId: existing.id,
+          kind: 'ADJUSTMENT',
+          amount: delta,
+          description: 'Ajuste de valor (sync OS)',
+          createdById: actor.id,
+        });
+      }
+      return updated;
     });
     await this.audit.record({
       tenantId: actor.tenantId,
@@ -351,7 +465,8 @@ export class FinancialService {
       throw new BadRequestException('Pedido sem total financeiro para gerar conta a pagar');
     const amount = money(total);
     const supplierName = po.supplier?.name ?? 'sem fornecedor';
-    const row = await this.prisma.financialEntry.upsert({
+    const description = `Pagamento do pedido de compra #${po.number} - ${supplierName}`;
+    const existing = await this.prisma.financialEntry.findUnique({
       where: {
         tenantId_purchaseOrderId_type: {
           tenantId: actor.tenantId,
@@ -359,26 +474,58 @@ export class FinancialService {
           type: 'PAYABLE',
         },
       },
-      create: {
-        tenantId: actor.tenantId,
-        type: 'PAYABLE',
-        origin: 'PURCHASE_ORDER',
-        description: `Pagamento do pedido de compra #${po.number} - ${supplierName}`,
-        category: 'Compras',
-        supplierId: po.supplierId,
-        purchaseOrderId: po.id,
-        dueDate: input.dueDate ? new Date(input.dueDate) : (po.dueDate ?? addDays(7)),
-        amount,
-        remainingAmount: amount,
-      },
-      update: {
-        description: `Pagamento do pedido de compra #${po.number} - ${supplierName}`,
-        supplierId: po.supplierId,
-        dueDate: input.dueDate ? new Date(input.dueDate) : (po.dueDate ?? undefined),
-        amount,
-        remainingAmount: amount,
-      },
-      include,
+      select: { id: true, amount: true },
+    });
+    const row = await this.prisma.$transaction(async (tx) => {
+      if (!existing) {
+        const created = await tx.financialEntry.create({
+          data: {
+            tenantId: actor.tenantId,
+            type: 'PAYABLE',
+            origin: 'PURCHASE_ORDER',
+            description,
+            category: 'Compras',
+            supplierId: po.supplierId,
+            purchaseOrderId: po.id,
+            dueDate: input.dueDate ? new Date(input.dueDate) : (po.dueDate ?? addDays(7)),
+            amount,
+            remainingAmount: amount,
+          },
+          include,
+        });
+        await this.postLedger(tx, {
+          tenantId: actor.tenantId,
+          entryId: created.id,
+          kind: 'ISSUE',
+          amount: total,
+          description,
+          createdById: actor.id,
+        });
+        return created;
+      }
+      const updated = await tx.financialEntry.update({
+        where: { id: existing.id },
+        data: {
+          description,
+          supplierId: po.supplierId,
+          dueDate: input.dueDate ? new Date(input.dueDate) : (po.dueDate ?? undefined),
+          amount,
+          remainingAmount: amount,
+        },
+        include,
+      });
+      const delta = total - dec(existing.amount);
+      if (delta !== 0) {
+        await this.postLedger(tx, {
+          tenantId: actor.tenantId,
+          entryId: existing.id,
+          kind: 'ADJUSTMENT',
+          amount: delta,
+          description: 'Ajuste de valor (sync compra)',
+          createdById: actor.id,
+        });
+      }
+      return updated;
     });
     await this.audit.record({
       tenantId: actor.tenantId,

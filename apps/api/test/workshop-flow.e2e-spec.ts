@@ -281,6 +281,17 @@ describe('Fluxo completo da oficina: cliente → OS → orçamento → compra �
       .expect(200);
     expect(Number(summary.body.receivedInPeriod)).toBeGreaterThanOrEqual(420);
 
+    // Ledger imutável: emissão (+) e baixa (-) zeram o saldo do lançamento.
+    const ledger = await request(app.getHttpServer())
+      .get(`/api/financial/entries/${receivable.body.id}/ledger`)
+      .set(authHeader(admin.token))
+      .expect(200);
+    const kinds = ledger.body.map((l: { kind: string }) => l.kind);
+    expect(kinds).toContain('ISSUE');
+    expect(kinds).toContain('PAYMENT');
+    const ledgerSum = ledger.body.reduce((acc: number, l: { amount: number }) => acc + l.amount, 0);
+    expect(Math.round(ledgerSum * 100) / 100).toBe(0);
+
     await request(app.getHttpServer())
       .patch(`/api/service-orders/${order.body.id}/diagnosis`)
       .set(authHeader(admin.token))

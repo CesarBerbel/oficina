@@ -49,3 +49,4 @@ export * from './schemas/crm.js';
 export * from './schemas/global-search.js';
 export * from './schemas/operational.js';
 export * from './schemas/financial.js';
+export * from './schemas/metrics.js';

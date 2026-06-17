@@ -20,6 +20,7 @@ import {
   Newspaper,
   Settings,
   Building2,
+  Activity,
   type LucideIcon,
 } from 'lucide-react';
 import { Permission } from '@oficina/shared';
@@ -147,6 +148,12 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Sistema',
     items: [
       { label: 'Configurações', href: '/configuracoes', icon: Settings },
+      {
+        label: 'Métricas',
+        href: '/metricas',
+        icon: Activity,
+        permission: Permission.AUDIT_READ,
+      },
       { label: 'Oficinas', href: '/oficinas', icon: Building2, platformAdmin: true },
     ],
   },

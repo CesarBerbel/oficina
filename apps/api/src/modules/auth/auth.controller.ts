@@ -63,7 +63,11 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  // Limite de tentativas de login por minuto. Relaxável por env em CI/e2e
+  // (mesmo padrão de RATE_LIMIT_MAX); padrão de produção = 5.
+  @Throttle({
+    default: { limit: Number(process.env.AUTH_LOGIN_RATE_LIMIT ?? 5), ttl: 60_000 },
+  })
   @Post('login')
   @HttpCode(200)
   async login(
