@@ -176,6 +176,36 @@ export class SiteService {
     return tenant?.id ?? null;
   }
 
+  /** Normaliza um host para casar com TenantDomain (minúsculo, sem porta/www). */
+  private normalizeDomain(host: string | null | undefined): string | null {
+    const normalized = host
+      ?.split(',')[0]
+      ?.trim()
+      .toLowerCase()
+      .split(':')[0]
+      .replace(/^www\./, '');
+    if (!normalized || normalized === 'localhost' || normalized.endsWith('.localhost')) {
+      return null;
+    }
+    return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(normalized) ? normalized : null;
+  }
+
+  /** Resolve a oficina por domínio próprio (TenantDomain). */
+  private async findPublishedTenantByDomain(
+    host: string | null | undefined,
+  ): Promise<string | null> {
+    const domain = this.normalizeDomain(host);
+    if (!domain) return null;
+    const match = await this.prisma.tenantDomain.findFirst({
+      where: {
+        domain,
+        tenant: { active: true, siteSettings: { published: true } },
+      },
+      select: { tenantId: true },
+    });
+    return match?.tenantId ?? null;
+  }
+
   private async singlePublishedTenantId(): Promise<string | null> {
     // Compatibilidade com instalações single-tenant: se houver exatamente um
     // site publicado, usa esse tenant. Com múltiplos sites publicados, exige
@@ -197,9 +227,17 @@ export class SiteService {
     // existir, tenta o slug inferido do host. Se nenhum bater, ainda permite
     // produção single-tenant com domínio próprio que não corresponde ao slug
     // cadastrado da oficina.
-    const slugs = Array.from(new Set([explicitSlug, hostSlug].filter(Boolean))) as string[];
-    for (const slug of slugs) {
-      const tenantId = await this.findPublishedTenantBySlug(slug);
+    // Slug explícito (deploy/header/query) tem prioridade.
+    const explicitTenant = explicitSlug ? await this.findPublishedTenantBySlug(explicitSlug) : null;
+    if (explicitTenant) return explicitTenant;
+
+    // Domínio próprio (TenantDomain) — casa o host completo.
+    const byDomain = await this.findPublishedTenantByDomain(lookup?.host);
+    if (byDomain) return byDomain;
+
+    // Slug inferido do host (subdomínio).
+    if (hostSlug) {
+      const tenantId = await this.findPublishedTenantBySlug(hostSlug);
       if (tenantId) return tenantId;
     }
 

@@ -16,12 +16,21 @@ cp .env.example .env
 
 Obrigatórias em produção:
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
-- `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (strings longas e aleatórias)
+- `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (≥32 chars, **distintos**, sem placeholders): `openssl rand -hex 32`
 - `ENCRYPTION_KEY` (32 bytes em hex → 64 chars): `openssl rand -hex 32`
-- `WEB_ORIGIN` (ex.: `https://suaoficina.com`)
+- `WEB_ORIGIN` (ex.: `https://suaoficina.com`) — também valida a origem do `/auth/refresh`
+- `APP_URL` (ex.: `https://suaoficina.com`) — base pública confiável para URLs
+  absolutas (ex.: links de upload). Vazio = URLs relativas.
 - `NEXT_PUBLIC_API_URL` (padrão `/api` — mesma origem via Nginx)
 - `AUTH_COOKIE_SECURE=true` com HTTPS. Para teste HTTP local, use `AUTH_COOKIE_SECURE=false`.
+- **E-mail**: com `MAIL_DRIVER=smtp`, são obrigatórios `SMTP_HOST`, `SMTP_USER`,
+  `SMTP_PASS` (o boot falha se faltarem). Sem SMTP, use `MAIL_DRIVER=log`.
+- (Opcional) `GARAGE_JWT_SECRET` (≥32 chars) — segredo dedicado dos tokens da
+  garagem do cliente; sem ele, usa `JWT_ACCESS_SECRET`.
 - (Opcional) `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` para push: `npx web-push generate-vapid-keys`
+
+> Validação no boot: em produção o app recusa subir com segredos fracos/iguais,
+> `ENCRYPTION_KEY` só-zeros, `AUTH_COOKIE_SECURE` desligado ou SMTP incompleto.
 
 > A `NEXT_PUBLIC_API_URL` é **embutida no build** do front (build arg). O SSR usa
 > `API_INTERNAL_URL=http://api:3333/api` (definido no compose, rede interna).

@@ -27,6 +27,24 @@ const addDays = (days: number): Date => {
   return d;
 };
 
+/**
+ * Recalcula saldo/status ao re-sincronizar o valor de um lançamento, preservando
+ * o que já foi pago (não zera baixas) e mantendo lançamentos cancelados.
+ */
+function resyncSettlement(
+  amount: number,
+  paidAmount: number,
+  currentStatus: string,
+): { remainingAmount: Prisma.Decimal; status: FinancialEntryStatus } {
+  if (currentStatus === 'CANCELED') {
+    return { remainingAmount: money(0), status: 'CANCELED' };
+  }
+  const remaining = Math.max(0, Math.round((amount - paidAmount) * 100) / 100);
+  const status: FinancialEntryStatus =
+    remaining <= 0 ? 'PAID' : paidAmount > 0 ? 'PARTIAL' : 'OPEN';
+  return { remainingAmount: money(remaining), status };
+}
+
 const include = {
   customer: { select: { id: true, name: true } },
   supplier: { select: { id: true, name: true } },
@@ -386,7 +404,7 @@ export class FinancialService {
           type: 'RECEIVABLE',
         },
       },
-      select: { id: true, amount: true },
+      select: { id: true, amount: true, paidAmount: true, status: true },
     });
     const row = await this.prisma.$transaction(async (tx) => {
       if (!existing) {
@@ -415,6 +433,7 @@ export class FinancialService {
         });
         return created;
       }
+      const settlement = resyncSettlement(total, dec(existing.paidAmount), existing.status);
       const updated = await tx.financialEntry.update({
         where: { id: existing.id },
         data: {
@@ -422,12 +441,13 @@ export class FinancialService {
           customerId: os.customerId,
           dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
           amount,
-          remainingAmount: amount,
+          remainingAmount: settlement.remainingAmount,
+          status: settlement.status,
         },
         include,
       });
       const delta = total - dec(existing.amount);
-      if (delta !== 0) {
+      if (delta !== 0 && existing.status !== 'CANCELED') {
         await this.postLedger(tx, {
           tenantId: actor.tenantId,
           entryId: existing.id,
@@ -474,7 +494,7 @@ export class FinancialService {
           type: 'PAYABLE',
         },
       },
-      select: { id: true, amount: true },
+      select: { id: true, amount: true, paidAmount: true, status: true },
     });
     const row = await this.prisma.$transaction(async (tx) => {
       if (!existing) {
@@ -503,6 +523,7 @@ export class FinancialService {
         });
         return created;
       }
+      const settlement = resyncSettlement(total, dec(existing.paidAmount), existing.status);
       const updated = await tx.financialEntry.update({
         where: { id: existing.id },
         data: {
@@ -510,12 +531,13 @@ export class FinancialService {
           supplierId: po.supplierId,
           dueDate: input.dueDate ? new Date(input.dueDate) : (po.dueDate ?? undefined),
           amount,
-          remainingAmount: amount,
+          remainingAmount: settlement.remainingAmount,
+          status: settlement.status,
         },
         include,
       });
       const delta = total - dec(existing.amount);
-      if (delta !== 0) {
+      if (delta !== 0 && existing.status !== 'CANCELED') {
         await this.postLedger(tx, {
           tenantId: actor.tenantId,
           entryId: existing.id,

@@ -14,6 +14,7 @@ import { AuditService } from '../audit/audit.service';
 import { applyStockMovement } from '../inventory/stock.helper';
 import { parseNfeBuffer } from '../nfe-import/nfe-parser';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { purchaseInclude, toDto, toSummaryDto } from './purchases.mapper';
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
@@ -21,53 +22,12 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
 const round3 = (n: number): number => Math.round(n * 1000) / 1000;
 const PURCHASE_NUMBER_RETRY_ATTEMPTS = 5;
 
-const include = {
-  supplier: { select: { id: true, name: true } },
-  serviceOrder: { select: { number: true } },
-  items: { include: { part: { select: { name: true, unit: true } } } },
-} satisfies Prisma.PurchaseOrderInclude;
-
-type Row = Prisma.PurchaseOrderGetPayload<{ include: typeof include }>;
-
 @Injectable()
 export class PurchasesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
   ) {}
-
-  private toSummary(r: Row): PurchaseOrderSummaryDto {
-    return {
-      id: r.id,
-      number: r.number,
-      status: r.status,
-      supplierId: r.supplierId,
-      supplierName: r.supplier?.name ?? null,
-      serviceOrderId: r.serviceOrderId,
-      serviceOrderNumber: r.serviceOrder?.number ?? null,
-      itemsCount: r.items.length,
-      total: dec(r.total),
-      dueDate: r.dueDate ? r.dueDate.toISOString() : null,
-      createdAt: r.createdAt.toISOString(),
-    };
-  }
-
-  private toDto(r: Row): PurchaseOrderDto {
-    return {
-      ...this.toSummary(r),
-      notes: r.notes,
-      items: r.items.map((it) => ({
-        id: it.id,
-        partId: it.partId,
-        partName: it.part.name,
-        unit: it.part.unit,
-        quantity: dec(it.quantity),
-        receivedQuantity: dec(it.receivedQuantity),
-        unitCost: dec(it.unitCost),
-        total: dec(it.total),
-      })),
-    };
-  }
 
   /**
    * Gera o próximo número do pedido dentro da transação atual.
@@ -128,14 +88,14 @@ export class PurchasesService {
       this.prisma.purchaseOrder.count({ where }),
       this.prisma.purchaseOrder.findMany({
         where,
-        include,
+        include: purchaseInclude,
         orderBy: { number: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
     ]);
     return {
-      data: rows.map((r) => this.toSummary(r)),
+      data: rows.map((r) => toSummaryDto(r)),
       meta: {
         page,
         pageSize,
@@ -148,10 +108,10 @@ export class PurchasesService {
   async findOne(tenantId: string, id: string): Promise<PurchaseOrderDto> {
     const row = await this.prisma.purchaseOrder.findFirst({
       where: { id, tenantId },
-      include,
+      include: purchaseInclude,
     });
     if (!row) throw new NotFoundException('Pedido não encontrado');
-    return this.toDto(row);
+    return toDto(row);
   }
 
   /** Resolve o grupo (matriz) a partir do tenant da oficina. */
@@ -208,7 +168,7 @@ export class PurchasesService {
               })),
             },
           },
-          include,
+          include: purchaseInclude,
         });
       }),
     );
@@ -223,7 +183,7 @@ export class PurchasesService {
       after: { number: created.number, total },
     });
 
-    return this.toDto(created);
+    return toDto(created);
   }
 
   /**

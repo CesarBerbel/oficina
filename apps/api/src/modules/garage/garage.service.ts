@@ -47,7 +47,11 @@ export class GarageService {
   ) {}
 
   private get secret(): string {
-    return this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
+    // Segredo dedicado da garagem quando configurado; senão, usa o de acesso.
+    return (
+      this.config.get<string>('GARAGE_JWT_SECRET') ||
+      this.config.getOrThrow<string>('JWT_ACCESS_SECRET')
+    );
   }
 
   private vehicleLabel(v: {
