@@ -8,6 +8,7 @@ import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { loginSchema } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
+import { useInstallStatus } from '@/features/auth/use-install-status';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ const FIELD_LABELS = {
 export default function LoginPage() {
   const router = useRouter();
   const { login, status } = useAuth();
+  const { data: installStatus } = useInstallStatus();
   const [tenantSlug, setTenantSlug] = useState(DEFAULT_TENANT_SLUG);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,6 +36,11 @@ export default function LoginPage() {
   useEffect(() => {
     if (status === 'authenticated') router.replace('/dashboard');
   }, [status, router]);
+
+  // Sistema ainda não instalado: leva para a instalação da matriz.
+  useEffect(() => {
+    if (installStatus && !installStatus.installed) router.replace('/instalar');
+  }, [installStatus, router]);
 
 
   async function onSubmit(e: React.FormEvent) {
@@ -138,6 +145,7 @@ export default function LoginPage() {
             {submitting && <CarLoader className="size-4 animate-spin" />}
             Entrar
           </Button>
+
         </div>
       </form>
     </main>

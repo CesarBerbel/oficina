@@ -49,3 +49,6 @@ Thumbs.db
 chatgpt/
 
 .claude
+
+# TypeScript incremental build info (gerado)
+*.tsbuildinfo

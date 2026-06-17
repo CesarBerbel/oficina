@@ -14,10 +14,12 @@ import type { Request, Response } from 'express';
 import {
   changePasswordSchema,
   forgotPasswordSchema,
+  installSystemSchema,
   loginSchema,
   resetPasswordSchema,
   type ChangePasswordInput,
   type ForgotPasswordInput,
+  type InstallSystemInput,
   type LoginInput,
   type LoginResponse,
   type ResetPasswordInput,
@@ -75,6 +77,26 @@ export class AuthController {
       body.password,
       this.meta(req),
     );
+    this.setRefreshCookie(res, session);
+    return { accessToken: session.accessToken, user: session.user };
+  }
+
+  @Public()
+  @Get('install-status')
+  installStatus() {
+    return this.auth.installStatus();
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('install')
+  @HttpCode(201)
+  async install(
+    @Body(new ZodValidationPipe(installSystemSchema)) body: InstallSystemInput,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LoginResponse> {
+    const session = await this.auth.install(body, this.meta(req));
     this.setRefreshCookie(res, session);
     return { accessToken: session.accessToken, user: session.user };
   }

@@ -1,5 +1,6 @@
 import { PrismaClient, Role } from '@prisma/client';
 import { seedMessageTemplates } from './seed-templates';
+import { seedDefaultCategories } from '../src/modules/categories/default-categories';
 import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
@@ -31,19 +32,21 @@ async function main(): Promise<void> {
 
   await prisma.user.upsert({
     where: { tenantId_email: { tenantId: tenant.id, email: adminEmail } },
-    update: { passwordHash, role: Role.ADMIN, active: true },
+    update: { passwordHash, role: Role.ADMIN, active: true, superAdmin: true },
     create: {
       tenantId: tenant.id,
       name: 'Administrador',
       email: adminEmail,
       passwordHash,
       role: Role.ADMIN,
+      superAdmin: true,
     },
   });
 
 
 
   await seedMessageTemplates(prisma, tenant.id);
+  await seedDefaultCategories(prisma, tenant.id);
 
   console.log('✔ Seed concluído');
   console.log(`  Tenant: ${tenant.name} (${tenant.slug})`);

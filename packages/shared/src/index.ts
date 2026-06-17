@@ -39,6 +39,7 @@ export * from './schemas/notification.js';
 export * from './schemas/site.js';
 export * from './schemas/blog.js';
 export * from './schemas/category.js';
+export * from './schemas/tenant.js';
 export * from './schemas/lead.js';
 export * from './schemas/message.js';
 export * from './schemas/ai.js';

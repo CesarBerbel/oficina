@@ -38,6 +38,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         tenantId: true,
         role: true,
         email: true,
+        superAdmin: true,
       },
     });
 
