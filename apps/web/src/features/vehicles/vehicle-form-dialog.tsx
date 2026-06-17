@@ -38,6 +38,8 @@ interface Props {
   /** Quando fornecido, o cliente fica fixo (ex.: criar a partir do detalhe). */
   lockedCustomerId?: string;
   lockedCustomerName?: string;
+  /** Chamado com o id do veículo recém-criado (ex.: seleção no wizard de OS). */
+  onCreated?: (id: string) => void;
 }
 
 const empty = {
@@ -74,6 +76,7 @@ export function VehicleFormDialog({
   vehicle,
   lockedCustomerId,
   lockedCustomerName,
+  onCreated,
 }: Props) {
   const isEdit = !!vehicle;
   const [form, setForm] = useState(empty);
@@ -190,8 +193,11 @@ export function VehicleFormDialog({
         await update.mutateAsync(parsed.data);
         toast.success('Veículo atualizado');
       } else {
-        await create.mutateAsync(parsed.data as never);
+        const createdVehicle = (await create.mutateAsync(
+          parsed.data as never,
+        )) as VehicleDto;
         toast.success('Veículo criado');
+        onCreated?.(createdVehicle.id);
       }
       onOpenChange(false);
     } catch (err) {

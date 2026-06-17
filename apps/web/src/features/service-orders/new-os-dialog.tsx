@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, User, Car, ClipboardList, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Check, User, Car, ClipboardList, ArrowLeft, ArrowRight, Plus } from 'lucide-react';
 
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
@@ -11,6 +11,8 @@ import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { cn } from '@/lib/utils';
 import { useCustomers } from '@/features/customers/use-customers';
 import { useVehicles } from '@/features/vehicles/use-vehicles';
+import { CustomerFormDialog } from '@/features/customers/customer-form-dialog';
+import { VehicleFormDialog } from '@/features/vehicles/vehicle-form-dialog';
 import { AiAssistButton } from '@/features/ai/ai-assist-button';
 import { useCreateServiceOrder, useTechnicians } from './use-service-orders';
 import {
@@ -58,6 +60,8 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
   const [technicianId, setTechnicianId] = useState('');
   const [reportedProblem, setReportedProblem] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
+  const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
 
   const { data: customers } = useCustomers({ page: 1, pageSize: 100 });
   const { data: vehicles } = useVehicles({
@@ -101,6 +105,8 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
       setTechnicianId('');
       setReportedProblem('');
       setErrors({});
+      setCustomerDialogOpen(false);
+      setVehicleDialogOpen(false);
     }
   }, [open]);
 
@@ -233,7 +239,16 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
           {step === 0 && (
             <>
               <div className="space-y-1.5">
-                <Label required>Cliente</Label>
+                <div className="flex items-center justify-between">
+                  <Label required>Cliente</Label>
+                  <button
+                    type="button"
+                    onClick={() => setCustomerDialogOpen(true)}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    <Plus className="size-3.5" /> Novo cliente
+                  </button>
+                </div>
                 <SearchableSelect
                   value={customerId}
                   onChange={setCustomerId}
@@ -247,7 +262,17 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
               </div>
 
               <div className="space-y-1.5">
-                <Label required>Veículo</Label>
+                <div className="flex items-center justify-between">
+                  <Label required>Veículo</Label>
+                  <button
+                    type="button"
+                    onClick={() => setVehicleDialogOpen(true)}
+                    disabled={!customerId}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
+                  >
+                    <Plus className="size-3.5" /> Novo veículo
+                  </button>
+                </div>
                 <SearchableSelect
                   value={vehicleId}
                   onChange={setVehicleId}
@@ -369,6 +394,20 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
             </Button>
           )}
         </DialogFooter>
+
+        {/* Criação inline de cliente/veículo (autoseleciona o recém-criado) */}
+        <CustomerFormDialog
+          open={customerDialogOpen}
+          onOpenChange={setCustomerDialogOpen}
+          onCreated={(id) => setCustomerId(id)}
+        />
+        <VehicleFormDialog
+          open={vehicleDialogOpen}
+          onOpenChange={setVehicleDialogOpen}
+          lockedCustomerId={customerId || undefined}
+          lockedCustomerName={customerName || undefined}
+          onCreated={(id) => setVehicleId(id)}
+        />
       </DialogContent>
     </Dialog>
   );
