@@ -27,6 +27,9 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  // E-mails (separados por vírgula) dos administradores da plataforma — acesso à
+  // gestão de oficinas (ativar/desativar/excluir tenants).
+  PLATFORM_ADMIN_EMAILS: z.string().default(''),
 
   ENCRYPTION_KEY: z
     .string()

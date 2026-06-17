@@ -20,6 +20,7 @@ import { PasswordService } from '../../infra/security/password.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../../infra/mail/mail.service';
 import { seedMessageTemplates } from '../messaging/default-templates';
+import { seedDefaultCategories } from '../categories/default-categories';
 import { durationToMs } from '../../common/utils/duration';
 import type { JwtPayload } from '../../common/types/authenticated-user';
 
@@ -59,6 +60,14 @@ export class AuthService {
     ).replace(/\/$/, '');
   }
 
+  private isPlatformAdmin(email: string): boolean {
+    const list = (this.config.get<string>('PLATFORM_ADMIN_EMAILS') ?? '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    return list.includes(email.trim().toLowerCase());
+  }
+
   private buildAuthUser(user: {
     id: string;
     tenantId: string;
@@ -75,6 +84,7 @@ export class AuthService {
       role: user.role,
       permissions: permissionsForRole(user.role),
       forcePasswordChange: user.forcePasswordChange,
+      platformAdmin: this.isPlatformAdmin(user.email),
     };
   }
 
@@ -246,12 +256,13 @@ export class AuthService {
       throw err;
     }
 
-    // Templates padrão (best-effort: não bloqueia o cadastro).
+    // Templates e categorias padrão (best-effort: não bloqueiam o cadastro).
     try {
       await seedMessageTemplates(this.prisma, tenantId);
+      await seedDefaultCategories(this.prisma, tenantId);
     } catch (err) {
       this.logger.warn(
-        `Falha ao semear templates do tenant ${tenantId}: ${
+        `Falha ao semear dados padrão do tenant ${tenantId}: ${
           err instanceof Error ? err.message : String(err)
         }`,
       );

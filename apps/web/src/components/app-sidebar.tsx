@@ -9,12 +9,14 @@ import { NAV_SECTIONS } from '@/lib/navigation';
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
 
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter(
-      (item) => !item.permission || hasPermission(item.permission),
+      (item) =>
+        (!item.permission || hasPermission(item.permission)) &&
+        (!item.platformAdmin || user?.platformAdmin),
     ),
   })).filter((section) => section.items.length > 0);
 

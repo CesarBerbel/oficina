@@ -19,6 +19,7 @@ import {
   HeartHandshake,
   Newspaper,
   Settings,
+  Building2,
   type LucideIcon,
 } from 'lucide-react';
 import { Permission } from '@oficina/shared';
@@ -29,6 +30,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Permissão necessária para ver o item (undefined = sempre visível). */
   permission?: string;
+  /** Visível apenas para administradores da plataforma. */
+  platformAdmin?: boolean;
 }
 
 export interface NavSection {
@@ -82,6 +85,9 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: 'Sistema',
-    items: [{ label: 'Configurações', href: '/configuracoes', icon: Settings }],
+    items: [
+      { label: 'Configurações', href: '/configuracoes', icon: Settings },
+      { label: 'Oficinas', href: '/oficinas', icon: Building2, platformAdmin: true },
+    ],
   },
 ];

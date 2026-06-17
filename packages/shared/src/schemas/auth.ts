@@ -147,6 +147,8 @@ export interface AuthUser {
   role: string;
   permissions: string[];
   forcePasswordChange: boolean;
+  /** Administrador da plataforma (gestão de oficinas). */
+  platformAdmin: boolean;
 }
 
 export interface LoginResponse {
