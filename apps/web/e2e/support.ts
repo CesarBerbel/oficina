@@ -8,13 +8,25 @@ import { expect, type Page } from '@playwright/test';
 export const E2E_TENANT_SLUG = process.env.E2E_TENANT_SLUG ?? 'oficina-modelo';
 export const E2E_EMAIL = process.env.E2E_EMAIL ?? 'admin@oficina.local';
 export const E2E_PASSWORD = process.env.E2E_PASSWORD ?? 'Admin@123';
+/** Base da API (para setup via requisições diretas nos testes). */
+export const E2E_API_URL = process.env.E2E_API_URL ?? 'http://localhost:3333/api';
 
-/** Faz login preenchendo os campos e aguarda o dashboard. */
-export async function login(page: Page): Promise<void> {
+/** Faz login pela UI com credenciais arbitrárias e aguarda o dashboard. */
+export async function loginAsUI(
+  page: Page,
+  email: string,
+  password: string,
+  tenantSlug: string = E2E_TENANT_SLUG,
+): Promise<void> {
   await page.goto('/login');
-  await page.fill('#tenantSlug', E2E_TENANT_SLUG);
-  await page.fill('#email', E2E_EMAIL);
-  await page.fill('#password', E2E_PASSWORD);
+  await page.fill('#tenantSlug', tenantSlug);
+  await page.fill('#email', email);
+  await page.fill('#password', password);
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+}
+
+/** Faz login como o admin padrão do seed e aguarda o dashboard. */
+export async function login(page: Page): Promise<void> {
+  await loginAsUI(page, E2E_EMAIL, E2E_PASSWORD);
 }
