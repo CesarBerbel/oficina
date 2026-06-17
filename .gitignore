@@ -52,3 +52,6 @@ chatgpt/
 
 # TypeScript incremental build info (gerado)
 *.tsbuildinfo
+
+# temporário do fluxo de credencial gh
+crq.txt

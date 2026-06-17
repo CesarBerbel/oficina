@@ -8,7 +8,9 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
+import { Permission } from '@oficina/shared';
 import { StorageService } from '../../infra/storage/storage.service';
+import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 
 type DetectedImage = { mime: string; extension: '.png' | '.jpg' | '.webp' | '.gif' };
 
@@ -60,6 +62,7 @@ export class UploadsController {
   constructor(private readonly storage: StorageService) {}
 
   @Post()
+  @RequirePermission(Permission.UPLOADS_WRITE)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
   )

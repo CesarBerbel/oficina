@@ -35,7 +35,7 @@ import {
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { MessagingService } from '../messaging/messaging.service';
+import { OutboxService } from '../outbox/outbox.service';
 import { PurchasesService } from '../purchases/purchases.service';
 import { quoteInclude, toQuoteDto } from '../quotes/quote.mapper';
 import { ServiceOrderStateMachine } from './domain/service-order.state-machine';
@@ -98,14 +98,23 @@ type BoardRow = Prisma.ServiceOrderGetPayload<{ include: typeof boardInclude }>;
 type EventRow = Prisma.ServiceOrderEventGetPayload<{ include: typeof eventInclude }>;
 type DetailRow = Prisma.ServiceOrderGetPayload<{ include: typeof detailInclude }>;
 
+/** Mapa status → evento de mensagem automática (despachado via outbox). */
+const STATUS_MESSAGE_EVENT: Partial<Record<ServiceOrderStatus, MessageEvent>> = {
+  DIAGNOSTICO_PRONTO: 'DIAGNOSIS_READY',
+  EM_EXECUCAO: 'OS_IN_EXECUTION',
+  PRONTA: 'OS_READY',
+  PRONTO_RETIRAR: 'CUSTOMER_NOTIFIED',
+  ENTREGUE: 'VEHICLE_DELIVERED',
+};
+
 @Injectable()
 export class ServiceOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
-    private readonly messaging: MessagingService,
     private readonly purchases: PurchasesService,
+    private readonly outbox: OutboxService,
   ) {}
 
   // ─── Mapping ───
@@ -506,6 +515,8 @@ export class ServiceOrdersService {
             toStatus: 'ENTRADA',
             createdById: actor.id,
           });
+          // Mensagem de abertura via outbox (atômico com a criação da OS).
+          await this.outbox.enqueueOrderEvent(tx, actor.tenantId, 'OS_OPENED', order.id);
           return order;
         }),
       'Não foi possível gerar o número da OS',
@@ -520,8 +531,6 @@ export class ServiceOrdersService {
       entityId: created.id,
       after: { number: created.number, status: created.status },
     });
-
-    await this.messaging.dispatchOrderEvent(actor.tenantId, 'OS_OPENED', created.id);
 
     return this.toDetail(created);
   }
@@ -736,6 +745,11 @@ export class ServiceOrdersService {
           toStatus: target,
           createdById: actor.id,
         });
+        // Mensagem automática do evento via outbox (atômico com a transição).
+        const evt = STATUS_MESSAGE_EVENT[target];
+        if (evt) {
+          await this.outbox.enqueueOrderEvent(tx, actor.tenantId, evt, id);
+        }
         return target;
       }),
     );
@@ -750,19 +764,6 @@ export class ServiceOrdersService {
       before: { status: row.status },
       after: { status: effectiveStatus },
     });
-
-    // Mensagens automáticas por evento da OS.
-    const statusEvent: Partial<Record<ServiceOrderStatus, MessageEvent>> = {
-      DIAGNOSTICO_PRONTO: 'DIAGNOSIS_READY',
-      EM_EXECUCAO: 'OS_IN_EXECUTION',
-      PRONTA: 'OS_READY',
-      PRONTO_RETIRAR: 'CUSTOMER_NOTIFIED',
-      ENTREGUE: 'VEHICLE_DELIVERED',
-    };
-    const evt = statusEvent[effectiveStatus];
-    if (evt) {
-      await this.messaging.dispatchOrderEvent(actor.tenantId, evt, id);
-    }
 
     await this.notifyStatusChange(actor.tenantId, id, row.number, effectiveStatus);
 

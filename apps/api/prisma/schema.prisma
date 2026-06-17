@@ -279,8 +279,39 @@ model Tenant {
   receptionScheduleBlocks ReceptionScheduleBlock[]
   crmSettings CrmSettings?
   operationalSettings OperationalSettings?
+  outboxMessages OutboxMessage[]
 
   @@map("tenants")
+}
+
+/// Outbox transacional: eventos de notificação/mensagem persistidos junto com a
+/// transação de domínio e despachados de forma assíncrona (entrega ao-menos-uma-vez).
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+model OutboxMessage {
+  id          String       @id @default(cuid())
+  tenantId    String
+  type        String // ex.: ORDER_EVENT
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  maxAttempts Int          @default(8)
+  lastError   String?
+  availableAt DateTime     @default(now())
+  processedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+  @@index([tenantId])
+  @@map("outbox_messages")
 }
 
 /// Funcionário do sistema.

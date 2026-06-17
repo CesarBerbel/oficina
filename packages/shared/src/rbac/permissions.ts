@@ -48,6 +48,7 @@ export const Permission = {
   MESSAGES_WRITE: 'messages:write',
   SITE_MANAGE: 'site:manage',
   BLOG_WRITE: 'blog:write',
+  UPLOADS_WRITE: 'uploads:write',
 
   // Configurações / IA
   SETTINGS_MANAGE: 'settings:manage',
@@ -85,6 +86,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.FINANCE_READ,
     Permission.MESSAGES_READ,
     Permission.MESSAGES_WRITE,
+    Permission.UPLOADS_WRITE,
   ],
 
   TECNICO: [
@@ -96,6 +98,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.OS_STATUS,
     Permission.SERVICES_READ,
     Permission.INVENTORY_READ,
+    Permission.UPLOADS_WRITE,
   ],
 
   ESTOQUISTA: [
@@ -112,6 +115,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.FINANCE_WRITE,
     Permission.NFE_IMPORT,
     Permission.SERVICES_READ,
+    Permission.UPLOADS_WRITE,
   ],
 };
 
