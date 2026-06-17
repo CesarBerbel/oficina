@@ -23,23 +23,35 @@ export default async function SiteContato() {
         <div className="space-y-4">
           <LeadForm />
           <div className="space-y-2 rounded-xl border bg-card p-5 text-sm">
-            {s?.phone && <p className="flex items-center gap-2"><Phone className="size-4 text-primary" /> {maskPhone(s.phone)}</p>}
+            {s?.phone && (
+              <p className="flex items-center gap-2">
+                <Phone className="size-4 text-primary" /> {maskPhone(s.phone)}
+              </p>
+            )}
             {s?.whatsapp && (
               <p className="flex items-center gap-2">
                 <Phone className="size-4 text-primary" />
-                <a className="hover:underline" href={`https://wa.me/${s.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                <a
+                  className="hover:underline"
+                  href={`https://wa.me/${s.whatsapp.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   WhatsApp: {maskPhone(s.whatsapp)}
                 </a>
               </p>
             )}
-            {s?.email && <p className="flex items-center gap-2"><Mail className="size-4 text-primary" /> {s.email}</p>}
-            {s?.address && (
-              <SiteAddressLinks
-                address={s.address}
-                iconClassName="size-4"
-              />
+            {s?.email && (
+              <p className="flex items-center gap-2">
+                <Mail className="size-4 text-primary" /> {s.email}
+              </p>
             )}
-            {s?.hours && <p className="flex items-center gap-2"><Clock className="size-4 text-primary" /> {s.hours}</p>}
+            {s?.address && <SiteAddressLinks address={s.address} iconClassName="size-4" />}
+            {s?.hours && (
+              <p className="flex items-center gap-2">
+                <Clock className="size-4 text-primary" /> {s.hours}
+              </p>
+            )}
           </div>
         </div>
 

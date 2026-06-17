@@ -68,7 +68,9 @@ export default function CrmPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link href="/configuracoes/crm"><Settings /> Configurar CRM</Link>
+            <Link href="/configuracoes/crm">
+              <Settings /> Configurar CRM
+            </Link>
           </Button>
           <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={isFetching ? 'animate-spin' : ''} /> Atualizar
@@ -78,10 +80,24 @@ export default function CrmPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Kpi icon={Star} label="Oportunidades" value={data.summary.total} />
-        <Kpi icon={AlertTriangle} label="Alta prioridade" value={data.summary.highPriority} tone="danger" />
-        <Kpi icon={Car} label="Revisões" value={data.summary.preventiveReview + data.summary.kmReview} />
+        <Kpi
+          icon={AlertTriangle}
+          label="Alta prioridade"
+          value={data.summary.highPriority}
+          tone="danger"
+        />
+        <Kpi
+          icon={Car}
+          label="Revisões"
+          value={data.summary.preventiveReview + data.summary.kmReview}
+        />
         <Kpi icon={Users} label="Inativos" value={data.summary.inactiveCustomers} tone="warning" />
-        <Kpi icon={CalendarClock} label="Campanhas/retorno" value={data.summary.postDeliveryReturn + data.summary.seasonalCampaigns} tone="success" />
+        <Kpi
+          icon={CalendarClock}
+          label="Campanhas/retorno"
+          value={data.summary.postDeliveryReturn + data.summary.seasonalCampaigns}
+          tone="success"
+        />
       </div>
 
       {data.opportunities.length === 0 ? (
@@ -157,17 +173,40 @@ function OpportunityCard({ opportunity }: { opportunity: PostSaleOpportunityDto 
       <CardContent className="space-y-4 text-sm">
         <div>
           <p className="font-medium">{opportunity.customerName}</p>
-          <p className="text-muted-foreground">{opportunity.vehicleLabel ?? 'Veículo não identificado'}</p>
+          <p className="text-muted-foreground">
+            {opportunity.vehicleLabel ?? 'Veículo não identificado'}
+          </p>
           <p className="mt-1 text-muted-foreground">{opportunity.reason}</p>
         </div>
 
         <div className="grid gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground sm:grid-cols-3">
-          <Info label="Último serviço" value={opportunity.lastServiceAt ? formatDate(opportunity.lastServiceAt) : '—'} />
-          <Info label="Dias" value={opportunity.daysSinceLastService != null ? String(opportunity.daysSinceLastService) : '—'} />
-          <Info label="Histórico" value={opportunity.estimatedValue != null ? formatCurrency(opportunity.estimatedValue) : '—'} />
-          {opportunity.currentKm != null ? <Info label="KM atual" value={opportunity.currentKm.toLocaleString('pt-BR')} /> : null}
-          {opportunity.nextReviewKm != null ? <Info label="Próxima KM" value={opportunity.nextReviewKm.toLocaleString('pt-BR')} /> : null}
-          {opportunity.campaignName ? <Info label="Campanha" value={opportunity.campaignName} /> : null}
+          <Info
+            label="Último serviço"
+            value={opportunity.lastServiceAt ? formatDate(opportunity.lastServiceAt) : '—'}
+          />
+          <Info
+            label="Dias"
+            value={
+              opportunity.daysSinceLastService != null
+                ? String(opportunity.daysSinceLastService)
+                : '—'
+            }
+          />
+          <Info
+            label="Histórico"
+            value={
+              opportunity.estimatedValue != null ? formatCurrency(opportunity.estimatedValue) : '—'
+            }
+          />
+          {opportunity.currentKm != null ? (
+            <Info label="KM atual" value={opportunity.currentKm.toLocaleString('pt-BR')} />
+          ) : null}
+          {opportunity.nextReviewKm != null ? (
+            <Info label="Próxima KM" value={opportunity.nextReviewKm.toLocaleString('pt-BR')} />
+          ) : null}
+          {opportunity.campaignName ? (
+            <Info label="Campanha" value={opportunity.campaignName} />
+          ) : null}
         </div>
 
         <div className="rounded-lg border bg-background p-3 text-sm">

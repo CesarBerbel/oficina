@@ -43,27 +43,55 @@ export class NotificationsService {
     }
   }
 
-
   private classifyNotification(n: { type: string; title: string; link: string | null }): {
     category: OperationalNotificationCategory;
     priority: OperationalPriority;
   } {
     const value = `${n.type} ${n.title} ${n.link ?? ''}`.toLowerCase();
     let category: OperationalNotificationCategory = 'sistema';
-    if (value.includes('lead') || value.includes('recep') || value.includes('/leads') || value.includes('cliente chegou')) {
+    if (
+      value.includes('lead') ||
+      value.includes('recep') ||
+      value.includes('/leads') ||
+      value.includes('cliente chegou')
+    ) {
       category = 'recepcao';
-    } else if (value.includes('crm') || value.includes('revis') || value.includes('pós') || value.includes('pos')) {
+    } else if (
+      value.includes('crm') ||
+      value.includes('revis') ||
+      value.includes('pós') ||
+      value.includes('pos')
+    ) {
       category = 'crm';
-    } else if (value.includes('compra') || value.includes('finance') || value.includes('pagamento')) {
+    } else if (
+      value.includes('compra') ||
+      value.includes('finance') ||
+      value.includes('pagamento')
+    ) {
       category = 'financeiro';
-    } else if (value.includes('os') || value.includes('orçamento') || value.includes('orcamento') || value.includes('/os')) {
+    } else if (
+      value.includes('os') ||
+      value.includes('orçamento') ||
+      value.includes('orcamento') ||
+      value.includes('/os')
+    ) {
       category = 'oficina';
     }
 
     let priority: OperationalPriority = 'baixa';
-    if (value.includes('aprov') || value.includes('chegou') || value.includes('parada') || value.includes('atras')) {
+    if (
+      value.includes('aprov') ||
+      value.includes('chegou') ||
+      value.includes('parada') ||
+      value.includes('atras')
+    ) {
       priority = 'alta';
-    } else if (value.includes('agend') || value.includes('retorno') || value.includes('orçamento') || value.includes('orcamento')) {
+    } else if (
+      value.includes('agend') ||
+      value.includes('retorno') ||
+      value.includes('orçamento') ||
+      value.includes('orcamento')
+    ) {
       priority = 'media';
     }
     return { category, priority };
@@ -123,11 +151,7 @@ export class NotificationsService {
   }
 
   /** Cria notificações para vários usuários e dispara push (um por usuário). */
-  async createForUsers(
-    tenantId: string,
-    userIds: string[],
-    payload: NotifyPayload,
-  ): Promise<void> {
+  async createForUsers(tenantId: string, userIds: string[], payload: NotifyPayload): Promise<void> {
     for (const userId of [...new Set(userIds)]) {
       const notif = await this.prisma.notification.create({
         data: {
@@ -202,11 +226,7 @@ export class NotificationsService {
   }
 
   /** Notifica todos os usuários ativos do tenant com os perfis informados. */
-  async notifyRoles(
-    tenantId: string,
-    roles: Role[],
-    payload: NotifyPayload,
-  ): Promise<void> {
+  async notifyRoles(tenantId: string, roles: Role[], payload: NotifyPayload): Promise<void> {
     const users = await this.findActiveUsersByRoles(tenantId, roles);
     await this.createForUsers(
       tenantId,
@@ -234,21 +254,14 @@ export class NotificationsService {
     );
   }
 
-  private findActiveUsersByRoles(
-    tenantId: string,
-    roles: Role[],
-  ): Promise<Array<{ id: string }>> {
+  private findActiveUsersByRoles(tenantId: string, roles: Role[]): Promise<Array<{ id: string }>> {
     return this.prisma.user.findMany({
       where: { tenantId, active: true, role: { in: roles } },
       select: { id: true },
     });
   }
 
-  private async sendPush(
-    userId: string,
-    payload: NotifyPayload,
-    notifId: string,
-  ): Promise<void> {
+  private async sendPush(userId: string, payload: NotifyPayload, notifId: string): Promise<void> {
     if (!this.pushEnabled) return;
     const subs = await this.prisma.pushSubscription.findMany({
       where: { userId },
@@ -281,10 +294,7 @@ export class NotificationsService {
     );
   }
 
-  async list(
-    userId: string,
-    query: ListNotificationsQuery,
-  ): Promise<Paginated<NotificationDto>> {
+  async list(userId: string, query: ListNotificationsQuery): Promise<Paginated<NotificationDto>> {
     const { page, pageSize, unreadOnly } = query;
     const where: Prisma.NotificationWhereInput = {
       userId,

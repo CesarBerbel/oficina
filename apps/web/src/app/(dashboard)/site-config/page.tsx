@@ -16,28 +16,43 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageUpload } from '@/components/image-upload';
 import { maskCep, maskCnpj, maskPhone, onlyDigits } from '@/lib/masks';
 
-const FIELDS: { key: string; label: string; area?: boolean; full?: boolean; required?: boolean }[] = [
-  { key: 'shopName', label: 'Nome da oficina', required: true },
-  { key: 'tagline', label: 'Slogan' },
-  { key: 'heroTitle', label: 'Título da home' },
-  { key: 'heroSubtitle', label: 'Subtítulo da home', full: true },
-  { key: 'heroImageUrl', label: 'Imagem de fundo do hero (home)', full: true },
-  { key: 'about', label: 'Sobre — resumo (aparece na home e no topo do Sobre)', area: true, full: true },
-  { key: 'aboutExtra', label: 'Sobre — texto complementar (abaixo do resumo, só no Sobre)', area: true, full: true },
-  { key: 'phone', label: 'Telefone' },
-  { key: 'whatsapp', label: 'WhatsApp' },
-  { key: 'email', label: 'E-mail' },
-  { key: 'cnpj', label: 'CNPJ (opcional)' },
-  { key: 'hours', label: 'Horários' },
-  { key: 'instagram', label: 'Instagram (URL)' },
-  { key: 'facebook', label: 'Facebook (URL)' },
-  { key: 'logoUrl', label: 'Logo (URL)' },
-  { key: 'logoPdfUrl', label: 'Logo para PDF (URL)' },
-  { key: 'blogFallbackImageUrl', label: 'Imagem padrão do blog (artigos sem imagem)', full: true },
-  { key: 'serviceCardImageUrl', label: 'Imagem dos cards de serviço (site público)', full: true },
-  { key: 'capacity', label: 'Capacidade da oficina (OS simultâneas)' },
-  { key: 'mapsEmbed', label: 'Google Maps (código embed)', area: true, full: true },
-];
+const FIELDS: { key: string; label: string; area?: boolean; full?: boolean; required?: boolean }[] =
+  [
+    { key: 'shopName', label: 'Nome da oficina', required: true },
+    { key: 'tagline', label: 'Slogan' },
+    { key: 'heroTitle', label: 'Título da home' },
+    { key: 'heroSubtitle', label: 'Subtítulo da home', full: true },
+    { key: 'heroImageUrl', label: 'Imagem de fundo do hero (home)', full: true },
+    {
+      key: 'about',
+      label: 'Sobre — resumo (aparece na home e no topo do Sobre)',
+      area: true,
+      full: true,
+    },
+    {
+      key: 'aboutExtra',
+      label: 'Sobre — texto complementar (abaixo do resumo, só no Sobre)',
+      area: true,
+      full: true,
+    },
+    { key: 'phone', label: 'Telefone' },
+    { key: 'whatsapp', label: 'WhatsApp' },
+    { key: 'email', label: 'E-mail' },
+    { key: 'cnpj', label: 'CNPJ (opcional)' },
+    { key: 'hours', label: 'Horários' },
+    { key: 'instagram', label: 'Instagram (URL)' },
+    { key: 'facebook', label: 'Facebook (URL)' },
+    { key: 'logoUrl', label: 'Logo (URL)' },
+    { key: 'logoPdfUrl', label: 'Logo para PDF (URL)' },
+    {
+      key: 'blogFallbackImageUrl',
+      label: 'Imagem padrão do blog (artigos sem imagem)',
+      full: true,
+    },
+    { key: 'serviceCardImageUrl', label: 'Imagem dos cards de serviço (site público)', full: true },
+    { key: 'capacity', label: 'Capacidade da oficina (OS simultâneas)' },
+    { key: 'mapsEmbed', label: 'Google Maps (código embed)', area: true, full: true },
+  ];
 
 const ADDRESS_FIELDS: { key: string; label: string; className?: string }[] = [
   { key: 'addressStreet', label: 'Rua / Logradouro', className: 'sm:col-span-4' },
@@ -55,14 +70,12 @@ const ALL_KEYS = [
   'pdfFooterText',
 ];
 
-const FIELD_LABELS = Object.fromEntries(
-  [
-    ...FIELDS.map((f) => [f.key, f.label.replace(' (opcional)', '')] as const),
-    ['addressZip', 'CEP'] as const,
-    ...ADDRESS_FIELDS.map((f) => [f.key, f.label] as const),
-    ['pdfFooterText', 'Rodapé do PDF'] as const,
-  ],
-) as Record<string, string>;
+const FIELD_LABELS = Object.fromEntries([
+  ...FIELDS.map((f) => [f.key, f.label.replace(' (opcional)', '')] as const),
+  ['addressZip', 'CEP'] as const,
+  ...ADDRESS_FIELDS.map((f) => [f.key, f.label] as const),
+  ['pdfFooterText', 'Rodapé do PDF'] as const,
+]) as Record<string, string>;
 
 export default function SiteConfigPage() {
   const { data, isLoading } = useSiteSettings();
@@ -176,7 +189,9 @@ export default function SiteConfigPage() {
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link href="/site" target="_blank">Ver site <ExternalLink className="size-4" /></Link>
+          <Link href="/site" target="_blank">
+            Ver site <ExternalLink className="size-4" />
+          </Link>
         </Button>
       </div>
 
@@ -197,7 +212,11 @@ export default function SiteConfigPage() {
         {FIELDS.map((f) => (
           <div key={f.key} className={`space-y-1.5 ${f.full ? 'sm:col-span-2' : ''}`}>
             <Label required={f.required}>{f.label}</Label>
-            {f.key === 'logoUrl' || f.key === 'logoPdfUrl' || f.key === 'blogFallbackImageUrl' || f.key === 'serviceCardImageUrl' || f.key === 'heroImageUrl' ? (
+            {f.key === 'logoUrl' ||
+            f.key === 'logoPdfUrl' ||
+            f.key === 'blogFallbackImageUrl' ||
+            f.key === 'serviceCardImageUrl' ||
+            f.key === 'heroImageUrl' ? (
               <ImageUpload value={form[f.key] ?? ''} onChange={(url) => setField(f.key, url)} />
             ) : f.area ? (
               <Textarea
@@ -209,9 +228,23 @@ export default function SiteConfigPage() {
               <Input
                 value={form[f.key] ?? ''}
                 onChange={(e) => setField(f.key, e.target.value)}
-                inputMode={f.key === 'phone' || f.key === 'whatsapp' ? 'tel' : f.key === 'cnpj' ? 'numeric' : undefined}
-                maxLength={f.key === 'phone' || f.key === 'whatsapp' ? 15 : f.key === 'cnpj' ? 18 : undefined}
-                placeholder={f.key === 'phone' || f.key === 'whatsapp' ? '(00) 00000-0000' : f.key === 'cnpj' ? '00.000.000/0000-00' : undefined}
+                inputMode={
+                  f.key === 'phone' || f.key === 'whatsapp'
+                    ? 'tel'
+                    : f.key === 'cnpj'
+                      ? 'numeric'
+                      : undefined
+                }
+                maxLength={
+                  f.key === 'phone' || f.key === 'whatsapp' ? 15 : f.key === 'cnpj' ? 18 : undefined
+                }
+                placeholder={
+                  f.key === 'phone' || f.key === 'whatsapp'
+                    ? '(00) 00000-0000'
+                    : f.key === 'cnpj'
+                      ? '00.000.000/0000-00'
+                      : undefined
+                }
               />
             )}
             {errors[f.key] && <p className="text-xs text-destructive">{errors[f.key]}</p>}
@@ -241,7 +274,11 @@ export default function SiteConfigPage() {
                 disabled={cepLoading}
                 aria-label="Buscar CEP"
               >
-                {cepLoading ? <CarLoader className="size-4 animate-spin" /> : <Search className="size-4" />}
+                {cepLoading ? (
+                  <CarLoader className="size-4 animate-spin" />
+                ) : (
+                  <Search className="size-4" />
+                )}
               </Button>
             </div>
             {errors.addressZip && <p className="text-xs text-destructive">{errors.addressZip}</p>}
@@ -267,8 +304,8 @@ export default function SiteConfigPage() {
         <div>
           <Label>Rodapé do PDF</Label>
           <p className="text-xs text-muted-foreground">
-            Texto de condições/garantia impresso no fim da OS. Use a barra para
-            negrito, itálico, sublinhado e listas.
+            Texto de condições/garantia impresso no fim da OS. Use a barra para negrito, itálico,
+            sublinhado e listas.
           </p>
         </div>
         <RichTextEditor
@@ -280,7 +317,11 @@ export default function SiteConfigPage() {
       </div>
 
       <Button onClick={save} disabled={update.isPending}>
-        {update.isPending ? <CarLoader className="size-4 animate-spin" /> : <Save className="size-4" />}
+        {update.isPending ? (
+          <CarLoader className="size-4 animate-spin" />
+        ) : (
+          <Save className="size-4" />
+        )}
         Salvar
       </Button>
     </div>

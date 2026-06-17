@@ -20,13 +20,23 @@ const FIELD_LABELS = {
 };
 
 export function LeadForm() {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', plate: '', vehicle: '', message: '' });
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    plate: '',
+    vehicle: '',
+    message: '',
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
 
   function set<K extends keyof typeof form>(k: K, v: string) {
-    setForm((f) => ({ ...f, [k]: k === 'phone' ? maskPhone(v) : k === 'plate' ? v.toUpperCase() : v }));
+    setForm((f) => ({
+      ...f,
+      [k]: k === 'phone' ? maskPhone(v) : k === 'plate' ? v.toUpperCase() : v,
+    }));
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -44,9 +54,7 @@ export function LeadForm() {
         headers: {
           'Content-Type': 'application/json',
           'X-Public-Host': window.location.host,
-          ...(SITE_TENANT_SLUG
-            ? { 'X-Public-Tenant-Slug': SITE_TENANT_SLUG }
-            : {}),
+          ...(SITE_TENANT_SLUG ? { 'X-Public-Tenant-Slug': SITE_TENANT_SLUG } : {}),
         },
         body: JSON.stringify(parsed.data),
       });
@@ -69,37 +77,75 @@ export function LeadForm() {
     );
   }
 
-  const inputCls = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  const inputCls =
+    'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
   return (
     <form onSubmit={onSubmit} className="space-y-3 rounded-xl border bg-card p-5">
       <div>
-        <input className={inputCls} placeholder="Seu nome *" value={form.name} onChange={(e) => set('name', e.target.value)} />
+        <input
+          className={inputCls}
+          placeholder="Seu nome *"
+          value={form.name}
+          onChange={(e) => set('name', e.target.value)}
+        />
         {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name}</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <input className={inputCls} inputMode="tel" maxLength={15} placeholder="Telefone *" value={form.phone} onChange={(e) => set('phone', e.target.value)} />
+          <input
+            className={inputCls}
+            inputMode="tel"
+            maxLength={15}
+            placeholder="Telefone *"
+            value={form.phone}
+            onChange={(e) => set('phone', e.target.value)}
+          />
           {errors.phone && <p className="mt-1 text-xs text-destructive">{errors.phone}</p>}
         </div>
         <div>
-          <input className={inputCls} placeholder="E-mail (opcional)" value={form.email} onChange={(e) => set('email', e.target.value)} />
+          <input
+            className={inputCls}
+            placeholder="E-mail (opcional)"
+            value={form.email}
+            onChange={(e) => set('email', e.target.value)}
+          />
           {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
         </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <input className={inputCls} maxLength={8} placeholder="Placa (ex.: ABC1D23)" value={form.plate} onChange={(e) => set('plate', e.target.value)} />
+          <input
+            className={inputCls}
+            maxLength={8}
+            placeholder="Placa (ex.: ABC1D23)"
+            value={form.plate}
+            onChange={(e) => set('plate', e.target.value)}
+          />
           {errors.plate && <p className="mt-1 text-xs text-destructive">{errors.plate}</p>}
         </div>
-        <input className={inputCls} placeholder="Veículo (ex.: Gol 2018)" value={form.vehicle} onChange={(e) => set('vehicle', e.target.value)} />
+        <input
+          className={inputCls}
+          placeholder="Veículo (ex.: Gol 2018)"
+          value={form.vehicle}
+          onChange={(e) => set('vehicle', e.target.value)}
+        />
       </div>
       <div>
-        <textarea className={`${inputCls} min-h-[100px]`} placeholder="Como podemos ajudar? *" value={form.message} onChange={(e) => set('message', e.target.value)} />
+        <textarea
+          className={`${inputCls} min-h-[100px]`}
+          placeholder="Como podemos ajudar? *"
+          value={form.message}
+          onChange={(e) => set('message', e.target.value)}
+        />
         {errors.message && <p className="mt-1 text-xs text-destructive">{errors.message}</p>}
       </div>
       {errors.form && <p className="text-xs text-destructive">{errors.form}</p>}
-      <button type="submit" disabled={sending} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 font-medium text-primary-foreground disabled:opacity-50">
+      <button
+        type="submit"
+        disabled={sending}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 font-medium text-primary-foreground disabled:opacity-50"
+      >
         {sending && <CarLoader className="size-4 animate-spin" />}
         Enviar pedido de orçamento
       </button>

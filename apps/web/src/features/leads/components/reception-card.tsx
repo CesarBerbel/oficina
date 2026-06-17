@@ -5,7 +5,12 @@ import { LEAD_STATUS_LABELS, type LeadDto } from '@oficina/shared';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { appointmentSummary, formatDateTime, isPastAppointment, STATUS_VARIANT } from '../reception-utils';
+import {
+  appointmentSummary,
+  formatDateTime,
+  isPastAppointment,
+  STATUS_VARIANT,
+} from '../reception-utils';
 import { WhatsAppNumberLink } from './whatsapp-number-link';
 
 export function ReceptionCard({
@@ -43,7 +48,17 @@ export function ReceptionCard({
         </div>
         <div className="flex flex-col items-end gap-1">
           <Badge variant={STATUS_VARIANT[lead.status]}>{LEAD_STATUS_LABELS[lead.status]}</Badge>
-          <Badge variant={lead.operationalPriority === 'CRITICA' ? 'destructive' : lead.operationalPriority === 'ALTA' ? 'warning' : lead.operationalPriority === 'MEDIA' ? 'secondary' : 'outline'}>
+          <Badge
+            variant={
+              lead.operationalPriority === 'CRITICA'
+                ? 'destructive'
+                : lead.operationalPriority === 'ALTA'
+                  ? 'warning'
+                  : lead.operationalPriority === 'MEDIA'
+                    ? 'secondary'
+                    : 'outline'
+            }
+          >
             <Gauge className="mr-1 size-3" /> {lead.operationalScore}
           </Badge>
         </div>

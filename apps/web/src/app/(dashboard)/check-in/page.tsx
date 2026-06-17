@@ -50,9 +50,7 @@ function CheckinsContent() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Check-in</h1>
-          <p className="text-muted-foreground">
-            Registros de entrada dos veículos na oficina.
-          </p>
+          <p className="text-muted-foreground">Registros de entrada dos veículos na oficina.</p>
         </div>
         {canWrite && (
           <Button asChild>
@@ -99,10 +97,7 @@ function CheckinsContent() {
               </TableRow>
             ) : checkins.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="h-24 text-center text-muted-foreground"
-                >
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   Nenhum check-in encontrado.
                 </TableCell>
               </TableRow>
@@ -125,13 +120,9 @@ function CheckinsContent() {
                     {c.vehicleLabel}
                   </TableCell>
                   <TableCell>{c.customerName}</TableCell>
+                  <TableCell>{c.km != null ? c.km.toLocaleString('pt-BR') : '—'}</TableCell>
                   <TableCell>
-                    {c.km != null ? c.km.toLocaleString('pt-BR') : '—'}
-                  </TableCell>
-                  <TableCell>
-                    {c.fuelLevel
-                      ? FUEL_LEVEL_LABELS[c.fuelLevel as FuelLevel]
-                      : '—'}
+                    {c.fuelLevel ? FUEL_LEVEL_LABELS[c.fuelLevel as FuelLevel] : '—'}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-3 text-sm text-muted-foreground">
@@ -140,17 +131,14 @@ function CheckinsContent() {
                       </span>
                       {c.damages.length > 0 && (
                         <span className="inline-flex items-center gap-1 text-amber-600">
-                          <AlertTriangle className="size-3.5" />{' '}
-                          {c.damages.length}
+                          <AlertTriangle className="size-3.5" /> {c.damages.length}
                         </span>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
                     {c.serviceOrderNumber ? (
-                      <Badge variant="outline">
-                        #{c.serviceOrderNumber}
-                      </Badge>
+                      <Badge variant="outline">#{c.serviceOrderNumber}</Badge>
                     ) : (
                       '—'
                     )}
@@ -169,9 +157,7 @@ function CheckinsContent() {
             <CarLoader className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : checkins.length === 0 ? (
-          <p className="py-8 text-center text-muted-foreground">
-            Nenhum check-in encontrado.
-          </p>
+          <p className="py-8 text-center text-muted-foreground">Nenhum check-in encontrado.</p>
         ) : (
           checkins.map((c) => (
             <Link
@@ -183,9 +169,7 @@ function CheckinsContent() {
                 <Badge variant="outline" className="font-mono">
                   {c.vehiclePlate}
                 </Badge>
-                <span className="text-xs text-muted-foreground">
-                  {formatDate(c.createdAt)}
-                </span>
+                <span className="text-xs text-muted-foreground">{formatDate(c.createdAt)}</span>
               </div>
               <p className="mt-1 font-medium">{c.vehicleLabel}</p>
               <p className="text-sm text-muted-foreground">{c.customerName}</p>
@@ -196,8 +180,7 @@ function CheckinsContent() {
                 </span>
                 {c.damages.length > 0 && (
                   <span className="inline-flex items-center gap-1 text-amber-600">
-                    <AlertTriangle className="size-3.5" /> {c.damages.length}{' '}
-                    avaria(s)
+                    <AlertTriangle className="size-3.5" /> {c.damages.length} avaria(s)
                   </span>
                 )}
                 {c.serviceOrderNumber && <span>OS #{c.serviceOrderNumber}</span>}

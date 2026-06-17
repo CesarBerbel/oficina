@@ -28,14 +28,16 @@ export default async function SiteServicos() {
                 <img src={cardImage} alt={s.name} className="h-36 w-full object-cover" />
               )}
               <div className="p-5">
-              {s.category && (
-                <span className="text-xs font-medium uppercase text-primary">{s.category}</span>
-              )}
-              <h3 className="mt-1 font-medium">{s.name}</h3>
-              {s.description && <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>}
-              {s.salePrice > 0 && (
-                <p className="mt-3 font-semibold">{formatCurrency(s.salePrice)}</p>
-              )}
+                {s.category && (
+                  <span className="text-xs font-medium uppercase text-primary">{s.category}</span>
+                )}
+                <h3 className="mt-1 font-medium">{s.name}</h3>
+                {s.description && (
+                  <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
+                )}
+                {s.salePrice > 0 && (
+                  <p className="mt-3 font-semibold">{formatCurrency(s.salePrice)}</p>
+                )}
               </div>
             </div>
           ))}

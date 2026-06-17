@@ -14,8 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const DEFAULT_TENANT_SLUG =
-  process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG ?? 'oficina-modelo';
+const DEFAULT_TENANT_SLUG = process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG ?? 'oficina-modelo';
 
 const FIELD_LABELS = {
   tenantSlug: 'Oficina',
@@ -42,7 +41,6 @@ export default function LoginPage() {
     if (installStatus && !installStatus.installed) router.replace('/instalar');
   }, [installStatus, router]);
 
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = loginSchema.safeParse({ tenantSlug, email, password });
@@ -53,11 +51,7 @@ export default function LoginPage() {
     setErrors({});
     setSubmitting(true);
     try {
-      await login(
-        parsed.data.tenantSlug,
-        parsed.data.email,
-        parsed.data.password,
-      );
+      await login(parsed.data.tenantSlug, parsed.data.email, parsed.data.password);
       toast.success('Bem-vindo de volta!');
       router.replace('/dashboard');
     } catch (err) {
@@ -69,10 +63,7 @@ export default function LoginPage() {
 
   return (
     <main className="grid min-h-dvh place-items-center bg-muted/40 p-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-xl border bg-card p-8 shadow-sm"
-      >
+      <form onSubmit={onSubmit} className="w-full max-w-sm rounded-xl border bg-card p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Wrench className="size-6" />
@@ -85,7 +76,9 @@ export default function LoginPage() {
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="tenantSlug" required>Oficina</Label>
+            <Label htmlFor="tenantSlug" required>
+              Oficina
+            </Label>
             <Input
               id="tenantSlug"
               name="tenantSlug"
@@ -95,13 +88,13 @@ export default function LoginPage() {
               onChange={(e) => setTenantSlug(e.target.value)}
               placeholder="slug-da-oficina"
             />
-            {errors.tenantSlug && (
-              <p className="text-xs text-destructive">{errors.tenantSlug}</p>
-            )}
+            {errors.tenantSlug && <p className="text-xs text-destructive">{errors.tenantSlug}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="email" required>E-mail</Label>
+            <Label htmlFor="email" required>
+              E-mail
+            </Label>
             <Input
               id="email"
               name="email"
@@ -111,13 +104,13 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
             />
-            {errors.email && (
-              <p className="text-xs text-destructive">{errors.email}</p>
-            )}
+            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="password" required>Senha</Label>
+            <Label htmlFor="password" required>
+              Senha
+            </Label>
             <Input
               id="password"
               name="password"
@@ -127,9 +120,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Digite sua senha"
             />
-            {errors.password && (
-              <p className="text-xs text-destructive">{errors.password}</p>
-            )}
+            {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
           </div>
 
           <div className="text-right">
@@ -145,7 +136,6 @@ export default function LoginPage() {
             {submitting && <CarLoader className="size-4 animate-spin" />}
             Entrar
           </Button>
-
         </div>
       </form>
     </main>

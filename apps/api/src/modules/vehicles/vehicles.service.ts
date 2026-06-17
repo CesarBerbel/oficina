@@ -51,12 +51,8 @@ export class VehiclesService {
   ) {}
 
   // Veículos são compartilhados no grupo (matriz + filiais): escopo por groupId.
-  async list(
-    groupId: string,
-    query: ListVehiclesQuery,
-  ): Promise<Paginated<VehicleDto>> {
-    const { page, pageSize, search, customerId, fuel, sortBy, sortOrder } =
-      query;
+  async list(groupId: string, query: ListVehiclesQuery): Promise<Paginated<VehicleDto>> {
+    const { page, pageSize, search, customerId, fuel, sortBy, sortOrder } = query;
 
     const where: Prisma.VehicleWhereInput = {
       tenantId: groupId,
@@ -75,9 +71,8 @@ export class VehiclesService {
     };
 
     const orderBy: Prisma.VehicleOrderByWithRelationInput = {
-      [sortBy && ['plate', 'manufacturer', 'createdAt'].includes(sortBy)
-        ? sortBy
-        : 'createdAt']: sortBy ? sortOrder : 'desc',
+      [sortBy && ['plate', 'manufacturer', 'createdAt'].includes(sortBy) ? sortBy : 'createdAt']:
+        sortBy ? sortOrder : 'desc',
     };
 
     const [total, rows] = await this.prisma.$transaction([
@@ -116,14 +111,10 @@ export class VehiclesService {
       where: { id: customerId, tenantId: groupId },
       select: { id: true },
     });
-    if (!customer)
-      throw new BadRequestException('Cliente inválido para este veículo');
+    if (!customer) throw new BadRequestException('Cliente inválido para este veículo');
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreateVehicleInput,
-  ): Promise<VehicleDto> {
+  async create(actor: AuthenticatedUser, input: CreateVehicleInput): Promise<VehicleDto> {
     await this.assertCustomer(actor.groupId, input.customerId);
 
     const clash = await this.prisma.vehicle.findFirst({
@@ -213,9 +204,7 @@ export class VehiclesService {
     if (serviceOrdersCount > 0 || checkinsCount > 0) {
       const links: string[] = [];
       if (serviceOrdersCount > 0) {
-        links.push(
-          `${serviceOrdersCount} ordem(ns) de serviço vinculada(s)`,
-        );
+        links.push(`${serviceOrdersCount} ordem(ns) de serviço vinculada(s)`);
       }
       if (checkinsCount > 0) {
         links.push(`${checkinsCount} check-in(s) vinculado(s)`);

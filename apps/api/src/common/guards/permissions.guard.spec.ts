@@ -14,8 +14,7 @@ function contextWith(role: string): ExecutionContext {
 describe('PermissionsGuard', () => {
   function guardRequiring(perms: Permission[], isPublic = false) {
     const reflector = {
-      getAllAndOverride: (key: string) =>
-        key === 'isPublic' ? isPublic : perms,
+      getAllAndOverride: (key: string) => (key === 'isPublic' ? isPublic : perms),
     } as unknown as Reflector;
     return new PermissionsGuard(reflector);
   }
@@ -27,9 +26,7 @@ describe('PermissionsGuard', () => {
 
   it('bloqueia ATENDENTE sem a permissão', () => {
     const guard = guardRequiring([Permission.USERS_READ]);
-    expect(() => guard.canActivate(contextWith('ATENDENTE'))).toThrow(
-      ForbiddenException,
-    );
+    expect(() => guard.canActivate(contextWith('ATENDENTE'))).toThrow(ForbiddenException);
   });
 
   it('libera rota pública sem checar permissão', () => {

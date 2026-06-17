@@ -23,8 +23,7 @@ export const QuoteItemDecision = {
   RECUSADO: 'RECUSADO',
 } as const;
 
-export type QuoteItemDecision =
-  (typeof QuoteItemDecision)[keyof typeof QuoteItemDecision];
+export type QuoteItemDecision = (typeof QuoteItemDecision)[keyof typeof QuoteItemDecision];
 
 /** Tipo da decisão do cliente sobre o orçamento. */
 export const QuoteDecisionType = {
@@ -33,5 +32,4 @@ export const QuoteDecisionType = {
   RECUSA: 'RECUSA',
 } as const;
 
-export type QuoteDecisionType =
-  (typeof QuoteDecisionType)[keyof typeof QuoteDecisionType];
+export type QuoteDecisionType = (typeof QuoteDecisionType)[keyof typeof QuoteDecisionType];

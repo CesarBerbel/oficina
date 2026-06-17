@@ -58,9 +58,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle>{options.title}</DialogTitle>
-              {options.description && (
-                <DialogDescription>{options.description}</DialogDescription>
-              )}
+              {options.description && <DialogDescription>{options.description}</DialogDescription>}
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => settle(false)}>

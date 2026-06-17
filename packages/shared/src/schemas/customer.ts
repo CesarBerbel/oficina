@@ -107,7 +107,6 @@ export interface CustomerDto {
   createdAt: string;
 }
 
-
 export type Customer360TimelineType =
   | 'CUSTOMER'
   | 'VEHICLE'

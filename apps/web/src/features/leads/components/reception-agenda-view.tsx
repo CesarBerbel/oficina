@@ -1,7 +1,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CalendarClock, Clock, Filter, GripVertical, Lock, Trash2, UserCheck, XCircle } from 'lucide-react';
+import {
+  CalendarClock,
+  Clock,
+  Filter,
+  GripVertical,
+  Lock,
+  Trash2,
+  UserCheck,
+  XCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { LEAD_STATUS_LABELS, type LeadDto } from '@oficina/shared';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +21,14 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useTechnicians } from '@/features/service-orders/use-service-orders';
 import { cn } from '@/lib/utils';
-import { appointmentSummary, dayLabel, errorMessage, isPastAppointment, STATUS_VARIANT, timeOnly } from '../reception-utils';
+import {
+  appointmentSummary,
+  dayLabel,
+  errorMessage,
+  isPastAppointment,
+  STATUS_VARIANT,
+  timeOnly,
+} from '../reception-utils';
 import {
   useCreateReceptionScheduleBlock,
   useDeleteReceptionScheduleBlock,
@@ -98,7 +114,9 @@ function slotLabel(date: Date): string {
 
 function appointmentMinutes(lead: LeadDto): number {
   const start = lead.appointmentStartAt ? new Date(lead.appointmentStartAt).getTime() : 0;
-  const end = lead.appointmentEndAt ? new Date(lead.appointmentEndAt).getTime() : start + SLOT_MINUTES * 60_000;
+  const end = lead.appointmentEndAt
+    ? new Date(lead.appointmentEndAt).getTime()
+    : start + SLOT_MINUTES * 60_000;
   const diff = Math.max(SLOT_MINUTES, Math.round((end - start) / 60_000));
   return Number.isFinite(diff) ? diff : SLOT_MINUTES;
 }
@@ -138,7 +156,11 @@ function filterAgenda(leads: LeadDto[], scope: AgendaScope): LeadDto[] {
 function groupAgenda(leads: LeadDto[]): AgendaGroup[] {
   const scheduled = leads
     .filter((lead) => Boolean(lead.appointmentStartAt))
-    .sort((a, b) => new Date(a.appointmentStartAt ?? 0).getTime() - new Date(b.appointmentStartAt ?? 0).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.appointmentStartAt ?? 0).getTime() -
+        new Date(b.appointmentStartAt ?? 0).getTime(),
+    );
 
   const late = scheduled.filter((lead) => isPastAppointment(lead));
   const normal = scheduled.filter((lead) => !isPastAppointment(lead));
@@ -177,7 +199,10 @@ function blockOverlapsSlot(block: { startAt: string; endAt: string }, slot: Date
   return start < slotEnd && end > slotStart;
 }
 
-function technicianCapacity(leads: LeadDto[], technicianId: string): { minutes: number; percent: number } {
+function technicianCapacity(
+  leads: LeadDto[],
+  technicianId: string,
+): { minutes: number; percent: number } {
   const minutes = leads
     .filter((lead) => leadTechnicianId(lead) === technicianId)
     .reduce((sum, lead) => sum + appointmentMinutes(lead), 0);
@@ -197,7 +222,13 @@ export function ReceptionAgendaView({
   const [scope, setScope] = useState<AgendaScope>('hoje');
   const [selectedDay, setSelectedDay] = useState(todayValue);
   const [technicianFilter, setTechnicianFilter] = useState(ALL_TECHNICIANS_ID);
-  const [blockForm, setBlockForm] = useState({ technicianId: '', title: '', start: '12:00', end: '13:00', notes: '' });
+  const [blockForm, setBlockForm] = useState({
+    technicianId: '',
+    title: '',
+    start: '12:00',
+    end: '13:00',
+    notes: '',
+  });
   const { data: technicians } = useTechnicians();
   const scheduleLead = useScheduleLead();
   const createBlock = useCreateReceptionScheduleBlock();
@@ -207,13 +238,17 @@ export function ReceptionAgendaView({
   const blocksQuery = useReceptionScheduleBlocks({
     from: startOfDay(dayDate).toISOString(),
     to: endOfDay(dayDate).toISOString(),
-    technicianId: technicianFilter === ALL_TECHNICIANS_ID || technicianFilter === UNASSIGNED_TECHNICIAN_ID ? undefined : technicianFilter,
+    technicianId:
+      technicianFilter === ALL_TECHNICIANS_ID || technicianFilter === UNASSIGNED_TECHNICIAN_ID
+        ? undefined
+        : technicianFilter,
   });
 
   const technicianColumns = useMemo<TechnicianColumn[]>(() => {
     const columns = [
       { id: UNASSIGNED_TECHNICIAN_ID, name: 'Sem técnico' },
-      ...((technicians ?? []).map((technician) => ({ id: technician.id, name: technician.name })) ?? []),
+      ...((technicians ?? []).map((technician) => ({ id: technician.id, name: technician.name })) ??
+        []),
     ];
     if (technicianFilter === ALL_TECHNICIANS_ID) return columns;
     return columns.filter((column) => column.id === technicianFilter);
@@ -222,7 +257,10 @@ export function ReceptionAgendaView({
   const filteredLeads = useMemo(() => filterAgenda(leads, scope), [leads, scope]);
   const groups = groupAgenda(filteredLeads);
   const selectedDayLeads = useMemo(
-    () => leads.filter((lead) => lead.appointmentStartAt && isSameDay(new Date(lead.appointmentStartAt), dayDate)),
+    () =>
+      leads.filter(
+        (lead) => lead.appointmentStartAt && isSameDay(new Date(lead.appointmentStartAt), dayDate),
+      ),
     [leads, dayDate],
   );
   const slots = useMemo(() => daySlots(selectedDay), [selectedDay]);
@@ -301,7 +339,8 @@ export function ReceptionAgendaView({
               <p className="font-semibold">Agenda avançada da recepção</p>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Calendário por técnico, remarcação por arrastar e soltar, capacidade diária e bloqueios operacionais.
+              Calendário por técnico, remarcação por arrastar e soltar, capacidade diária e
+              bloqueios operacionais.
             </p>
           </div>
           <Badge variant="outline">{leads.length} agendamento(s)</Badge>
@@ -338,15 +377,24 @@ export function ReceptionAgendaView({
           <div className="grid gap-3 border-b p-3 lg:grid-cols-[12rem_1fr_14rem]">
             <div>
               <Label>Dia</Label>
-              <Input type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)} />
+              <Input
+                type="date"
+                value={selectedDay}
+                onChange={(event) => setSelectedDay(event.target.value)}
+              />
             </div>
             <div>
               <Label>Técnico</Label>
-              <Select value={technicianFilter} onChange={(event) => setTechnicianFilter(event.target.value)}>
+              <Select
+                value={technicianFilter}
+                onChange={(event) => setTechnicianFilter(event.target.value)}
+              >
                 <option value={ALL_TECHNICIANS_ID}>Todos os técnicos</option>
                 <option value={UNASSIGNED_TECHNICIAN_ID}>Sem técnico</option>
                 {(technicians ?? []).map((technician) => (
-                  <option key={technician.id} value={technician.id}>{technician.name}</option>
+                  <option key={technician.id} value={technician.id}>
+                    {technician.name}
+                  </option>
                 ))}
               </Select>
             </div>
@@ -357,17 +405,28 @@ export function ReceptionAgendaView({
           </div>
 
           <div className="overflow-x-auto">
-            <div className="grid min-w-[52rem]" style={{ gridTemplateColumns: `5rem repeat(${technicianColumns.length}, minmax(14rem, 1fr))` }}>
-              <div className="sticky left-0 z-10 border-b bg-background p-2 text-xs font-medium text-muted-foreground">Horário</div>
+            <div
+              className="grid min-w-[52rem]"
+              style={{
+                gridTemplateColumns: `5rem repeat(${technicianColumns.length}, minmax(14rem, 1fr))`,
+              }}
+            >
+              <div className="sticky left-0 z-10 border-b bg-background p-2 text-xs font-medium text-muted-foreground">
+                Horário
+              </div>
               {technicianColumns.map((column) => {
                 const capacity = technicianCapacity(selectedDayLeads, column.id);
                 return (
                   <div key={column.id} className="border-b border-l bg-background p-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-semibold">{column.name}</p>
-                      <Badge variant={capacity.percent >= 100 ? 'warning' : 'secondary'}>{capacity.percent}%</Badge>
+                      <Badge variant={capacity.percent >= 100 ? 'warning' : 'secondary'}>
+                        {capacity.percent}%
+                      </Badge>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{Math.round(capacity.minutes / 60)}h ocupadas</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {Math.round(capacity.minutes / 60)}h ocupadas
+                    </p>
                   </div>
                 );
               })}
@@ -378,11 +437,15 @@ export function ReceptionAgendaView({
                     {slotLabel(slot)}
                   </div>
                   {technicianColumns.map((column) => {
-                    const slotLeads = selectedDayLeads.filter((lead) => leadTechnicianId(lead) === column.id && isInSlot(lead, slot));
+                    const slotLeads = selectedDayLeads.filter(
+                      (lead) => leadTechnicianId(lead) === column.id && isInSlot(lead, slot),
+                    );
                     const slotBlocks = blocks.filter(
                       (block) =>
                         blockOverlapsSlot(block, slot) &&
-                        (block.technicianId === null || block.technicianId === (column.id === UNASSIGNED_TECHNICIAN_ID ? null : column.id)),
+                        (block.technicianId === null ||
+                          block.technicianId ===
+                            (column.id === UNASSIGNED_TECHNICIAN_ID ? null : column.id)),
                     );
                     const blocked = slotBlocks.length > 0;
                     return (
@@ -391,20 +454,38 @@ export function ReceptionAgendaView({
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={(event) => {
                           event.preventDefault();
-                          const leadId = event.dataTransfer.getData('application/x-oficina-lead-id');
+                          const leadId = event.dataTransfer.getData(
+                            'application/x-oficina-lead-id',
+                          );
                           if (leadId && !blocked) void moveLead(leadId, slot, column.id);
                         }}
-                        className={cn('min-h-24 border-b border-l p-2 transition', blocked ? 'bg-amber-50/60' : 'hover:bg-accent/50')}
+                        className={cn(
+                          'min-h-24 border-b border-l p-2 transition',
+                          blocked ? 'bg-amber-50/60' : 'hover:bg-accent/50',
+                        )}
                       >
                         {slotBlocks.map((block) => (
-                          <div key={block.id} className="mb-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                          <div
+                            key={block.id}
+                            className="mb-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900"
+                          >
                             <div className="flex items-start justify-between gap-2">
-                              <p className="font-semibold"><Lock className="mr-1 inline size-3" />{block.title}</p>
-                              <button type="button" onClick={() => removeBlock(block.id)} className="text-amber-800 hover:text-foreground" title="Remover bloqueio">
+                              <p className="font-semibold">
+                                <Lock className="mr-1 inline size-3" />
+                                {block.title}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => removeBlock(block.id)}
+                                className="text-amber-800 hover:text-foreground"
+                                title="Remover bloqueio"
+                              >
                                 <Trash2 className="size-3.5" />
                               </button>
                             </div>
-                            <p>{timeOnly(block.startAt)} até {timeOnly(block.endAt)}</p>
+                            <p>
+                              {timeOnly(block.startAt)} até {timeOnly(block.endAt)}
+                            </p>
                             {block.notes && <p className="mt-1 text-amber-800">{block.notes}</p>}
                           </div>
                         ))}
@@ -415,7 +496,9 @@ export function ReceptionAgendaView({
                             <div
                               key={lead.id}
                               draggable
-                              onDragStart={(event) => event.dataTransfer.setData('application/x-oficina-lead-id', lead.id)}
+                              onDragStart={(event) =>
+                                event.dataTransfer.setData('application/x-oficina-lead-id', lead.id)
+                              }
                               role="button"
                               tabIndex={0}
                               onClick={() => onSelect(lead.id)}
@@ -435,10 +518,17 @@ export function ReceptionAgendaView({
                                 <p className="font-semibold leading-tight">{lead.name}</p>
                                 <GripVertical className="size-3.5 shrink-0 text-muted-foreground" />
                               </div>
-                              <p className="mt-1 text-muted-foreground">{timeOnly(lead.appointmentStartAt)} até {timeOnly(lead.appointmentEndAt)}</p>
-                              <p className="mt-1 truncate text-muted-foreground">{lead.appointmentServiceType || 'Atendimento'}</p>
+                              <p className="mt-1 text-muted-foreground">
+                                {timeOnly(lead.appointmentStartAt)} até{' '}
+                                {timeOnly(lead.appointmentEndAt)}
+                              </p>
+                              <p className="mt-1 truncate text-muted-foreground">
+                                {lead.appointmentServiceType || 'Atendimento'}
+                              </p>
                               <div className="mt-2 flex flex-wrap gap-1">
-                                <Badge variant={STATUS_VARIANT[lead.status]}>{LEAD_STATUS_LABELS[lead.status]}</Badge>
+                                <Badge variant={STATUS_VARIANT[lead.status]}>
+                                  {LEAD_STATUS_LABELS[lead.status]}
+                                </Badge>
                                 {lead.plate && <Badge variant="outline">{lead.plate}</Badge>}
                               </div>
                             </div>
@@ -462,53 +552,98 @@ export function ReceptionAgendaView({
             <div className="mt-3 space-y-3">
               <div>
                 <Label>Motivo</Label>
-                <Input value={blockForm.title} onChange={(event) => setBlockForm((current) => ({ ...current, title: event.target.value }))} placeholder="Almoço, treinamento, entrega externa..." />
+                <Input
+                  value={blockForm.title}
+                  onChange={(event) =>
+                    setBlockForm((current) => ({ ...current, title: event.target.value }))
+                  }
+                  placeholder="Almoço, treinamento, entrega externa..."
+                />
               </div>
               <div>
                 <Label>Técnico</Label>
-                <Select value={blockForm.technicianId} onChange={(event) => setBlockForm((current) => ({ ...current, technicianId: event.target.value }))}>
+                <Select
+                  value={blockForm.technicianId}
+                  onChange={(event) =>
+                    setBlockForm((current) => ({ ...current, technicianId: event.target.value }))
+                  }
+                >
                   <option value="">Bloqueio geral</option>
                   {(technicians ?? []).map((technician) => (
-                    <option key={technician.id} value={technician.id}>{technician.name}</option>
+                    <option key={technician.id} value={technician.id}>
+                      {technician.name}
+                    </option>
                   ))}
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <Label>Início</Label>
-                  <Input type="time" value={blockForm.start} onChange={(event) => setBlockForm((current) => ({ ...current, start: event.target.value }))} />
+                  <Input
+                    type="time"
+                    value={blockForm.start}
+                    onChange={(event) =>
+                      setBlockForm((current) => ({ ...current, start: event.target.value }))
+                    }
+                  />
                 </div>
                 <div>
                   <Label>Fim</Label>
-                  <Input type="time" value={blockForm.end} onChange={(event) => setBlockForm((current) => ({ ...current, end: event.target.value }))} />
+                  <Input
+                    type="time"
+                    value={blockForm.end}
+                    onChange={(event) =>
+                      setBlockForm((current) => ({ ...current, end: event.target.value }))
+                    }
+                  />
                 </div>
               </div>
               <div>
                 <Label>Observação</Label>
-                <Textarea value={blockForm.notes} onChange={(event) => setBlockForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Opcional" />
+                <Textarea
+                  value={blockForm.notes}
+                  onChange={(event) =>
+                    setBlockForm((current) => ({ ...current, notes: event.target.value }))
+                  }
+                  placeholder="Opcional"
+                />
               </div>
             </div>
-            <Button className="mt-3 w-full" disabled={createBlock.isPending}>Criar bloqueio</Button>
+            <Button className="mt-3 w-full" disabled={createBlock.isPending}>
+              Criar bloqueio
+            </Button>
           </form>
 
           <div className="rounded-xl border bg-card p-4">
             <h3 className="font-semibold">Agenda agrupada</h3>
-            <p className="mt-1 text-xs text-muted-foreground">Resumo por período para conferência rápida.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Resumo por período para conferência rápida.
+            </p>
             <div className="mt-3 space-y-3">
               {groups.length === 0 ? (
-                <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">Nenhum atendimento no filtro.</p>
+                <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                  Nenhum atendimento no filtro.
+                </p>
               ) : (
                 groups.map((group) => (
                   <section key={group.key} className="rounded-xl border bg-background">
                     <div className="flex items-center justify-between gap-3 border-b p-3">
                       <div className="flex items-center gap-2">
-                        {group.key === 'late' ? <XCircle className="size-4 text-amber-700" /> : <CalendarClock className="size-4 text-primary" />}
+                        {group.key === 'late' ? (
+                          <XCircle className="size-4 text-amber-700" />
+                        ) : (
+                          <CalendarClock className="size-4 text-primary" />
+                        )}
                         <div>
                           <p className="text-sm font-semibold">{group.title}</p>
-                          <p className="text-xs text-muted-foreground">{group.leads.length} atendimento(s)</p>
+                          <p className="text-xs text-muted-foreground">
+                            {group.leads.length} atendimento(s)
+                          </p>
                         </div>
                       </div>
-                      <Badge variant={group.key === 'late' ? 'warning' : 'secondary'}>{group.leads.length}</Badge>
+                      <Badge variant={group.key === 'late' ? 'warning' : 'secondary'}>
+                        {group.leads.length}
+                      </Badge>
                     </div>
 
                     <div className="divide-y">
@@ -519,10 +654,15 @@ export function ReceptionAgendaView({
                             key={lead.id}
                             type="button"
                             onClick={() => onSelect(lead.id)}
-                            className={cn('grid w-full gap-2 p-3 text-left transition hover:bg-accent', selectedId === lead.id && 'bg-primary/5')}
+                            className={cn(
+                              'grid w-full gap-2 p-3 text-left transition hover:bg-accent',
+                              selectedId === lead.id && 'bg-primary/5',
+                            )}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium">{timeOnly(lead.appointmentStartAt)} · {lead.name}</p>
+                              <p className="font-medium">
+                                {timeOnly(lead.appointmentStartAt)} · {lead.name}
+                              </p>
                               {lead.status === 'CLIENTE_CHEGOU' ? (
                                 <UserCheck className="size-3.5 text-emerald-700" />
                               ) : late ? (
@@ -531,9 +671,15 @@ export function ReceptionAgendaView({
                                 <Clock className="size-3.5 text-muted-foreground" />
                               )}
                             </div>
-                            <p className="truncate text-xs text-muted-foreground">{appointmentSummary(lead)}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {appointmentSummary(lead)}
+                            </p>
                             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                              <WhatsAppNumberLink value={lead.phone} showIcon onClick={(event) => event.stopPropagation()} />
+                              <WhatsAppNumberLink
+                                value={lead.phone}
+                                showIcon
+                                onClick={(event) => event.stopPropagation()}
+                              />
                               {lead.plate && <span>Placa: {lead.plate}</span>}
                             </div>
                           </button>

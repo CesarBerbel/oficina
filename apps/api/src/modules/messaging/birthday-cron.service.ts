@@ -25,9 +25,7 @@ export class BirthdayCronService {
     const month = today.getMonth() + 1;
     const day = today.getDate();
 
-    const rows = await this.prisma.$queryRaw<
-      Array<{ id: string; tenantId: string }>
-    >`
+    const rows = await this.prisma.$queryRaw<Array<{ id: string; tenantId: string }>>`
       SELECT "id", "tenantId" FROM "customers"
       WHERE "birthDate" IS NOT NULL
         AND EXTRACT(MONTH FROM "birthDate") = ${month}

@@ -7,7 +7,13 @@ import {
 } from '../enums/financial.js';
 
 const money = z.coerce.number().finite().positive('Informe um valor maior que zero').max(999999999);
-const opt = (max: number) => z.string().trim().max(max).optional().transform((v) => (v === '' ? undefined : v));
+const opt = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((v) => (v === '' ? undefined : v));
 
 export const listFinancialEntriesQuerySchema = paginationQuerySchema.extend({
   type: z.nativeEnum(FinancialEntryType).optional(),

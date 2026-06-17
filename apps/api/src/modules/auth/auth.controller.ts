@@ -116,7 +116,6 @@ export class AuthController {
     return { accessToken: session.accessToken, user: session.user };
   }
 
-
   @Public()
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @Post('forgot-password')
@@ -132,9 +131,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('reset-password')
   @HttpCode(200)
-  resetPassword(
-    @Body(new ZodValidationPipe(resetPasswordSchema)) body: ResetPasswordInput,
-  ) {
+  resetPassword(@Body(new ZodValidationPipe(resetPasswordSchema)) body: ResetPasswordInput) {
     return this.auth.resetPassword(body.token, body.password);
   }
 
@@ -149,10 +146,7 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(204)
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<void> {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
     await this.auth.logout(req.cookies?.[this.cookieName()]);
     this.clearRefreshCookie(res);
   }

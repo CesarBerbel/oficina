@@ -106,8 +106,14 @@ export function ServiceFormDialog({
         })),
       );
     } else {
-      setName(''); setCategory(''); setDescription(''); setSalePrice('0');
-      setCost('0'); setEstimatedMinutes(''); setShowOnSite(true); setDefaultParts([]);
+      setName('');
+      setCategory('');
+      setDescription('');
+      setSalePrice('0');
+      setCost('0');
+      setEstimatedMinutes('');
+      setShowOnSite(true);
+      setDefaultParts([]);
     }
     setPartToAdd('');
     setPartDialogOpen(false);
@@ -146,7 +152,11 @@ export function ServiceFormDialog({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const payload = {
-      name, category, description, salePrice, cost,
+      name,
+      category,
+      description,
+      salePrice,
+      cost,
       estimatedMinutes: estimatedMinutes || undefined,
       showOnSite,
       defaultParts: defaultParts.map((p) => ({ partId: p.partId, quantity: p.quantity })),
@@ -158,8 +168,10 @@ export function ServiceFormDialog({
       return;
     }
     try {
-      if (isEdit) { await update.mutateAsync(parsed.data); toast.success('Serviço atualizado'); }
-      else {
+      if (isEdit) {
+        await update.mutateAsync(parsed.data);
+        toast.success('Serviço atualizado');
+      } else {
         const createdService = (await create.mutateAsync(parsed.data as never)) as ServiceDto;
         toast.success('Serviço criado');
         onCreated?.(createdService);
@@ -264,7 +276,9 @@ export function ServiceFormDialog({
                 <Select value={category} onChange={(e) => setCategory(e.target.value)}>
                   <option value="">Sem categoria</option>
                   {categoryOptions.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
                 </Select>
               )}
@@ -274,15 +288,29 @@ export function ServiceFormDialog({
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label required>Preço de venda</Label>
-              <Input type="number" step="0.01" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} />
+              <Input
+                type="number"
+                step="0.01"
+                value={salePrice}
+                onChange={(e) => setSalePrice(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label required>Custo</Label>
-              <Input type="number" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} />
+              <Input
+                type="number"
+                step="0.01"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Tempo (min)</Label>
-              <Input type="number" value={estimatedMinutes} onChange={(e) => setEstimatedMinutes(e.target.value)} />
+              <Input
+                type="number"
+                value={estimatedMinutes}
+                onChange={(e) => setEstimatedMinutes(e.target.value)}
+              />
             </div>
           </div>
 
@@ -320,11 +348,21 @@ export function ServiceFormDialog({
               <div key={dp.partId} className="flex items-center gap-2">
                 <span className="flex-1 text-sm">{dp.partName}</span>
                 <Input
-                  type="number" step="any" value={dp.quantity}
-                  onChange={(e) => setDefaultParts((rows) => rows.map((r, i) => i === idx ? { ...r, quantity: e.target.value } : r))}
+                  type="number"
+                  step="any"
+                  value={dp.quantity}
+                  onChange={(e) =>
+                    setDefaultParts((rows) =>
+                      rows.map((r, i) => (i === idx ? { ...r, quantity: e.target.value } : r)),
+                    )
+                  }
                   className="w-20"
                 />
-                <button type="button" onClick={() => setDefaultParts((rows) => rows.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-destructive">
+                <button
+                  type="button"
+                  onClick={() => setDefaultParts((rows) => rows.filter((_, i) => i !== idx))}
+                  className="text-muted-foreground hover:text-destructive"
+                >
                   <X className="size-4" />
                 </button>
               </div>
@@ -338,12 +376,22 @@ export function ServiceFormDialog({
                 emptyText="Nenhuma peça encontrada"
                 className="w-full flex-1"
               />
-              <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={addPart}><Plus className="size-4" /></Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                onClick={addPart}
+              >
+                <Plus className="size-4" />
+              </Button>
             </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={pending}>
               {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}

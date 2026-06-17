@@ -97,9 +97,7 @@ export default function OficinasPage() {
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
             <Building2 className="size-6 text-primary" /> Oficinas
           </h1>
-          <p className="text-muted-foreground">
-            Matriz e filiais cadastradas na plataforma.
-          </p>
+          <p className="text-muted-foreground">Matriz e filiais cadastradas na plataforma.</p>
         </div>
         <Button onClick={() => setBranchOpen(true)}>
           <Plus className="size-4" /> Nova filial
@@ -135,9 +133,7 @@ export default function OficinasPage() {
                 return (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">
-                      <span className={t.isMatriz ? '' : 'pl-4'}>
-                        {t.name}
-                      </span>
+                      <span className={t.isMatriz ? '' : 'pl-4'}>{t.name}</span>
                       <Badge
                         variant={t.isMatriz ? 'default' : 'outline'}
                         className="ml-2 align-middle text-[10px]"
@@ -150,8 +146,12 @@ export default function OficinasPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{t.slug}</TableCell>
                     <TableCell className="text-right tabular-nums">{t.usersCount}</TableCell>
-                    <TableCell className="text-right tabular-nums">{t.serviceOrdersCount}</TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(t.createdAt)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {t.serviceOrdersCount}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(t.createdAt)}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={t.active ? 'success' : 'secondary'}>
                         {t.active ? 'Ativa' : 'Inativa'}
@@ -198,10 +198,7 @@ export default function OficinasPage() {
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 font-medium">
                     {t.name}
-                    <Badge
-                      variant={t.isMatriz ? 'default' : 'outline'}
-                      className="text-[10px]"
-                    >
+                    <Badge variant={t.isMatriz ? 'default' : 'outline'} className="text-[10px]">
                       {t.isMatriz ? 'Matriz' : 'Filial'}
                     </Badge>
                   </p>

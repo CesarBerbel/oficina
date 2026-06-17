@@ -14,9 +14,7 @@ import {
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { renderServiceOrderPdf, type ShopInfo } from './service-order-pdf.renderer';
 
-const dt = (d: Date | null): string =>
-  d ? new Intl.DateTimeFormat('pt-BR').format(d) : '—';
-
+const dt = (d: Date | null): string => (d ? new Intl.DateTimeFormat('pt-BR').format(d) : '—');
 
 @Injectable()
 export class PdfService {
@@ -63,10 +61,7 @@ export class PdfService {
     return { buffer, filename: `OS-${order.number}.pdf` };
   }
 
-  async checkinPdf(
-    tenantId: string,
-    id: string,
-  ): Promise<{ buffer: Buffer; filename: string }> {
+  async checkinPdf(tenantId: string, id: string): Promise<{ buffer: Buffer; filename: string }> {
     const checkin = await this.prisma.vehicleCheckin.findFirst({
       where: { id, tenantId },
       include: {
@@ -98,9 +93,7 @@ export class PdfService {
       addressState: settings?.addressState || null,
       pdfFooterText: settings?.pdfFooterText || null,
     };
-    const logo = await this.fetchLogo(
-      settings?.logoPdfUrl || settings?.logoUrl || null,
-    );
+    const logo = await this.fetchLogo(settings?.logoPdfUrl || settings?.logoUrl || null);
     const signature = await this.fetchLogo(checkin.signatureUrl);
 
     const buffer = await this.renderCheckin(checkin, shop, logo, signature);
@@ -223,7 +216,11 @@ export class PdfService {
         return yy + 26;
       };
       doc.fontSize(11).font('Helvetica-Bold').fillColor(dark).text('CLIENTE', left, y);
-      doc.fontSize(11).font('Helvetica-Bold').fillColor(dark).text('VEÍCULO', left + colW + 20, y);
+      doc
+        .fontSize(11)
+        .font('Helvetica-Bold')
+        .fillColor(dark)
+        .text('VEÍCULO', left + colW + 20, y);
       let yc = y + 16;
       let yv = y + 16;
       yc = labelVal(left, yc, 'Nome', checkin.customer.name);
@@ -237,12 +234,7 @@ export class PdfService {
       );
       const fuel: FuelLevel | null = checkin.fuelLevel;
       yc = labelVal(left, yc, 'KM de entrada', checkin.km != null ? String(checkin.km) : '—');
-      yv = labelVal(
-        left + colW + 20,
-        yv,
-        'Combustível',
-        fuel ? FUEL_LEVEL_LABELS[fuel] : '—',
-      );
+      yv = labelVal(left + colW + 20, yv, 'Combustível', fuel ? FUEL_LEVEL_LABELS[fuel] : '—');
       y = Math.max(yc, yv) + 6;
       line(y);
       y += 12;
@@ -255,7 +247,11 @@ export class PdfService {
         for (const it of checklist) {
           y = pageBreak(y);
           const status = it.status as ChecklistStatus;
-          doc.fontSize(9).font('Helvetica-Bold').fillColor(dark).text(it.item, left, y, { width: 280 });
+          doc
+            .fontSize(9)
+            .font('Helvetica-Bold')
+            .fillColor(dark)
+            .text(it.item, left, y, { width: 280 });
           doc
             .fontSize(9)
             .font('Helvetica')
@@ -264,7 +260,11 @@ export class PdfService {
               width: 80,
             });
           if (it.note) {
-            doc.fontSize(8).font('Helvetica').fillColor(gray).text(it.note, left + 380, y, { width: width - 380 });
+            doc
+              .fontSize(8)
+              .font('Helvetica')
+              .fillColor(gray)
+              .text(it.note, left + 380, y, { width: width - 380 });
           }
           y = doc.y + 4;
         }
@@ -278,7 +278,11 @@ export class PdfService {
       doc.fontSize(11).font('Helvetica-Bold').fillColor(dark).text('AVARIAS', left, y);
       y = doc.y + 6;
       if (damages.length === 0) {
-        doc.fontSize(9).font('Helvetica').fillColor(gray).text('Nenhuma avaria registrada.', left, y);
+        doc
+          .fontSize(9)
+          .font('Helvetica')
+          .fillColor(gray)
+          .text('Nenhuma avaria registrada.', left, y);
         y = doc.y + 6;
       } else {
         for (const d of damages) {
@@ -306,7 +310,11 @@ export class PdfService {
         y = pageBreak(y);
         doc.fontSize(10).font('Helvetica-Bold').fillColor(dark).text('Observações', left, y);
         y = doc.y + 2;
-        doc.fontSize(10).font('Helvetica').fillColor('#374151').text(checkin.notes, left, y, { width });
+        doc
+          .fontSize(10)
+          .font('Helvetica')
+          .fillColor('#374151')
+          .text(checkin.notes, left, y, { width });
         y = doc.y + 12;
       }
 
@@ -322,7 +330,11 @@ export class PdfService {
       } else {
         y += 40;
       }
-      doc.moveTo(left + 120, y).lineTo(right - 120, y).strokeColor('#9ca3af').stroke();
+      doc
+        .moveTo(left + 120, y)
+        .lineTo(right - 120, y)
+        .strokeColor('#9ca3af')
+        .stroke();
       doc
         .fontSize(9)
         .fillColor(gray)

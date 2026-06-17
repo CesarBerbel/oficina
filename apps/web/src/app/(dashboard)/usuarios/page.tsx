@@ -4,12 +4,7 @@ import { useState } from 'react';
 import { Plus, MoreHorizontal, Search, UserX, UserCheck, Pencil } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import {
-  USER_ROLES,
-  USER_ROLE_LABELS,
-  type UserDto,
-  type UserRole,
-} from '@oficina/shared';
+import { USER_ROLES, USER_ROLE_LABELS, type UserDto, type UserRole } from '@oficina/shared';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useUsers, useSetUserActive } from '@/features/users/use-users';
@@ -84,9 +79,7 @@ export default function UsersPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
-          <p className="text-muted-foreground">
-            Funcionários e perfis de acesso.
-          </p>
+          <p className="text-muted-foreground">Funcionários e perfis de acesso.</p>
         </div>
         {canWrite && (
           <Button onClick={openNew}>
@@ -126,9 +119,7 @@ export default function UsersPage() {
         </Select>
       </div>
 
-      {isError && (
-        <p className="text-sm text-destructive">Erro ao carregar usuários.</p>
-      )}
+      {isError && <p className="text-sm text-destructive">Erro ao carregar usuários.</p>}
 
       {/* Desktop: tabela */}
       <div className="hidden rounded-xl border md:block">
@@ -262,11 +253,7 @@ export default function UsersPage() {
         </div>
       )}
 
-      <UserFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        user={editing}
-      />
+      <UserFormDialog open={dialogOpen} onOpenChange={setDialogOpen} user={editing} />
     </div>
   );
 }

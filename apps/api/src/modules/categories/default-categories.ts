@@ -76,9 +76,9 @@ export async function seedDefaultCategories(
   prisma: PrismaClient,
   tenantId: string,
 ): Promise<number> {
-  const data = (
-    Object.entries(DEFAULT_CATEGORIES) as Array<[CategoryKind, string[]]>
-  ).flatMap(([kind, names]) => names.map((name) => ({ tenantId, kind, name })));
+  const data = (Object.entries(DEFAULT_CATEGORIES) as Array<[CategoryKind, string[]]>).flatMap(
+    ([kind, names]) => names.map((name) => ({ tenantId, kind, name })),
+  );
 
   const res = await prisma.category.createMany({ data, skipDuplicates: true });
   return res.count;

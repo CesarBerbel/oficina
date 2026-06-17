@@ -1,10 +1,6 @@
 import { z } from 'zod';
 import { ServiceOrderItemKind } from '../enums/service-order-item.js';
-import {
-  QuoteDecisionType,
-  QuoteItemDecision,
-  QuoteStatus,
-} from '../enums/quote.js';
+import { QuoteDecisionType, QuoteItemDecision, QuoteStatus } from '../enums/quote.js';
 import { cpfCnpjSchema } from './common.js';
 
 /** Observações públicas exibidas ao cliente no orçamento. */
@@ -32,21 +28,14 @@ export const quoteDecisionSchema = z.object({
     .array(
       z.object({
         itemId: z.string().min(1),
-        decision: z.enum([
-          QuoteItemDecision.APROVADO,
-          QuoteItemDecision.RECUSADO,
-        ]),
+        decision: z.enum([QuoteItemDecision.APROVADO, QuoteItemDecision.RECUSADO]),
       }),
     )
     .default([]),
   /** Recusa total do orçamento. */
   reject: z.boolean().default(false),
   /** Assinatura digital simples — nome do responsável (obrigatório). */
-  signatureName: z
-    .string()
-    .trim()
-    .min(1, 'Informe seu nome completo')
-    .max(160),
+  signatureName: z.string().trim().min(1, 'Informe seu nome completo').max(160),
   /** Documento do responsável — CPF ou CNPJ válido (obrigatório). */
   signatureDoc: cpfCnpjSchema.refine((v): v is string => v !== null, {
     message: 'Informe um CPF ou CNPJ válido',

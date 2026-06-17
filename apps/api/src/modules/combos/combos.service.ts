@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
   ComboDto,
@@ -15,8 +11,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 
 const include = {
   services: {
@@ -51,10 +46,7 @@ export class CombosService {
   ) {}
 
   // Combos (catálogo) são compartilhados no grupo: escopo por groupId.
-  private async assertServices(
-    groupId: string,
-    serviceIds: string[],
-  ): Promise<void> {
+  private async assertServices(groupId: string, serviceIds: string[]): Promise<void> {
     const count = await this.prisma.service.count({
       where: { tenantId: groupId, id: { in: serviceIds } },
     });
@@ -63,10 +55,7 @@ export class CombosService {
     }
   }
 
-  async list(
-    groupId: string,
-    query: ListCombosQuery,
-  ): Promise<Paginated<ComboDto>> {
+  async list(groupId: string, query: ListCombosQuery): Promise<Paginated<ComboDto>> {
     const { page, pageSize, search } = query;
     const where: Prisma.ComboWhereInput = {
       tenantId: groupId,
@@ -104,10 +93,7 @@ export class CombosService {
     return toDto(combo);
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreateComboInput,
-  ): Promise<ComboDto> {
+  async create(actor: AuthenticatedUser, input: CreateComboInput): Promise<ComboDto> {
     await this.assertServices(actor.groupId, input.serviceIds);
 
     const created = await this.prisma.combo.create({
@@ -139,11 +125,7 @@ export class CombosService {
     return toDto(created);
   }
 
-  async update(
-    actor: AuthenticatedUser,
-    id: string,
-    input: UpdateComboInput,
-  ): Promise<ComboDto> {
+  async update(actor: AuthenticatedUser, id: string, input: UpdateComboInput): Promise<ComboDto> {
     const current = await this.prisma.combo.findFirst({
       where: { id, tenantId: actor.groupId },
       select: { id: true },
@@ -159,9 +141,7 @@ export class CombosService {
         where: { id },
         data: {
           ...(input.name !== undefined ? { name: input.name } : {}),
-          ...(input.description !== undefined
-            ? { description: input.description ?? null }
-            : {}),
+          ...(input.description !== undefined ? { description: input.description ?? null } : {}),
           ...(input.active !== undefined ? { active: input.active } : {}),
         },
       });

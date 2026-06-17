@@ -75,9 +75,7 @@ function ResultItem({
           ) : null}
         </span>
         {result.subtitle ? (
-          <span className="block truncate text-sm text-muted-foreground">
-            {result.subtitle}
-          </span>
+          <span className="block truncate text-sm text-muted-foreground">{result.subtitle}</span>
         ) : null}
         {result.description ? (
           <span className="line-clamp-2 block text-xs text-muted-foreground">
@@ -96,18 +94,13 @@ export function GlobalSearchDialog() {
   const [activeIndex, setActiveIndex] = useState(0);
   const search = useGlobalSearch(query, open);
 
-  const results = useMemo(
-    () => search.data?.results ?? [],
-    [search.data?.results],
-  );
+  const results = useMemo(() => search.data?.results ?? [], [search.data?.results]);
 
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       const isTyping =
-        target?.tagName === 'INPUT' ||
-        target?.tagName === 'TEXTAREA' ||
-        target?.isContentEditable;
+        target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
@@ -209,8 +202,8 @@ export function GlobalSearchDialog() {
           <div className="min-h-48 space-y-2">
             {trimmed.length < 2 ? (
               <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                Digite pelo menos 2 caracteres. Dicas: use placa, nome do cliente,
-                telefone, número da OS, código da peça ou serviço.
+                Digite pelo menos 2 caracteres. Dicas: use placa, nome do cliente, telefone, número
+                da OS, código da peça ou serviço.
               </div>
             ) : search.isLoading ? (
               <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">

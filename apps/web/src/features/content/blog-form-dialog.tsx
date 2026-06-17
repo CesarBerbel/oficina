@@ -3,7 +3,12 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  createBlogPostSchema, updateBlogPostSchema, BLOG_STATUS_LABELS, BlogStatus, type BlogPostDto, } from '@oficina/shared';
+  createBlogPostSchema,
+  updateBlogPostSchema,
+  BLOG_STATUS_LABELS,
+  BlogStatus,
+  type BlogPostDto,
+} from '@oficina/shared';
 import { Sparkles } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { ApiError } from '@/lib/api';
@@ -12,7 +17,12 @@ import { useAiArticle } from '@/features/ai/use-ai';
 import { ImageUpload } from '@/components/image-upload';
 import { useCreateBlogPost, useUpdateBlogPost } from './use-content';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,8 +31,15 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
 const empty = {
-  title: '', slug: '', excerpt: '', content: '', imageUrl: '', author: '',
-  status: 'RASCUNHO', seoTitle: '', seoDescription: '',
+  title: '',
+  slug: '',
+  excerpt: '',
+  content: '',
+  imageUrl: '',
+  author: '',
+  status: 'RASCUNHO',
+  seoTitle: '',
+  seoDescription: '',
 };
 
 const FIELD_LABELS = {
@@ -38,9 +55,13 @@ const FIELD_LABELS = {
 };
 
 export function BlogFormDialog({
-  open, onOpenChange, post,
+  open,
+  onOpenChange,
+  post,
 }: {
-  open: boolean; onOpenChange: (o: boolean) => void; post?: BlogPostDto | null;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  post?: BlogPostDto | null;
 }) {
   const isEdit = !!post;
   const [form, setForm] = useState(empty);
@@ -74,11 +95,21 @@ export function BlogFormDialog({
 
   useEffect(() => {
     if (!open) return;
-    setForm(post ? {
-      title: post.title, slug: post.slug, excerpt: post.excerpt ?? '', content: post.content,
-      imageUrl: post.imageUrl ?? '', author: post.author ?? '', status: post.status,
-      seoTitle: post.seoTitle ?? '', seoDescription: post.seoDescription ?? '',
-    } : empty);
+    setForm(
+      post
+        ? {
+            title: post.title,
+            slug: post.slug,
+            excerpt: post.excerpt ?? '',
+            content: post.content,
+            imageUrl: post.imageUrl ?? '',
+            author: post.author ?? '',
+            status: post.status,
+            seoTitle: post.seoTitle ?? '',
+            seoDescription: post.seoDescription ?? '',
+          }
+        : empty,
+    );
     setErrors({});
     setSubject('');
   }, [open, post]);
@@ -96,10 +127,17 @@ export function BlogFormDialog({
       return;
     }
     try {
-      if (isEdit) { await update.mutateAsync(parsed.data); toast.success('Artigo atualizado'); }
-      else { await create.mutateAsync(parsed.data as never); toast.success('Artigo criado'); }
+      if (isEdit) {
+        await update.mutateAsync(parsed.data);
+        toast.success('Artigo atualizado');
+      } else {
+        await create.mutateAsync(parsed.data as never);
+        toast.success('Artigo criado');
+      }
       onOpenChange(false);
-    } catch (err) { toast.error(apiErrorMessage(err, FIELD_LABELS)); }
+    } catch (err) {
+      toast.error(apiErrorMessage(err, FIELD_LABELS));
+    }
   }
 
   return (
@@ -112,15 +150,34 @@ export function BlogFormDialog({
         <form onSubmit={onSubmit} className="space-y-4">
           {!isEdit && (
             <div className="space-y-1.5 rounded-lg border border-dashed bg-muted/30 p-3">
-              <Label className="flex items-center gap-1"><Sparkles className="size-3.5 text-primary" /> Gerar artigo com IA</Label>
+              <Label className="flex items-center gap-1">
+                <Sparkles className="size-3.5 text-primary" /> Gerar artigo com IA
+              </Label>
               <div className="flex gap-2">
-                <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Assunto (ex.: importância do alinhamento)" className="flex-1" />
-                <Button type="button" variant="outline" className="shrink-0" disabled={article.isPending} onClick={generateWithAi}>
-                  {article.isPending ? <CarLoader className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                <Input
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Assunto (ex.: importância do alinhamento)"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  disabled={article.isPending}
+                  onClick={generateWithAi}
+                >
+                  {article.isPending ? (
+                    <CarLoader className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
                   Gerar
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Preenche título, resumo, conteúdo e SEO. Revise antes de publicar.</p>
+              <p className="text-xs text-muted-foreground">
+                Preenche título, resumo, conteúdo e SEO. Revise antes de publicar.
+              </p>
             </div>
           )}
           <div className="space-y-1.5">
@@ -131,22 +188,42 @@ export function BlogFormDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Slug (opcional)</Label>
-              <Input value={form.slug} onChange={(e) => set('slug', e.target.value)} placeholder="gerado do título" />
+              <Input
+                value={form.slug}
+                onChange={(e) => set('slug', e.target.value)}
+                placeholder="gerado do título"
+              />
             </div>
             <div className="space-y-1.5">
               <Label required>Status</Label>
-              <Select value={form.status} onChange={(e) => set('status', e.target.value)} className="w-full">
-                {Object.values(BlogStatus).map((s) => <option key={s} value={s}>{BLOG_STATUS_LABELS[s]}</option>)}
+              <Select
+                value={form.status}
+                onChange={(e) => set('status', e.target.value)}
+                className="w-full"
+              >
+                {Object.values(BlogStatus).map((s) => (
+                  <option key={s} value={s}>
+                    {BLOG_STATUS_LABELS[s]}
+                  </option>
+                ))}
               </Select>
             </div>
           </div>
           <div className="space-y-1.5">
             <Label>Resumo</Label>
-            <Textarea value={form.excerpt} onChange={(e) => set('excerpt', e.target.value)} rows={2} />
+            <Textarea
+              value={form.excerpt}
+              onChange={(e) => set('excerpt', e.target.value)}
+              rows={2}
+            />
           </div>
           <div className="space-y-1.5">
             <Label required>Conteúdo</Label>
-            <Textarea value={form.content} onChange={(e) => set('content', e.target.value)} rows={8} />
+            <Textarea
+              value={form.content}
+              onChange={(e) => set('content', e.target.value)}
+              rows={8}
+            />
             {errors.content && <p className="text-xs text-destructive">{errors.content}</p>}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -166,11 +243,16 @@ export function BlogFormDialog({
             </div>
             <div className="space-y-1.5">
               <Label>SEO descrição</Label>
-              <Input value={form.seoDescription} onChange={(e) => set('seoDescription', e.target.value)} />
+              <Input
+                value={form.seoDescription}
+                onChange={(e) => set('seoDescription', e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={pending}>
               {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}

@@ -9,7 +9,12 @@ import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useServices, useCreateCombo, useUpdateCombo } from './use-catalog';
 import { ServiceFormDialog } from './service-form-dialog';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +23,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { formatCurrency } from '@/lib/utils';
 
-interface Row { serviceId: string; name: string; price: number }
+interface Row {
+  serviceId: string;
+  name: string;
+  price: number;
+}
 
 const FIELD_LABELS = {
   name: 'Nome',
@@ -27,7 +36,10 @@ const FIELD_LABELS = {
 };
 
 export function ComboFormDialog({
-  open, onOpenChange, combo, onCreated,
+  open,
+  onOpenChange,
+  combo,
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -53,11 +65,21 @@ export function ComboFormDialog({
     if (combo) {
       setName(combo.name);
       setDescription(combo.description ?? '');
-      setServices(combo.services.map((s) => ({ serviceId: s.serviceId, name: s.serviceName, price: s.salePrice })));
+      setServices(
+        combo.services.map((s) => ({
+          serviceId: s.serviceId,
+          name: s.serviceName,
+          price: s.salePrice,
+        })),
+      );
     } else {
-      setName(''); setDescription(''); setServices([]);
+      setName('');
+      setDescription('');
+      setServices([]);
     }
-    setToAdd(''); setServiceDialogOpen(false); setErrors({});
+    setToAdd('');
+    setServiceDialogOpen(false);
+    setErrors({});
   }, [open, combo]);
 
   function addService() {
@@ -78,24 +100,28 @@ export function ComboFormDialog({
       return;
     }
     try {
-      if (isEdit) { await update.mutateAsync(parsed.data); toast.success('Combo atualizado'); }
-      else {
+      if (isEdit) {
+        await update.mutateAsync(parsed.data);
+        toast.success('Combo atualizado');
+      } else {
         const createdCombo = (await create.mutateAsync(parsed.data as never)) as ComboDto;
         toast.success('Combo criado');
         onCreated?.(createdCombo);
       }
       onOpenChange(false);
-    } catch (err) { toast.error(apiErrorMessage(err, FIELD_LABELS)); }
+    } catch (err) {
+      toast.error(apiErrorMessage(err, FIELD_LABELS));
+    }
   }
 
-  const available = (servicesData?.data ?? []).filter((s) => !services.some((r) => r.serviceId === s.id));
+  const available = (servicesData?.data ?? []).filter(
+    (s) => !services.some((r) => r.serviceId === s.id),
+  );
   const serviceOptions = useMemo(
     () =>
       available.map((service) => ({
         value: service.id,
-        label: service.category
-          ? `${service.name} · ${service.category}`
-          : service.name,
+        label: service.category ? `${service.name} · ${service.category}` : service.name,
         keywords: [
           service.name,
           service.category,
@@ -128,7 +154,11 @@ export function ComboFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Descrição</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+            />
           </div>
 
           <div className="space-y-2 rounded-lg border p-3">
@@ -142,12 +172,18 @@ export function ComboFormDialog({
                 <Plus className="size-3.5" /> Novo serviço
               </button>
             </div>
-            {services.length === 0 && <p className="text-xs text-muted-foreground">Nenhum serviço.</p>}
+            {services.length === 0 && (
+              <p className="text-xs text-muted-foreground">Nenhum serviço.</p>
+            )}
             {services.map((s, idx) => (
               <div key={s.serviceId} className="flex items-center justify-between gap-2 text-sm">
                 <span className="flex-1">{s.name}</span>
                 <span className="text-muted-foreground">{formatCurrency(s.price)}</span>
-                <button type="button" onClick={() => setServices((r) => r.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-destructive">
+                <button
+                  type="button"
+                  onClick={() => setServices((r) => r.filter((_, i) => i !== idx))}
+                  className="text-muted-foreground hover:text-destructive"
+                >
                   <X className="size-4" />
                 </button>
               </div>
@@ -167,13 +203,23 @@ export function ComboFormDialog({
                 emptyText="Nenhum serviço encontrado"
                 className="w-full flex-1"
               />
-              <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={addService}><Plus className="size-4" /></Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                onClick={addService}
+              >
+                <Plus className="size-4" />
+              </Button>
             </div>
             {errors.serviceIds && <p className="text-xs text-destructive">{errors.serviceIds}</p>}
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={pending}>
               {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}

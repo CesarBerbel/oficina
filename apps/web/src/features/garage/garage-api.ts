@@ -71,11 +71,7 @@ export async function fetchGarageData(): Promise<GarageDataDto> {
   return res.json() as Promise<GarageDataDto>;
 }
 
-
-export async function decideGarageQuote(
-  orderId: string,
-  input: QuoteDecisionInput,
-): Promise<void> {
+export async function decideGarageQuote(orderId: string, input: QuoteDecisionInput): Promise<void> {
   const token = getGarageToken();
   if (!token) throw new Error(GARAGE_NO_SESSION);
   const res = await fetch(`${API_URL}/public/garage/orders/${orderId}/quote-decision`, {

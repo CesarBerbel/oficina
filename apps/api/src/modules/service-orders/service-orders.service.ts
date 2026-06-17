@@ -5,12 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import {
-  Prisma,
-  QuoteItemDecision,
-  type PrismaClient,
-  type MessageEvent,
-} from '@prisma/client';
+import { Prisma, QuoteItemDecision, type PrismaClient, type MessageEvent } from '@prisma/client';
 import {
   isOrderEditable,
   isTerminalStatus,
@@ -54,8 +49,7 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 const UNIQUE_CONSTRAINT_RETRY_ATTEMPTS = 5;
@@ -80,13 +74,9 @@ export class ServiceOrdersService {
   ) {}
 
   // ─── Mapping ───
-  private isOverdue(row: {
-    dueDate: Date | null;
-    status: ServiceOrderStatus;
-  }): boolean {
+  private isOverdue(row: { dueDate: Date | null; status: ServiceOrderStatus }): boolean {
     if (!row.dueDate) return false;
-    if (['ENTREGUE', 'CANCELADA', 'PRONTO_RETIRAR'].includes(row.status))
-      return false;
+    if (['ENTREGUE', 'CANCELADA', 'PRONTO_RETIRAR'].includes(row.status)) return false;
     return row.dueDate.getTime() < Date.now();
   }
 
@@ -131,9 +121,7 @@ export class ServiceOrdersService {
       visibility: row.visibility,
       fromStatus: row.fromStatus,
       toStatus: row.toStatus,
-      checklist:
-        (row.checklist as unknown as ServiceOrderTechnicalChecklistItem[] | null) ??
-        [],
+      checklist: (row.checklist as unknown as ServiceOrderTechnicalChecklistItem[] | null) ?? [],
       photos: row.photos,
       createdByName: row.createdBy?.name ?? null,
       createdAt: row.createdAt.toISOString(),
@@ -163,13 +151,7 @@ export class ServiceOrdersService {
     input: {
       tenantId: string;
       serviceOrderId: string;
-      type:
-        | 'STATUS_CHANGE'
-        | 'NOTE'
-        | 'CHECKLIST'
-        | 'PHOTOS'
-        | 'CUSTOMER_NOTIFICATION'
-        | 'SYSTEM';
+      type: 'STATUS_CHANGE' | 'NOTE' | 'CHECKLIST' | 'PHOTOS' | 'CUSTOMER_NOTIFICATION' | 'SYSTEM';
       title: string;
       description?: string | null;
       visibility?: 'INTERNAL' | 'PUBLIC';
@@ -236,9 +218,7 @@ export class ServiceOrdersService {
           total: dec(it.total),
           comboLabel: it.comboLabel,
           parentItemId: it.parentItemId,
-          linkedServiceName: it.parentItemId
-            ? (byId.get(it.parentItemId) ?? null)
-            : null,
+          linkedServiceName: it.parentItemId ? (byId.get(it.parentItemId) ?? null) : null,
         }));
       })(),
       history: row.history.map((h) => ({
@@ -259,13 +239,7 @@ export class ServiceOrdersService {
     status: ServiceOrderStatus;
     diagnosis: string | null;
     itemCount: number;
-    quoteStatus:
-      | 'RASCUNHO'
-      | 'ENVIADO'
-      | 'APROVADO'
-      | 'APROVADO_PARCIAL'
-      | 'RECUSADO'
-      | null;
+    quoteStatus: 'RASCUNHO' | 'ENVIADO' | 'APROVADO' | 'APROVADO_PARCIAL' | 'RECUSADO' | null;
   }): ServiceOrderTransitionDto[] {
     return ServiceOrderStateMachine.availableTransitions(context);
   }
@@ -345,10 +319,7 @@ export class ServiceOrdersService {
     });
   }
 
-  async transitions(
-    tenantId: string,
-    id: string,
-  ): Promise<ServiceOrderTransitionDto[]> {
+  async transitions(tenantId: string, id: string): Promise<ServiceOrderTransitionDto[]> {
     const row = await this.prisma.serviceOrder.findFirst({
       where: { id, tenantId },
       select: {
@@ -396,9 +367,7 @@ export class ServiceOrdersService {
   }
 
   private isUniqueConstraintError(err: unknown): boolean {
-    return (
-      err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002'
-    );
+    return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
   }
 
   /**
@@ -527,9 +496,7 @@ export class ServiceOrdersService {
       data: {
         ...(input.diagnosis !== undefined ? { diagnosis: input.diagnosis } : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
-        ...(input.technicianId !== undefined
-          ? { technicianId: input.technicianId || null }
-          : {}),
+        ...(input.technicianId !== undefined ? { technicianId: input.technicianId || null } : {}),
         ...(input.discount !== undefined ? { discount: round2(input.discount) } : {}),
       },
     });
@@ -618,10 +585,8 @@ export class ServiceOrdersService {
 
     // Aprovação manual (ORCAMENTO → ORCAMENTO_APROVADO): gera pedido de compra do
     // que falta; se faltar peça, a OS vai para "aguardando peça".
-    const approving =
-      input.status === 'ORCAMENTO_APROVADO' && row.status === 'ORCAMENTO';
-    const refusing =
-      input.status === 'ORCAMENTO_RECUSADO' && row.status === 'ORCAMENTO';
+    const approving = input.status === 'ORCAMENTO_APROVADO' && row.status === 'ORCAMENTO';
+    const refusing = input.status === 'ORCAMENTO_RECUSADO' && row.status === 'ORCAMENTO';
     // Entrar em execução baixa o estoque das peças (uma única vez, vindo de
     // aprovado/aguardando peça — não no retrabalho EM_TESTE → EM_EXECUCAO).
     const executing =
@@ -937,9 +902,7 @@ export class ServiceOrdersService {
     // Vínculo peça↔serviço: valida quando informado (string = vincular, null = desvincular).
     if (input.parentItemId !== undefined && input.parentItemId !== null) {
       if (item.kind !== 'PART') {
-        throw new BadRequestException(
-          'Apenas peças podem ser vinculadas a um serviço',
-        );
+        throw new BadRequestException('Apenas peças podem ser vinculadas a um serviço');
       }
       const parent = await this.prisma.serviceOrderItem.findFirst({
         where: {
@@ -961,12 +924,8 @@ export class ServiceOrdersService {
       await tx.serviceOrderItem.update({
         where: { id: itemId },
         data: {
-          ...(input.description !== undefined
-            ? { description: input.description }
-            : {}),
-          ...(input.parentItemId !== undefined
-            ? { parentItemId: input.parentItemId }
-            : {}),
+          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.parentItemId !== undefined ? { parentItemId: input.parentItemId } : {}),
           quantity,
           unitPrice: round2(unitPrice),
           total: round2(quantity * unitPrice),
@@ -1044,7 +1003,12 @@ export class ServiceOrdersService {
     tx: Prisma.TransactionClient,
     actor: AuthenticatedUser,
     orderId: string,
-    part: { id: string; name: string; salePrice: Prisma.Decimal | number; costPrice: Prisma.Decimal | number },
+    part: {
+      id: string;
+      name: string;
+      salePrice: Prisma.Decimal | number;
+      costPrice: Prisma.Decimal | number;
+    },
     quantity: number,
     parentItemId?: string,
   ): Promise<void> {
@@ -1100,14 +1064,7 @@ export class ServiceOrdersService {
         },
       });
       for (const dp of service.defaultParts) {
-        await this.addPartItemTx(
-          tx,
-          actor,
-          orderId,
-          dp.part,
-          dec(dp.quantity),
-          serviceItem.id,
-        );
+        await this.addPartItemTx(tx, actor, orderId, dp.part, dec(dp.quantity), serviceItem.id);
       }
       await this.recomputeTotals(tx, orderId);
     });
@@ -1211,14 +1168,7 @@ export class ServiceOrdersService {
           },
         });
         for (const dp of svc.defaultParts) {
-          await this.addPartItemTx(
-            tx,
-            actor,
-            orderId,
-            dp.part,
-            dec(dp.quantity),
-            serviceItem.id,
-          );
+          await this.addPartItemTx(tx, actor, orderId, dp.part, dec(dp.quantity), serviceItem.id);
         }
       }
       await this.recomputeTotals(tx, orderId);

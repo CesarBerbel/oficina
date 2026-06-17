@@ -21,9 +21,10 @@ const FIELD_LABELS = {
   active: 'Ativo',
 };
 
-const AI_FIELD_LABEL = Object.fromEntries(
-  AI_FIELDS.map((f) => [f.key, f.label]),
-) as Record<string, string>;
+const AI_FIELD_LABEL = Object.fromEntries(AI_FIELDS.map((f) => [f.key, f.label])) as Record<
+  string,
+  string
+>;
 
 export default function AiConfigPage() {
   const { data, isLoading } = useAiConfig();
@@ -45,10 +46,19 @@ export default function AiConfigPage() {
   }, [data]);
 
   async function save() {
-    const payload = { provider, instructions, fieldInstructions, active, ...(apiKey ? { apiKey } : {}) };
+    const payload = {
+      provider,
+      instructions,
+      fieldInstructions,
+      active,
+      ...(apiKey ? { apiKey } : {}),
+    };
     const parsed = updateAiConfigSchema.safeParse(payload);
     if (!parsed.success) {
-      toast.error(Object.values(zodFieldErrors(parsed.error, FIELD_LABELS))[0] ?? 'Verifique os campos do formulário');
+      toast.error(
+        Object.values(zodFieldErrors(parsed.error, FIELD_LABELS))[0] ??
+          'Verifique os campos do formulário',
+      );
       return;
     }
     try {
@@ -61,7 +71,11 @@ export default function AiConfigPage() {
   }
 
   if (isLoading) {
-    return <div className="grid h-64 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>;
+    return (
+      <div className="grid h-64 place-items-center">
+        <CarLoader className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (
@@ -70,40 +84,63 @@ export default function AiConfigPage() {
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
           <Sparkles className="size-6 text-primary" /> Assistente de IA
         </h1>
-        <p className="text-muted-foreground">Configure o provedor e a chave de API (armazenada criptografada).</p>
+        <p className="text-muted-foreground">
+          Configure o provedor e a chave de API (armazenada criptografada).
+        </p>
       </div>
 
       <div className="space-y-4 rounded-xl border bg-card p-5">
         <div className="space-y-1.5">
           <Label required>Provedor</Label>
           <Select value={provider} onChange={(e) => setProvider(e.target.value)} className="w-full">
-            {AI_PROVIDERS.map((p) => <option key={p} value={p}>{AI_PROVIDER_LABELS[p]}</option>)}
+            {AI_PROVIDERS.map((p) => (
+              <option key={p} value={p}>
+                {AI_PROVIDER_LABELS[p]}
+              </option>
+            ))}
           </Select>
         </div>
 
         <div className="space-y-1.5">
           <Label>
             Chave de API{' '}
-            {data?.hasKey && <Badge variant="success" className="ml-1">configurada: {data.maskedKey}</Badge>}
+            {data?.hasKey && (
+              <Badge variant="success" className="ml-1">
+                configurada: {data.maskedKey}
+              </Badge>
+            )}
           </Label>
           <Input
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder={data?.hasKey ? 'Deixe em branco para manter a chave atual' : 'Cole a chave de API'}
+            placeholder={
+              data?.hasKey ? 'Deixe em branco para manter a chave atual' : 'Cole a chave de API'
+            }
             autoComplete="off"
           />
-          <p className="text-xs text-muted-foreground">A chave é criptografada (AES-256-GCM) e nunca exibida em texto puro.</p>
+          <p className="text-xs text-muted-foreground">
+            A chave é criptografada (AES-256-GCM) e nunca exibida em texto puro.
+          </p>
         </div>
 
         <div className="space-y-1.5">
           <Label>Instruções (prompt do sistema)</Label>
-          <Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={5}
-            placeholder="Ex.: Responda em português, tom profissional e objetivo..." />
+          <Textarea
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            rows={5}
+            placeholder="Ex.: Responda em português, tom profissional e objetivo..."
+          />
         </div>
 
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" className="size-4" checked={active} onChange={(e) => setActive(e.target.checked)} />
+          <input
+            type="checkbox"
+            className="size-4"
+            checked={active}
+            onChange={(e) => setActive(e.target.checked)}
+          />
           Assistente ativo
         </label>
       </div>
@@ -112,8 +149,8 @@ export default function AiConfigPage() {
         <div>
           <h2 className="text-sm font-semibold">Instruções por campo</h2>
           <p className="text-xs text-muted-foreground">
-            Orientações específicas aplicadas em cada lugar onde a IA é usada. Deixe
-            em branco para usar o comportamento padrão.
+            Orientações específicas aplicadas em cada lugar onde a IA é usada. Deixe em branco para
+            usar o comportamento padrão.
           </p>
         </div>
         {AI_FIELDS.map((f) => (
@@ -122,9 +159,7 @@ export default function AiConfigPage() {
             <p className="text-xs text-muted-foreground">{f.description}</p>
             <Textarea
               value={fieldInstructions[f.key] ?? ''}
-              onChange={(e) =>
-                setFieldInstructions((c) => ({ ...c, [f.key]: e.target.value }))
-              }
+              onChange={(e) => setFieldInstructions((c) => ({ ...c, [f.key]: e.target.value }))}
               rows={3}
               placeholder={f.default}
             />
@@ -133,7 +168,11 @@ export default function AiConfigPage() {
       </div>
 
       <Button onClick={save} disabled={update.isPending}>
-        {update.isPending ? <CarLoader className="size-4 animate-spin" /> : <Save className="size-4" />}
+        {update.isPending ? (
+          <CarLoader className="size-4 animate-spin" />
+        ) : (
+          <Save className="size-4" />
+        )}
         Salvar
       </Button>
 
@@ -143,7 +182,8 @@ export default function AiConfigPage() {
           <h2 className="text-sm font-semibold">Uso recente da IA</h2>
           {usage && (
             <span className="text-xs text-muted-foreground">
-              {usage.totalCalls} chamada(s) · {usage.totalTokens.toLocaleString('pt-BR')} tokens (últimos 30 dias)
+              {usage.totalCalls} chamada(s) · {usage.totalTokens.toLocaleString('pt-BR')} tokens
+              (últimos 30 dias)
             </span>
           )}
         </div>

@@ -135,16 +135,17 @@ export default function ServiceOrdersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Link href={`/os/${o.id}?returnTo=${encodeURIComponent('/os')}`} className="block font-medium hover:underline">
+                    <Link
+                      href={`/os/${o.id}?returnTo=${encodeURIComponent('/os')}`}
+                      className="block font-medium hover:underline"
+                    >
                       {o.customerName}
                     </Link>
                     <span className="text-sm text-muted-foreground">
                       {o.vehicleLabel} · {o.vehiclePlate}
                     </span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {o.technicianName ?? '—'}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{o.technicianName ?? '—'}</TableCell>
                   <TableCell>
                     <StatusBadge status={o.status} />
                   </TableCell>
@@ -203,10 +204,20 @@ export default function ServiceOrdersPage() {
             {meta.total} OS · página {meta.page} de {meta.totalPages}
           </span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
               Anterior
             </Button>
-            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
               Próxima
             </Button>
           </div>

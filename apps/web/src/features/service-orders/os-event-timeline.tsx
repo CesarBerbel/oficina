@@ -1,7 +1,4 @@
-import {
-  SERVICE_ORDER_STATUS_LABELS,
-  type ServiceOrderEventDto,
-} from '@oficina/shared';
+import { SERVICE_ORDER_STATUS_LABELS, type ServiceOrderEventDto } from '@oficina/shared';
 import {
   Camera,
   CheckSquare,
@@ -39,9 +36,7 @@ export function OsEventTimeline({ events }: { events: ServiceOrderEventDto[] }) 
       </CardHeader>
       <CardContent>
         {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhum evento operacional registrado.
-          </p>
+          <p className="text-sm text-muted-foreground">Nenhum evento operacional registrado.</p>
         ) : (
           <ol className="relative space-y-5 border-l pl-4">
             {events.map((event) => {
@@ -61,9 +56,7 @@ export function OsEventTimeline({ events }: { events: ServiceOrderEventDto[] }) 
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-1">
                       <Badge variant="secondary">{TYPE_LABELS[event.type]}</Badge>
-                      {event.visibility === 'PUBLIC' && (
-                        <Badge variant="outline">cliente</Badge>
-                      )}
+                      {event.visibility === 'PUBLIC' && <Badge variant="outline">cliente</Badge>}
                     </div>
                   </div>
 

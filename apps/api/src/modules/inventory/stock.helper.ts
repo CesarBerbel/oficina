@@ -3,8 +3,7 @@ import { Prisma, type PrismaClient, type StockMovementType } from '@prisma/clien
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 const round3 = (n: number): number => Math.round(n * 1000) / 1000;
 
 const SIGN: Record<StockMovementType, 1 | -1> = {
@@ -35,10 +34,7 @@ export interface ApplyMovementParams {
  * da peça e registra o histórico. Saídas/consumos usam atualização condicional
  * atômica para impedir saldo negativo mesmo sob requisições concorrentes.
  */
-export async function applyStockMovement(
-  tx: Tx,
-  params: ApplyMovementParams,
-): Promise<number> {
+export async function applyStockMovement(tx: Tx, params: ApplyMovementParams): Promise<number> {
   const quantity = round3(params.quantity);
   if (!Number.isFinite(quantity) || quantity < 0) {
     throw new BadRequestException('Quantidade de estoque inválida');

@@ -16,16 +16,12 @@ describe('composeAddress', () => {
   });
 
   it('ignora partes vazias', () => {
-    expect(
-      composeAddress({ addressStreet: 'Rua A', addressCity: 'SJC' }),
-    ).toBe('Rua A - SJC');
+    expect(composeAddress({ addressStreet: 'Rua A', addressCity: 'SJC' })).toBe('Rua A - SJC');
   });
 
   it('retorna null quando não há nenhuma parte', () => {
     expect(composeAddress({})).toBeNull();
-    expect(
-      composeAddress({ addressStreet: '  ', addressCity: '' }),
-    ).toBeNull();
+    expect(composeAddress({ addressStreet: '  ', addressCity: '' })).toBeNull();
   });
 });
 
@@ -36,9 +32,7 @@ describe('sanitizeRichHtml', () => {
   });
 
   it('remove atributos das tags permitidas', () => {
-    expect(sanitizeRichHtml('<b style="color:red" onclick="x()">y</b>')).toBe(
-      '<b>y</b>',
-    );
+    expect(sanitizeRichHtml('<b style="color:red" onclick="x()">y</b>')).toBe('<b>y</b>');
   });
 
   it('remove script/style por completo e tags desconhecidas (preservando texto)', () => {

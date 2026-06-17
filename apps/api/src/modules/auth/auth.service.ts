@@ -136,9 +136,7 @@ export class AuthService {
         })
       : null;
 
-    const ok = user
-      ? await this.passwords.verify(user.passwordHash, password)
-      : false;
+    const ok = user ? await this.passwords.verify(user.passwordHash, password) : false;
 
     await this.prisma.loginAttempt.create({
       data: {
@@ -195,10 +193,7 @@ export class AuthService {
    * do site + categorias/marcas/templates padrão e já autentica. Só é permitida
    * com o sistema vazio (nenhuma oficina cadastrada).
    */
-  async install(
-    input: InstallSystemInput,
-    meta: RequestMeta,
-  ): Promise<IssuedSession> {
+  async install(input: InstallSystemInput, meta: RequestMeta): Promise<IssuedSession> {
     const count = await this.prisma.tenant.count();
     if (count > 0) {
       throw new ConflictException('O sistema já está instalado.');

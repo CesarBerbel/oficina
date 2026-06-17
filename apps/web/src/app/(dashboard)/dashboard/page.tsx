@@ -37,11 +37,34 @@ interface MetricDef {
 
 const METRICS: MetricDef[] = [
   { key: 'osOpen', label: 'OS ativas', icon: ClipboardList, link: '/os' },
-  { key: 'osDiagnosis', label: 'Diagnóstico pronto', icon: Stethoscope, link: '/os?status=DIAGNOSTICO_PRONTO' },
-  { key: 'osAwaitingApproval', label: 'Aguardando aprovação', icon: FileClock, link: '/os?status=ORCAMENTO', tone: 'warning' },
-  { key: 'osApproved', label: 'Aprovadas', icon: CheckCircle2, link: '/os?status=ORCAMENTO_APROVADO', tone: 'success' },
+  {
+    key: 'osDiagnosis',
+    label: 'Diagnóstico pronto',
+    icon: Stethoscope,
+    link: '/os?status=DIAGNOSTICO_PRONTO',
+  },
+  {
+    key: 'osAwaitingApproval',
+    label: 'Aguardando aprovação',
+    icon: FileClock,
+    link: '/os?status=ORCAMENTO',
+    tone: 'warning',
+  },
+  {
+    key: 'osApproved',
+    label: 'Aprovadas',
+    icon: CheckCircle2,
+    link: '/os?status=ORCAMENTO_APROVADO',
+    tone: 'success',
+  },
   { key: 'osInExecution', label: 'Em execução', icon: Wrench, link: '/os?status=EM_EXECUCAO' },
-  { key: 'osReady', label: 'Prontas', icon: PackageCheck, link: '/os?status=PRONTA', tone: 'success' },
+  {
+    key: 'osReady',
+    label: 'Prontas',
+    icon: PackageCheck,
+    link: '/os?status=PRONTA',
+    tone: 'success',
+  },
   { key: 'osOverdue', label: 'Atrasadas', icon: AlertTriangle, link: '/os', tone: 'danger' },
   { key: 'lowStock', label: 'Estoque baixo', icon: Package, link: '/estoque', tone: 'warning' },
   { key: 'pendingPurchases', label: 'Compras pendentes', icon: ShoppingCart, link: '/compras' },
@@ -81,13 +104,23 @@ export default function DashboardPage() {
           const value = metrics?.[m.key] ?? 0;
           return (
             <Link key={m.key} href={m.link}>
-              <Card className={cn('transition-colors hover:border-primary', value > 0 && m.tone === 'danger' && 'border-destructive/40')}>
+              <Card
+                className={cn(
+                  'transition-colors hover:border-primary',
+                  value > 0 && m.tone === 'danger' && 'border-destructive/40',
+                )}
+              >
                 <CardContent className="flex items-center justify-between p-5">
                   <div>
                     <p className="text-sm text-muted-foreground">{m.label}</p>
                     <p className="mt-1 text-3xl font-bold">{value}</p>
                   </div>
-                  <span className={cn('flex h-10 w-10 items-center justify-center rounded-lg', TONE[m.tone ?? 'default'])}>
+                  <span
+                    className={cn(
+                      'flex h-10 w-10 items-center justify-center rounded-lg',
+                      TONE[m.tone ?? 'default'],
+                    )}
+                  >
                     <Icon className="size-5" />
                   </span>
                 </CardContent>
@@ -96,7 +129,6 @@ export default function DashboardPage() {
           );
         })}
       </div>
-
 
       {/* Produtividade e tempo médio por etapa */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -167,9 +199,7 @@ export default function DashboardPage() {
                   <p className="mt-1 text-2xl font-bold">
                     {status.averageHours != null ? `${status.averageHours}h` : '—'}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {status.sampleSize} amostra(s)
-                  </p>
+                  <p className="text-xs text-muted-foreground">{status.sampleSize} amostra(s)</p>
                 </div>
               ))}
             </div>
@@ -181,7 +211,10 @@ export default function DashboardPage() {
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Central de ações</h2>
-          <Link href="/central-acoes" className="flex items-center gap-1 text-sm text-primary hover:underline">
+          <Link
+            href="/central-acoes"
+            className="flex items-center gap-1 text-sm text-primary hover:underline"
+          >
             Ver tudo <ArrowRight className="size-4" />
           </Link>
         </div>
@@ -201,9 +234,13 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-2">
                         <Badge variant={PRIORITY_VARIANT[a.priority]}>{a.priority}</Badge>
                         <span className="font-medium">{a.title}</span>
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{a.count}</span>
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                          {a.count}
+                        </span>
                       </div>
-                      <p className="mt-0.5 truncate text-sm text-muted-foreground">{a.description}</p>
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {a.description}
+                      </p>
                     </div>
                     <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
                   </CardContent>

@@ -100,9 +100,7 @@ export function OsItems({
             aria-label="Vincular peça a um serviço"
           >
             <option value="">
-              {serviceItems.length === 0
-                ? 'Sem serviços para vincular'
-                : 'Sem vínculo'}
+              {serviceItems.length === 0 ? 'Sem serviços para vincular' : 'Sem vínculo'}
             </option>
             {serviceItems.map((s) => (
               <option key={s.id} value={s.id}>
@@ -136,9 +134,7 @@ export function OsItems({
         </div>
 
         {items.length === 0 ? (
-          <p className="px-3 py-4 text-center text-sm text-muted-foreground">
-            Nenhum item.
-          </p>
+          <p className="px-3 py-4 text-center text-sm text-muted-foreground">Nenhum item.</p>
         ) : (
           items.map((it) => (
             <div
@@ -184,10 +180,7 @@ export function OsItems({
           </p>
         ) : (
           items.map((it) => (
-            <div
-              key={it.id}
-              className="rounded-lg border bg-card p-3 text-sm shadow-sm"
-            >
+            <div key={it.id} className="rounded-lg border bg-card p-3 text-sm shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">{renderDescription(it)}</div>
                 {editable && canWrite && (
@@ -203,9 +196,7 @@ export function OsItems({
               <div className="mt-2 flex items-center justify-between border-t pt-2 text-xs text-muted-foreground">
                 <span>
                   Qtd{' '}
-                  <span className="font-medium tabular-nums text-foreground">
-                    {it.quantity}
-                  </span>
+                  <span className="font-medium tabular-nums text-foreground">{it.quantity}</span>
                 </span>
                 <span>
                   Unit.{' '}
@@ -256,7 +247,11 @@ export function OsItems({
             aria-label="Valor unitário"
           />
           <Button type="submit" size="icon" disabled={add.isPending} aria-label="Adicionar">
-            {add.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            {add.isPending ? (
+              <CarLoader className="size-4 animate-spin" />
+            ) : (
+              <Plus className="size-4" />
+            )}
           </Button>
         </form>
       )}

@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreateVehicleInput,
   ListVehiclesQuery,
@@ -35,8 +30,7 @@ export function useVehicles(params: Partial<ListVehiclesQuery>) {
 export function useCreateVehicle() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateVehicleInput) =>
-      api.post<VehicleDto>('/vehicles', input),
+    mutationFn: (input: CreateVehicleInput) => api.post<VehicleDto>('/vehicles', input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vehicles'] });
       qc.invalidateQueries({ queryKey: ['customers'] });
@@ -47,8 +41,7 @@ export function useCreateVehicle() {
 export function useUpdateVehicle(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateVehicleInput) =>
-      api.put<VehicleDto>(`/vehicles/${id}`, input),
+    mutationFn: (input: UpdateVehicleInput) => api.put<VehicleDto>(`/vehicles/${id}`, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vehicles'] }),
   });
 }

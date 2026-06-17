@@ -91,11 +91,7 @@ function whatsappHref(phone: string | null, message?: string): string | null {
   return `https://wa.me/${normalized}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
 }
 
-export default function CustomerDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { hasPermission } = useAuth();
   const canWrite = hasPermission('customers:write');
@@ -174,25 +170,56 @@ export default function CustomerDetailPage({
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi icon={Car} label="Veículos" value={data.kpis.vehicles} />
-        <Kpi icon={ClipboardList} label="OS abertas" value={data.kpis.openServiceOrders} tone="warning" />
-        <Kpi icon={CheckCircle2} label="OS entregues" value={data.kpis.deliveredServiceOrders} tone="success" />
+        <Kpi
+          icon={ClipboardList}
+          label="OS abertas"
+          value={data.kpis.openServiceOrders}
+          tone="warning"
+        />
+        <Kpi
+          icon={CheckCircle2}
+          label="OS entregues"
+          value={data.kpis.deliveredServiceOrders}
+          tone="success"
+        />
         <Kpi icon={DollarSign} label="Total vendido" value={formatCurrency(data.kpis.totalSpent)} />
-        <Kpi icon={TrendingUp} label="Ticket médio" value={formatCurrency(data.kpis.averageTicket)} />
+        <Kpi
+          icon={TrendingUp}
+          label="Ticket médio"
+          value={formatCurrency(data.kpis.averageTicket)}
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[380px,1fr]">
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><UserRound className="size-5" /> Dados e contato</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <UserRound className="size-5" /> Dados e contato
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <Info label="Documento" value={customer.document ? maskCpfCnpj(customer.document) : null} />
-              <Info icon={Phone} label="Telefone" value={customer.phone ? maskPhone(customer.phone) : null} />
-              <Info icon={MessageCircle} label="WhatsApp" value={customer.whatsapp ? maskPhone(customer.whatsapp) : null} />
+              <Info
+                label="Documento"
+                value={customer.document ? maskCpfCnpj(customer.document) : null}
+              />
+              <Info
+                icon={Phone}
+                label="Telefone"
+                value={customer.phone ? maskPhone(customer.phone) : null}
+              />
+              <Info
+                icon={MessageCircle}
+                label="WhatsApp"
+                value={customer.whatsapp ? maskPhone(customer.whatsapp) : null}
+              />
               <Info icon={Mail} label="E-mail" value={customer.email} />
               <Info icon={MapPin} label="Endereço" value={address || null} />
-              <Info icon={Clock} label="Última visita" value={data.kpis.lastVisitAt ? formatDate(data.kpis.lastVisitAt) : null} />
+              <Info
+                icon={Clock}
+                label="Última visita"
+                value={data.kpis.lastVisitAt ? formatDate(data.kpis.lastVisitAt) : null}
+              />
               {customer.notes ? (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground">Observações</p>
@@ -204,16 +231,22 @@ export default function CustomerDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Sparkles className="size-5" /> CRM ativo</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="size-5" /> CRM ativo
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {data.crmOpportunities.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma oportunidade ativa para este cliente.</p>
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma oportunidade ativa para este cliente.
+                </p>
               ) : (
                 data.crmOpportunities.slice(0, 6).map((item) => (
                   <div key={item.key} className="rounded-lg border p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={PRIORITY_VARIANT[item.priority] ?? 'secondary'}>{item.priority}</Badge>
+                      <Badge variant={PRIORITY_VARIANT[item.priority] ?? 'secondary'}>
+                        {item.priority}
+                      </Badge>
                       <p className="font-medium">{item.title}</p>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{item.reason}</p>
@@ -223,7 +256,11 @@ export default function CustomerDetailPage({
                     <div className="mt-3 flex flex-wrap gap-2">
                       {contactPhone ? (
                         <Button asChild size="sm" variant="outline">
-                          <a href={whatsappHref(contactPhone, item.suggestedMessage) ?? '#'} target="_blank" rel="noreferrer">
+                          <a
+                            href={whatsappHref(contactPhone, item.suggestedMessage) ?? '#'}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
                             <MessageCircle className="size-4" /> Enviar
                           </a>
                         </Button>
@@ -250,7 +287,9 @@ export default function CustomerDetailPage({
         <div className="space-y-6">
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle className="flex items-center gap-2"><Car className="size-5" /> Veículos</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Car className="size-5" /> Veículos
+              </CardTitle>
               <Badge variant="secondary">{data.vehicles.length}</Badge>
             </CardHeader>
             <CardContent>
@@ -266,18 +305,28 @@ export default function CustomerDetailPage({
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="font-semibold">{vehicle.manufacturer} {vehicle.model}</p>
+                          <p className="font-semibold">
+                            {vehicle.manufacturer} {vehicle.model}
+                          </p>
                           <p className="text-sm text-muted-foreground">
-                            {vehicle.modelYear ? `${vehicle.modelYear} · ` : ''}{vehicle.color ?? 'Cor não informada'}
+                            {vehicle.modelYear ? `${vehicle.modelYear} · ` : ''}
+                            {vehicle.color ?? 'Cor não informada'}
                           </p>
                         </div>
                         <Badge variant="outline">{vehicle.plate}</Badge>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                        <span>{vehicle.currentKm != null ? `${vehicle.currentKm.toLocaleString('pt-BR')} km` : 'KM não informado'}</span>
+                        <span>
+                          {vehicle.currentKm != null
+                            ? `${vehicle.currentKm.toLocaleString('pt-BR')} km`
+                            : 'KM não informado'}
+                        </span>
                         <span>{vehicle.serviceOrdersCount} OS</span>
                         <span className="col-span-2">
-                          Último serviço: {vehicle.lastServiceOrderAt ? formatDate(vehicle.lastServiceOrderAt) : 'sem histórico'}
+                          Último serviço:{' '}
+                          {vehicle.lastServiceOrderAt
+                            ? formatDate(vehicle.lastServiceOrderAt)
+                            : 'sem histórico'}
                         </span>
                       </div>
                     </Link>
@@ -289,7 +338,9 @@ export default function CustomerDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><ClipboardList className="size-5" /> Ordens de Serviço recentes</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="size-5" /> Ordens de Serviço recentes
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {data.serviceOrders.length === 0 ? (
@@ -309,10 +360,15 @@ export default function CustomerDetailPage({
                     {data.serviceOrders.slice(0, 12).map((order) => (
                       <TableRow key={order.id}>
                         <TableCell>
-                          <Link href={`/os/${order.id}`} className="font-medium text-primary hover:underline">
+                          <Link
+                            href={`/os/${order.id}`}
+                            className="font-medium text-primary hover:underline"
+                          >
                             #{order.number}
                           </Link>
-                          <p className="line-clamp-1 text-xs text-muted-foreground">{order.reportedProblem}</p>
+                          <p className="line-clamp-1 text-xs text-muted-foreground">
+                            {order.reportedProblem}
+                          </p>
                         </TableCell>
                         <TableCell>
                           <p>{order.vehiclePlate}</p>
@@ -320,11 +376,16 @@ export default function CustomerDetailPage({
                         </TableCell>
                         <TableCell>
                           <Badge variant={STATUS_VARIANT[order.status] ?? 'secondary'}>
-                            {SERVICE_ORDER_STATUS_LABELS[order.status as keyof typeof SERVICE_ORDER_STATUS_LABELS] ?? order.status}
+                            {SERVICE_ORDER_STATUS_LABELS[
+                              order.status as keyof typeof SERVICE_ORDER_STATUS_LABELS
+                            ] ?? order.status}
                           </Badge>
                           {order.quoteStatus ? (
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Orçamento: {QUOTE_STATUS_LABELS[order.quoteStatus as keyof typeof QUOTE_STATUS_LABELS] ?? order.quoteStatus}
+                              Orçamento:{' '}
+                              {QUOTE_STATUS_LABELS[
+                                order.quoteStatus as keyof typeof QUOTE_STATUS_LABELS
+                              ] ?? order.quoteStatus}
                             </p>
                           ) : null}
                         </TableCell>
@@ -346,10 +407,16 @@ export default function CustomerDetailPage({
               empty="Nenhum atendimento vinculado."
             >
               {data.leads.slice(0, 6).map((lead) => (
-                <Link key={lead.id} href={`/leads?search=${encodeURIComponent(lead.name)}`} className="block rounded-lg border p-3 hover:bg-accent">
+                <Link
+                  key={lead.id}
+                  href={`/leads?search=${encodeURIComponent(lead.name)}`}
+                  className="block rounded-lg border p-3 hover:bg-accent"
+                >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-medium">{lead.status}</p>
-                    {lead.appointmentStartAt ? <Badge variant="outline">{formatDate(lead.appointmentStartAt)}</Badge> : null}
+                    {lead.appointmentStartAt ? (
+                      <Badge variant="outline">{formatDate(lead.appointmentStartAt)}</Badge>
+                    ) : null}
                   </div>
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{lead.message}</p>
                 </Link>
@@ -363,12 +430,21 @@ export default function CustomerDetailPage({
               empty="Nenhum orçamento gerado."
             >
               {data.quotes.slice(0, 6).map((quote) => (
-                <Link key={quote.id} href={`/os/${quote.serviceOrderId}`} className="block rounded-lg border p-3 hover:bg-accent">
+                <Link
+                  key={quote.id}
+                  href={`/os/${quote.serviceOrderId}`}
+                  className="block rounded-lg border p-3 hover:bg-accent"
+                >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-medium">OS #{quote.serviceOrderNumber}</p>
-                    <Badge variant="outline">{QUOTE_STATUS_LABELS[quote.status as keyof typeof QUOTE_STATUS_LABELS] ?? quote.status}</Badge>
+                    <Badge variant="outline">
+                      {QUOTE_STATUS_LABELS[quote.status as keyof typeof QUOTE_STATUS_LABELS] ??
+                        quote.status}
+                    </Badge>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{formatCurrency(quote.total)} · {formatDate(quote.createdAt)}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {formatCurrency(quote.total)} · {formatDate(quote.createdAt)}
+                  </p>
                 </Link>
               ))}
             </MiniList>
@@ -376,7 +452,9 @@ export default function CustomerDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><CalendarClock className="size-5" /> Linha do tempo unificada</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarClock className="size-5" /> Linha do tempo unificada
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {data.timeline.length === 0 ? (
@@ -396,13 +474,17 @@ export default function CustomerDetailPage({
                             <Badge variant="secondary">{formatDate(item.occurredAt)}</Badge>
                           </div>
                           {item.description ? (
-                            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
+                            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                              {item.description}
+                            </p>
                           ) : null}
                         </div>
                       </div>
                     );
                     return item.href ? (
-                      <Link key={`${item.id}-${index}`} href={item.href}>{content}</Link>
+                      <Link key={`${item.id}-${index}`} href={item.href}>
+                        {content}
+                      </Link>
                     ) : (
                       <div key={`${item.id}-${index}`}>{content}</div>
                     );
@@ -494,7 +576,9 @@ function MiniList({
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle className="flex items-center gap-2"><Icon className="size-5" /> {title}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Icon className="size-5" /> {title}
+        </CardTitle>
         <Badge variant="secondary">{count}</Badge>
       </CardHeader>
       <CardContent className="space-y-3">

@@ -8,10 +8,7 @@ import {
   type ServiceOrderStatus,
   type ServiceOrderTransitionDto,
 } from '@oficina/shared';
-import {
-  InvalidStateTransitionError,
-  ServiceOrderDomainError,
-} from './service-order.errors';
+import { InvalidStateTransitionError, ServiceOrderDomainError } from './service-order.errors';
 
 export interface ServiceOrderTransitionContext {
   status: ServiceOrderStatus;
@@ -60,22 +57,15 @@ export const ServiceOrderStateMachine = {
    * Transições sistêmicas ficam de fora e são feitas pelos módulos corretos
    * (orçamento, compra, recebimento, reabertura etc.).
    */
-  availableTransitions(
-    context: ServiceOrderTransitionContext,
-  ): ServiceOrderTransitionDto[] {
-    return (SERVICE_ORDER_MANUAL_TRANSITIONS[context.status] ?? []).map(
-      (definition) => ({
-        ...definition,
-        disabledReason: getDisabledReason(context, definition.status),
-      }),
-    );
+  availableTransitions(context: ServiceOrderTransitionContext): ServiceOrderTransitionDto[] {
+    return (SERVICE_ORDER_MANUAL_TRANSITIONS[context.status] ?? []).map((definition) => ({
+      ...definition,
+      disabledReason: getDisabledReason(context, definition.status),
+    }));
   },
 
   /** Valida transição manual com matriz + guardas contextuais. */
-  assertManualTransition(
-    context: ServiceOrderTransitionContext,
-    to: ServiceOrderStatus,
-  ): void {
+  assertManualTransition(context: ServiceOrderTransitionContext, to: ServiceOrderStatus): void {
     this.assertTransition(context.status, to);
 
     const definition = getManualTransitionDefinition(context.status, to);
@@ -100,13 +90,9 @@ export const ServiceOrderStateMachine = {
   assertEditable(status: ServiceOrderStatus): void {
     if (isOrderEditable(status)) return;
     if (status === 'ORCAMENTO_APROVADO' || status === 'AGUARDANDO_PECA') {
-      throw new ServiceOrderDomainError(
-        'Orçamento aprovado: reabra o orçamento para editar a OS.',
-      );
+      throw new ServiceOrderDomainError('Orçamento aprovado: reabra o orçamento para editar a OS.');
     }
-    throw new ServiceOrderDomainError(
-      'OS finalizada ou cancelada não pode ser alterada',
-    );
+    throw new ServiceOrderDomainError('OS finalizada ou cancelada não pode ser alterada');
   },
 } as const;
 

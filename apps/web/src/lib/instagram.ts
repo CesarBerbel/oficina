@@ -61,9 +61,7 @@ export async function getLatestInstagramPosts(limit = 6): Promise<InstagramPost[
     'permalink',
     'timestamp',
   ].join(',');
-  const url = new URL(
-    `https://graph.facebook.com/${GRAPH_API_VERSION}/${INSTAGRAM_USER_ID}/media`,
-  );
+  const url = new URL(`https://graph.facebook.com/${GRAPH_API_VERSION}/${INSTAGRAM_USER_ID}/media`);
 
   url.searchParams.set('fields', fields);
   url.searchParams.set('limit', String(Math.min(Math.max(limit, 1), 12)));

@@ -54,17 +54,13 @@ function isValidCnpj(value: string): boolean {
       length === 12
         ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
         : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-    const sum = weights.reduce(
-      (acc, weight, index) => acc + Number(cnpj[index]) * weight,
-      0,
-    );
+    const sum = weights.reduce((acc, weight, index) => acc + Number(cnpj[index]) * weight, 0);
     const remainder = sum % 11;
     return remainder < 2 ? 0 : 11 - remainder;
   };
 
   return calcDigit(12) === Number(cnpj[12]) && calcDigit(13) === Number(cnpj[13]);
 }
-
 
 const phoneBaseSchema = z
   .preprocess((value) => {

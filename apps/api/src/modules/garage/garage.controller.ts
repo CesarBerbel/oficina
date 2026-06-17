@@ -29,11 +29,9 @@ export class GarageController {
   }
 
   private lookup(req: Request): PublicTenantLookup {
-    const querySlug =
-      typeof req.query.tenantSlug === 'string' ? req.query.tenantSlug : null;
+    const querySlug = typeof req.query.tenantSlug === 'string' ? req.query.tenantSlug : null;
     return {
-      tenantSlug:
-        querySlug ?? this.firstHeader(req.headers['x-public-tenant-slug']),
+      tenantSlug: querySlug ?? this.firstHeader(req.headers['x-public-tenant-slug']),
       host:
         this.firstHeader(req.headers['x-public-host']) ??
         this.firstHeader(req.headers['x-forwarded-host']) ??
@@ -82,4 +80,3 @@ export class GarageController {
     });
   }
 }
-

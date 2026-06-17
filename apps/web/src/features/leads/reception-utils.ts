@@ -144,7 +144,9 @@ export function leadPriority(lead: LeadDto, now = Date.now()): number {
   return 5;
 }
 
-export function appointmentSummary(lead: Pick<LeadDto, 'appointmentStartAt' | 'appointmentEndAt'>): string {
+export function appointmentSummary(
+  lead: Pick<LeadDto, 'appointmentStartAt' | 'appointmentEndAt'>,
+): string {
   if (!lead.appointmentStartAt) return 'Sem agendamento';
   const end = lead.appointmentEndAt ? ` até ${timeOnly(lead.appointmentEndAt)}` : '';
   return `${formatDateTime(lead.appointmentStartAt)}${end}`;

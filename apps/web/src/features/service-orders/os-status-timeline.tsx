@@ -1,13 +1,7 @@
-import {
-  type ServiceOrderStatus,
-  type ServiceOrderStatusHistoryDto,
-} from '@oficina/shared';
+import { type ServiceOrderStatus, type ServiceOrderStatusHistoryDto } from '@oficina/shared';
 import { cn } from '@/lib/utils';
 
-type TimelineHistoryEntry = Pick<
-  ServiceOrderStatusHistoryDto,
-  'status' | 'createdAt'
->;
+type TimelineHistoryEntry = Pick<ServiceOrderStatusHistoryDto, 'status' | 'createdAt'>;
 
 type TimelineStep = {
   status: ServiceOrderStatus;
@@ -25,11 +19,7 @@ const TIMELINE_STEPS: TimelineStep[] = [
   { status: 'ENTREGUE', label: 'Veículo retirado' },
 ];
 
-export function OsStatusTimeline({
-  history,
-}: {
-  history: TimelineHistoryEntry[];
-}) {
+export function OsStatusTimeline({ history }: { history: TimelineHistoryEntry[] }) {
   const entriesByStatus = new Map<ServiceOrderStatus, TimelineHistoryEntry>();
 
   for (const entry of [...history].sort(

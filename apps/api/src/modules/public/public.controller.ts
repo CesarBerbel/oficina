@@ -1,18 +1,7 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Req,
-  UseFilters,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseFilters } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
-import {
-  quoteDecisionSchema,
-  type QuoteDecisionInput,
-} from '@oficina/shared';
+import { quoteDecisionSchema, type QuoteDecisionInput } from '@oficina/shared';
 import { PublicService } from './public.service';
 import { QuotesService } from '../quotes/quotes.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';

@@ -15,10 +15,7 @@ import {
   PlayCircle,
 } from 'lucide-react';
 import { getPublicSite, getPublicBlog } from '@/lib/public-api';
-import {
-  getInstagramProfileUrl,
-  getLatestInstagramPosts,
-} from '@/lib/instagram';
+import { getInstagramProfileUrl, getLatestInstagramPosts } from '@/lib/instagram';
 import { BLOG_FALLBACK_IMAGE } from '@/lib/blog';
 import { formatCurrency } from '@/lib/utils';
 import { maskPhone } from '@/lib/masks';
@@ -55,8 +52,7 @@ const FALLBACK_SERVICES = [
   {
     id: 'fallback-diagnostico',
     name: 'Diagnóstico eletrônico',
-    description:
-      'Leitura de falhas, análise técnica e orientação clara antes de qualquer reparo.',
+    description: 'Leitura de falhas, análise técnica e orientação clara antes de qualquer reparo.',
     category: 'Diagnóstico',
     salePrice: 0,
   },
@@ -71,8 +67,7 @@ const FALLBACK_SERVICES = [
   {
     id: 'fallback-freios',
     name: 'Freios e suspensão',
-    description:
-      'Inspeção e reparo de componentes essenciais para conforto e segurança.',
+    description: 'Inspeção e reparo de componentes essenciais para conforto e segurança.',
     category: 'Segurança',
     salePrice: 0,
   },
@@ -87,16 +82,14 @@ const FALLBACK_SERVICES = [
   {
     id: 'fallback-eletrica',
     name: 'Elétrica automotiva',
-    description:
-      'Avaliação de bateria, alternador, partida, sensores e sistemas elétricos.',
+    description: 'Avaliação de bateria, alternador, partida, sensores e sistemas elétricos.',
     category: 'Elétrica',
     salePrice: 0,
   },
   {
     id: 'fallback-oleo',
     name: 'Troca de óleo e filtros',
-    description:
-      'Manutenção básica com atenção às especificações do fabricante do veículo.',
+    description: 'Manutenção básica com atenção às especificações do fabricante do veículo.',
     category: 'Manutenção',
     salePrice: 0,
   },
@@ -120,18 +113,15 @@ const TESTIMONIALS = [
 const BLOG_PLACEHOLDERS = [
   {
     title: 'Quando fazer a revisão preventiva?',
-    excerpt:
-      'Entenda os sinais que indicam a hora de revisar o carro antes de uma pane.',
+    excerpt: 'Entenda os sinais que indicam a hora de revisar o carro antes de uma pane.',
   },
   {
     title: 'Luzes no painel: o que observar',
-    excerpt:
-      'Veja por que a luz de injeção, óleo ou bateria não deve ser ignorada.',
+    excerpt: 'Veja por que a luz de injeção, óleo ou bateria não deve ser ignorada.',
   },
   {
     title: 'Como preservar freios e suspensão',
-    excerpt:
-      'Cuidados simples ajudam a manter segurança, conforto e economia.',
+    excerpt: 'Cuidados simples ajudam a manter segurança, conforto e economia.',
   },
 ];
 
@@ -276,15 +266,11 @@ export default async function SiteHome() {
               className="min-w-[78%] snap-start rounded-xl border bg-card p-5 transition-colors hover:border-primary sm:min-w-0"
             >
               {svc.category && (
-                <span className="text-xs font-medium uppercase text-primary">
-                  {svc.category}
-                </span>
+                <span className="text-xs font-medium uppercase text-primary">{svc.category}</span>
               )}
               <h3 className="mt-1 font-semibold">{svc.name}</h3>
               {svc.description && (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {svc.description}
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">{svc.description}</p>
               )}
               {svc.salePrice > 0 && (
                 <p className="mt-3 text-sm font-semibold text-primary">
@@ -382,8 +368,7 @@ export default async function SiteHome() {
           {instagramPosts.length > 0 ? (
             <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
               {instagramPosts.map((post) => {
-                const imageUrl =
-                  post.mediaType === 'VIDEO' ? post.thumbnailUrl : post.mediaUrl;
+                const imageUrl = post.mediaType === 'VIDEO' ? post.thumbnailUrl : post.mediaUrl;
 
                 return (
                   <a
@@ -414,9 +399,7 @@ export default async function SiteHome() {
                     </div>
                     {post.caption && (
                       <div className="p-4">
-                        <p className="line-clamp-2 text-sm text-muted-foreground">
-                          {post.caption}
-                        </p>
+                        <p className="line-clamp-2 text-sm text-muted-foreground">{post.caption}</p>
                       </div>
                     )}
                   </a>
@@ -425,7 +408,8 @@ export default async function SiteHome() {
             </div>
           ) : (
             <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-              Configure o token da API do Instagram para exibir automaticamente as últimas postagens aqui.
+              Configure o token da API do Instagram para exibir automaticamente as últimas postagens
+              aqui.
             </div>
           )}
         </section>
@@ -466,9 +450,7 @@ export default async function SiteHome() {
                   <div className="p-5">
                     <h3 className="font-semibold group-hover:text-primary">{p.title}</h3>
                     {p.excerpt && (
-                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                        {p.excerpt}
-                      </p>
+                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{p.excerpt}</p>
                     )}
                   </div>
                 </Link>

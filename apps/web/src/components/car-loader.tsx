@@ -4,13 +4,7 @@ import { cn } from '@/lib/utils';
  * Indicador de carregamento temático: um pneu/roda girando.
  * Usa `currentColor`, então herda a cor do texto (ex.: text-primary).
  */
-export function CarLoader({
-  size = 48,
-  className,
-}: {
-  size?: number;
-  className?: string;
-}) {
+export function CarLoader({ size = 48, className }: { size?: number; className?: string }) {
   return (
     <svg
       viewBox="0 0 48 48"
@@ -22,7 +16,15 @@ export function CarLoader({
       style={{ animationDuration: '0.9s' }}
     >
       {/* Pneu */}
-      <circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" strokeWidth="5" strokeOpacity="0.85" />
+      <circle
+        cx="24"
+        cy="24"
+        r="21"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="5"
+        strokeOpacity="0.85"
+      />
       {/* Sulcos do pneu */}
       {Array.from({ length: 12 }).map((_, i) => (
         <rect

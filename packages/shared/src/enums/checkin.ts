@@ -27,8 +27,7 @@ export const ChecklistStatus = {
   NA: 'NA',
 } as const;
 
-export type ChecklistStatus =
-  (typeof ChecklistStatus)[keyof typeof ChecklistStatus];
+export type ChecklistStatus = (typeof ChecklistStatus)[keyof typeof ChecklistStatus];
 
 export const CHECKLIST_STATUS_LABELS: Record<ChecklistStatus, string> = {
   OK: 'OK',
@@ -37,9 +36,7 @@ export const CHECKLIST_STATUS_LABELS: Record<ChecklistStatus, string> = {
   NA: 'N/A',
 };
 
-export const CHECKLIST_STATUSES = Object.values(
-  ChecklistStatus,
-) as ChecklistStatus[];
+export const CHECKLIST_STATUSES = Object.values(ChecklistStatus) as ChecklistStatus[];
 
 /** Gravidade de uma avaria registrada na carroceria. */
 export const DamageSeverity = {
@@ -48,8 +45,7 @@ export const DamageSeverity = {
   GRAVE: 'GRAVE',
 } as const;
 
-export type DamageSeverity =
-  (typeof DamageSeverity)[keyof typeof DamageSeverity];
+export type DamageSeverity = (typeof DamageSeverity)[keyof typeof DamageSeverity];
 
 export const DAMAGE_SEVERITY_LABELS: Record<DamageSeverity, string> = {
   LEVE: 'Leve',
@@ -57,9 +53,7 @@ export const DAMAGE_SEVERITY_LABELS: Record<DamageSeverity, string> = {
   GRAVE: 'Grave',
 };
 
-export const DAMAGE_SEVERITIES = Object.values(
-  DamageSeverity,
-) as DamageSeverity[];
+export const DAMAGE_SEVERITIES = Object.values(DamageSeverity) as DamageSeverity[];
 
 /**
  * Itens padrão do checklist de inspeção de entrada. O front pré-popula a

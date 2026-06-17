@@ -9,10 +9,7 @@ export const revalidate = 0;
 export const metadata: Metadata = { title: 'Blog' };
 
 export default async function SiteBlog() {
-  const [posts, site] = await Promise.all([
-    getPublicBlog().then((p) => p ?? []),
-    getPublicSite(),
-  ]);
+  const [posts, site] = await Promise.all([getPublicBlog().then((p) => p ?? []), getPublicSite()]);
   const fallback = site?.settings.blogFallbackImageUrl || BLOG_FALLBACK_IMAGE;
 
   return (
@@ -25,7 +22,11 @@ export default async function SiteBlog() {
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((p) => (
-            <Link key={p.slug} href={`/site/blog/${p.slug}`} className="group rounded-xl border bg-card p-5 transition-colors hover:border-primary">
+            <Link
+              key={p.slug}
+              href={`/site/blog/${p.slug}`}
+              className="group rounded-xl border bg-card p-5 transition-colors hover:border-primary"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={p.imageUrl || fallback}

@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreatePartInput,
   ListPartsQuery,
@@ -53,8 +48,7 @@ export function useCreatePart() {
 export function useUpdatePart(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdatePartInput) =>
-      api.put<PartDto>(`/parts/${id}`, input),
+    mutationFn: (input: UpdatePartInput) => api.put<PartDto>(`/parts/${id}`, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['parts'] }),
   });
 }
@@ -62,8 +56,7 @@ export function useUpdatePart(id: string) {
 export function useStockMove(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: StockMovementInput) =>
-      api.post<PartDto>(`/parts/${id}/movements`, input),
+    mutationFn: (input: StockMovementInput) => api.post<PartDto>(`/parts/${id}/movements`, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['parts'] }),
   });
 }

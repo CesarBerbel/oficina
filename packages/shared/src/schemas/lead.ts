@@ -47,9 +47,7 @@ export const createDirectReceptionLeadSchema = createLeadSchema.extend({
   appointmentServiceType: optionalString(120),
   appointmentNotes: optionalString(2000),
 });
-export type CreateDirectReceptionLeadInput = z.infer<
-  typeof createDirectReceptionLeadSchema
->;
+export type CreateDirectReceptionLeadInput = z.infer<typeof createDirectReceptionLeadSchema>;
 
 export const updateLeadStatusSchema = z.object({
   status: z.nativeEnum(LeadStatus),
@@ -70,9 +68,7 @@ export const registerLeadContactSchema = z.object({
   notes: optionalString(2000),
   nextFollowUpAt: optionalDateTime,
 });
-export type RegisterLeadContactInput = z.infer<
-  typeof registerLeadContactSchema
->;
+export type RegisterLeadContactInput = z.infer<typeof registerLeadContactSchema>;
 
 export const scheduleLeadSchema = z
   .object({
@@ -87,8 +83,7 @@ export const scheduleLeadSchema = z
     (value) => {
       if (!value.appointmentEndAt) return true;
       return (
-        new Date(value.appointmentEndAt).getTime() >=
-        new Date(value.appointmentStartAt).getTime()
+        new Date(value.appointmentEndAt).getTime() >= new Date(value.appointmentStartAt).getTime()
       );
     },
     {
@@ -119,9 +114,7 @@ export const createReceptionScheduleBlockSchema = z
     message: 'O fim do bloqueio precisa ser maior que o início',
     path: ['endAt'],
   });
-export type CreateReceptionScheduleBlockInput = z.infer<
-  typeof createReceptionScheduleBlockSchema
->;
+export type CreateReceptionScheduleBlockInput = z.infer<typeof createReceptionScheduleBlockSchema>;
 
 export interface ReceptionScheduleBlockDto {
   id: string;
@@ -134,7 +127,6 @@ export interface ReceptionScheduleBlockDto {
   createdByName: string | null;
   createdAt: string;
 }
-
 
 export const appointmentActionSchema = z.object({
   notes: optionalString(2000),
@@ -174,7 +166,12 @@ export const convertLeadToServiceOrderSchema = z.object({
       plate: placaSchema,
       manufacturer: z.string().trim().min(1).max(60),
       model: z.string().trim().min(1).max(80),
-      modelYear: z.coerce.number().int().min(1900).max(new Date().getFullYear() + 1).optional(),
+      modelYear: z.coerce
+        .number()
+        .int()
+        .min(1900)
+        .max(new Date().getFullYear() + 1)
+        .optional(),
       color: optionalString(40),
       currentKm: z.coerce.number().int().min(0).max(9_999_999).optional(),
       notes: optionalString(2000),
@@ -185,9 +182,7 @@ export const convertLeadToServiceOrderSchema = z.object({
   dueDate: optionalDateTime,
   reportedProblem: optionalString(4000),
 });
-export type ConvertLeadToServiceOrderInput = z.infer<
-  typeof convertLeadToServiceOrderSchema
->;
+export type ConvertLeadToServiceOrderInput = z.infer<typeof convertLeadToServiceOrderSchema>;
 
 export interface LeadCustomerSuggestionDto {
   id: string;
@@ -268,7 +263,6 @@ export interface LeadMatchSummaryDto {
   conflictLevel: LeadConflictLevel;
   conflictReason: string | null;
 }
-
 
 export interface ReceptionAlertLeadDto extends LeadDto {
   minutesUntilAppointment: number | null;

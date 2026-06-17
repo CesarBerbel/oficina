@@ -20,7 +20,6 @@ export function useDashboardActions() {
   });
 }
 
-
 export function useDashboardProductivity() {
   return useQuery({
     queryKey: ['dashboard', 'productivity'],

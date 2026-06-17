@@ -8,7 +8,12 @@ import { createSupplierSchema, updateSupplierSchema, type SupplierDto } from '@o
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { useCreateSupplier, useUpdateSupplier } from './use-purchases';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,9 +29,13 @@ const FIELD_LABELS = {
 };
 
 export function SupplierFormDialog({
-  open, onOpenChange, supplier,
+  open,
+  onOpenChange,
+  supplier,
 }: {
-  open: boolean; onOpenChange: (o: boolean) => void; supplier?: SupplierDto | null;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  supplier?: SupplierDto | null;
 }) {
   const isEdit = !!supplier;
   const [form, setForm] = useState({ name: '', document: '', phone: '', email: '' });
@@ -59,10 +68,17 @@ export function SupplierFormDialog({
       return;
     }
     try {
-      if (isEdit) { await update.mutateAsync(parsed.data); toast.success('Fornecedor atualizado'); }
-      else { await create.mutateAsync(parsed.data as never); toast.success('Fornecedor criado'); }
+      if (isEdit) {
+        await update.mutateAsync(parsed.data);
+        toast.success('Fornecedor atualizado');
+      } else {
+        await create.mutateAsync(parsed.data as never);
+        toast.success('Fornecedor criado');
+      }
       onOpenChange(false);
-    } catch (err) { toast.error(apiErrorMessage(err, FIELD_LABELS)); }
+    } catch (err) {
+      toast.error(apiErrorMessage(err, FIELD_LABELS));
+    }
   }
 
   return (
@@ -108,7 +124,9 @@ export function SupplierFormDialog({
             {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={pending}>
               {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}

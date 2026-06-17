@@ -45,7 +45,11 @@ function isValidationDetail(value: unknown): value is ValidationDetail {
   return typeof value === 'object' && value !== null && 'message' in value;
 }
 
-export function apiErrorMessage(error: unknown, labels: FieldLabels = {}, fallback = 'Erro ao salvar'): string {
+export function apiErrorMessage(
+  error: unknown,
+  labels: FieldLabels = {},
+  fallback = 'Erro ao salvar',
+): string {
   if (!(error instanceof ApiError)) return fallback;
 
   if (Array.isArray(error.details)) {

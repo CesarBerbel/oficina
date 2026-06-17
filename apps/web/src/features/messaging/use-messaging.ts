@@ -23,7 +23,8 @@ export function useTemplates() {
 export function useCreateTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateTemplateInput) => api.post<MessageTemplateDto>('/messages/templates', input),
+    mutationFn: (input: CreateTemplateInput) =>
+      api.post<MessageTemplateDto>('/messages/templates', input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['msg-templates'] }),
   });
 }
@@ -31,7 +32,8 @@ export function useCreateTemplate() {
 export function useUpdateTemplate(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateTemplateInput) => api.put<MessageTemplateDto>(`/messages/templates/${id}`, input),
+    mutationFn: (input: UpdateTemplateInput) =>
+      api.put<MessageTemplateDto>(`/messages/templates/${id}`, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['msg-templates'] }),
   });
 }
@@ -71,8 +73,7 @@ export function useMailStatus() {
 export function useSendTestEmail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (to: string) =>
-      api.post<SendTestEmailResult>('/messages/test-email', { to }),
+    mutationFn: (to: string) => api.post<SendTestEmailResult>('/messages/test-email', { to }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['msg-logs'] }),
   });
 }

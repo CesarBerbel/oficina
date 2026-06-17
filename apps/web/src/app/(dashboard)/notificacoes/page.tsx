@@ -35,7 +35,9 @@ function NotificationsContent() {
   }, []);
 
   useEffect(() => {
-    isPushEnabled().then(setPushOn).catch(() => setPushOn(false));
+    isPushEnabled()
+      .then(setPushOn)
+      .catch(() => setPushOn(false));
   }, []);
 
   async function togglePush() {
@@ -64,7 +66,11 @@ function NotificationsContent() {
         <div className="flex gap-2">
           {pushSupported() && !pushOn && (
             <Button variant="outline" onClick={togglePush} disabled={pushBusy}>
-              {pushBusy ? <CarLoader className="size-4 animate-spin" /> : <BellRing className="size-4" />}
+              {pushBusy ? (
+                <CarLoader className="size-4 animate-spin" />
+              ) : (
+                <BellRing className="size-4" />
+              )}
               Ativar push
             </Button>
           )}
@@ -116,10 +122,26 @@ function NotificationsContent() {
 
       {meta && meta.totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">página {meta.page} de {meta.totalPages}</span>
+          <span className="text-muted-foreground">
+            página {meta.page} de {meta.totalPages}
+          </span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
-            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Próxima</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Próxima
+            </Button>
           </div>
         </div>
       )}
@@ -129,7 +151,13 @@ function NotificationsContent() {
 
 export default function NotificationsPage() {
   return (
-    <Suspense fallback={<div className="grid h-64 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>}>
+    <Suspense
+      fallback={
+        <div className="grid h-64 place-items-center">
+          <CarLoader className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
       <NotificationsContent />
     </Suspense>
   );

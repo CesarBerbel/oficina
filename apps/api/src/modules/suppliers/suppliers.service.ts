@@ -33,10 +33,7 @@ export class SuppliersService {
   ) {}
 
   // Fornecedores são compartilhados no grupo (matriz + filiais): escopo por groupId.
-  async list(
-    groupId: string,
-    query: ListSuppliersQuery,
-  ): Promise<Paginated<SupplierDto>> {
+  async list(groupId: string, query: ListSuppliersQuery): Promise<Paginated<SupplierDto>> {
     const { page, pageSize, search } = query;
     const where: Prisma.SupplierWhereInput = {
       tenantId: groupId,
@@ -69,10 +66,7 @@ export class SuppliersService {
     };
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreateSupplierInput,
-  ): Promise<SupplierDto> {
+  async create(actor: AuthenticatedUser, input: CreateSupplierInput): Promise<SupplierDto> {
     const created = await this.prisma.supplier.create({
       data: { tenantId: actor.groupId, ...input },
     });

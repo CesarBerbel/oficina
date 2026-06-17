@@ -1,12 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createE2eApp } from './support/e2e-app';
-import {
-  createBranchTenant,
-  partStockOf,
-  resetAndSeed,
-  type SeedData,
-} from './support/e2e-db';
+import { createBranchTenant, partStockOf, resetAndSeed, type SeedData } from './support/e2e-db';
 import { authHeader, loginAs } from './support/e2e-http';
 
 /**
@@ -68,9 +63,7 @@ describe('Multi-tenant: compartilhamento matriz/filial e isolamento (e2e)', () =
       .get('/api/customers')
       .set(authHeader(filial.token))
       .expect(200);
-    expect(
-      filialCustomers.body.data.map((c: { id: string }) => c.id),
-    ).toContain(customer.body.id);
+    expect(filialCustomers.body.data.map((c: { id: string }) => c.id)).toContain(customer.body.id);
 
     // Filial enxerga a peça (catálogo compartilhado) com saldo 0 (estoque por filial).
     const filialPart = await request(app.getHttpServer())
@@ -94,9 +87,9 @@ describe('Multi-tenant: compartilhamento matriz/filial e isolamento (e2e)', () =
       .get('/api/customers')
       .set(authHeader(outro.token))
       .expect(200);
-    expect(
-      outroCustomers.body.data.map((c: { id: string }) => c.id),
-    ).not.toContain(customer.body.id);
+    expect(outroCustomers.body.data.map((c: { id: string }) => c.id)).not.toContain(
+      customer.body.id,
+    );
 
     await request(app.getHttpServer())
       .get(`/api/customers/${customer.body.id}`)

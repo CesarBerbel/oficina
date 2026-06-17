@@ -1,9 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import {
-  listAuditQuerySchema,
-  Permission,
-  type ListAuditQuery,
-} from '@oficina/shared';
+import { listAuditQuerySchema, Permission, type ListAuditQuery } from '@oficina/shared';
 import { AuditService } from './audit.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';

@@ -84,42 +84,80 @@ export function DirectReceptionDialog({ onCreated }: { onCreated: (lead: LeadDet
         <DialogHeader>
           <DialogTitle>Receber cliente direto na oficina</DialogTitle>
           <DialogDescription>
-            Use quando o cliente chegou sem atendimento anterior. O sistema cria o atendimento presencial já como “Cliente chegou”, com agenda marcada para agora e pronto para converter em OS.
+            Use quando o cliente chegou sem atendimento anterior. O sistema cria o atendimento
+            presencial já como “Cliente chegou”, com agenda marcada para agora e pronto para
+            converter em OS.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submitDirectReception} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Label>Nome do cliente</Label>
-              <Input value={form.name} onChange={(event) => update('name', event.target.value)} required minLength={2} />
+              <Input
+                value={form.name}
+                onChange={(event) => update('name', event.target.value)}
+                required
+                minLength={2}
+              />
             </div>
             <div>
               <Label>Telefone / WhatsApp</Label>
-              <Input value={form.phone} onChange={(event) => update('phone', maskPhone(event.target.value))} required minLength={8} />
+              <Input
+                value={form.phone}
+                onChange={(event) => update('phone', maskPhone(event.target.value))}
+                required
+                minLength={8}
+              />
             </div>
             <div>
               <Label>E-mail</Label>
-              <Input type="email" value={form.email} onChange={(event) => update('email', event.target.value)} />
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(event) => update('email', event.target.value)}
+              />
             </div>
             <div>
               <Label>Placa</Label>
-              <Input value={form.plate} onChange={(event) => update('plate', event.target.value.toUpperCase())} placeholder="ABC1D23" />
+              <Input
+                value={form.plate}
+                onChange={(event) => update('plate', event.target.value.toUpperCase())}
+                placeholder="ABC1D23"
+              />
             </div>
             <div>
               <Label>Veículo</Label>
-              <Input value={form.vehicle} onChange={(event) => update('vehicle', event.target.value)} placeholder="Ex.: Gol 1.0 2018" />
+              <Input
+                value={form.vehicle}
+                onChange={(event) => update('vehicle', event.target.value)}
+                placeholder="Ex.: Gol 1.0 2018"
+              />
             </div>
             <div className="sm:col-span-2">
               <Label>Tipo de atendimento</Label>
-              <Input value={form.appointmentServiceType} onChange={(event) => update('appointmentServiceType', event.target.value)} placeholder="Ex.: diagnóstico, revisão, retorno, garantia..." />
+              <Input
+                value={form.appointmentServiceType}
+                onChange={(event) => update('appointmentServiceType', event.target.value)}
+                placeholder="Ex.: diagnóstico, revisão, retorno, garantia..."
+              />
             </div>
             <div className="sm:col-span-2">
               <Label>Problema relatado</Label>
-              <Textarea value={form.message} onChange={(event) => update('message', event.target.value)} required minLength={3} placeholder="Ex.: cliente chegou relatando barulho na suspensão..." />
+              <Textarea
+                value={form.message}
+                onChange={(event) => update('message', event.target.value)}
+                required
+                minLength={3}
+                placeholder="Ex.: cliente chegou relatando barulho na suspensão..."
+              />
             </div>
             <div className="sm:col-span-2">
               <Label>Observação interna da recepção</Label>
-              <Textarea value={form.appointmentNotes} onChange={(event) => update('appointmentNotes', event.target.value)} placeholder="Ex.: veículo já está no pátio, aguardando abertura da OS." />
+              <Textarea
+                value={form.appointmentNotes}
+                onChange={(event) => update('appointmentNotes', event.target.value)}
+                placeholder="Ex.: veículo já está no pátio, aguardando abertura da OS."
+              />
             </div>
           </div>
           <DialogFooter>

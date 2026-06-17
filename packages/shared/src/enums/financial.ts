@@ -22,7 +22,9 @@ export const FINANCIAL_ENTRY_STATUS_LABELS: Record<FinancialEntryStatus, string>
   PAID: 'Pago',
   CANCELED: 'Cancelado',
 };
-export const FINANCIAL_ENTRY_STATUSES = Object.values(FinancialEntryStatus) as FinancialEntryStatus[];
+export const FINANCIAL_ENTRY_STATUSES = Object.values(
+  FinancialEntryStatus,
+) as FinancialEntryStatus[];
 
 export const FinancialPaymentMethod = {
   DINHEIRO: 'DINHEIRO',
@@ -34,7 +36,8 @@ export const FinancialPaymentMethod = {
   CHEQUE: 'CHEQUE',
   OUTRO: 'OUTRO',
 } as const;
-export type FinancialPaymentMethod = (typeof FinancialPaymentMethod)[keyof typeof FinancialPaymentMethod];
+export type FinancialPaymentMethod =
+  (typeof FinancialPaymentMethod)[keyof typeof FinancialPaymentMethod];
 export const FINANCIAL_PAYMENT_METHOD_LABELS: Record<FinancialPaymentMethod, string> = {
   DINHEIRO: 'Dinheiro',
   PIX: 'PIX',
@@ -45,7 +48,9 @@ export const FINANCIAL_PAYMENT_METHOD_LABELS: Record<FinancialPaymentMethod, str
   CHEQUE: 'Cheque',
   OUTRO: 'Outro',
 };
-export const FINANCIAL_PAYMENT_METHODS = Object.values(FinancialPaymentMethod) as FinancialPaymentMethod[];
+export const FINANCIAL_PAYMENT_METHODS = Object.values(
+  FinancialPaymentMethod,
+) as FinancialPaymentMethod[];
 
 export const FinancialEntryOrigin = {
   MANUAL: 'MANUAL',

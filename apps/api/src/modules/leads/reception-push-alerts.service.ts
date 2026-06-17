@@ -48,72 +48,73 @@ export class ReceptionPushAlertsService implements OnModuleInit, OnModuleDestroy
       const now = new Date();
       const arrivalEnd = new Date(now.getTime() + ARRIVAL_WINDOW_MINUTES * 60_000);
       const noShowCutoff = new Date(now.getTime() - NO_SHOW_TOLERANCE_MINUTES * 60_000);
-      const checkedInCutoff = new Date(
-        now.getTime() - CHECKED_IN_WITHOUT_OS_MINUTES * 60_000,
-      );
+      const checkedInCutoff = new Date(now.getTime() - CHECKED_IN_WITHOUT_OS_MINUTES * 60_000);
       const overdueFollowUpCutoff = new Date(now.getTime() - OVERDUE_FOLLOW_UP_MINUTES * 60_000);
       const stalledOsCutoff = new Date(now.getTime() - STALLED_OS_HOURS * 3_600_000);
 
-      const [arrivals, noShows, checkedInWithoutOs, overdueFollowUps, stalledOrders] = await this.prisma.$transaction([
-        this.prisma.lead.findMany({
-          where: {
-            status: { in: [LeadStatus.AGENDADO, LeadStatus.CONFIRMADO] },
-            appointmentStartAt: { gte: now, lte: arrivalEnd },
-            convertedServiceOrderId: null,
-            checkedInAt: null,
-            noShowAt: null,
-            appointmentCanceledAt: null,
-          },
-          orderBy: { appointmentStartAt: 'asc' },
-          take: 50,
-        }),
-        this.prisma.lead.findMany({
-          where: {
-            status: { in: [LeadStatus.AGENDADO, LeadStatus.CONFIRMADO] },
-            appointmentStartAt: { lte: noShowCutoff },
-            convertedServiceOrderId: null,
-            checkedInAt: null,
-            noShowAt: null,
-            appointmentCanceledAt: null,
-          },
-          orderBy: { appointmentStartAt: 'asc' },
-          take: 50,
-        }),
-        this.prisma.lead.findMany({
-          where: {
-            status: LeadStatus.CLIENTE_CHEGOU,
-            checkedInAt: { lte: checkedInCutoff },
-            convertedServiceOrderId: null,
-          },
-          orderBy: { checkedInAt: 'asc' },
-          take: 50,
-        }),
-        this.prisma.lead.findMany({
-          where: {
-            status: { in: [
-              LeadStatus.NOVO,
-              LeadStatus.EM_ATENDIMENTO,
-              LeadStatus.CONTATO_REALIZADO,
-              LeadStatus.RETORNAR_DEPOIS,
-              LeadStatus.AGENDADO,
-              LeadStatus.CONFIRMADO,
-              LeadStatus.CLIENTE_CHEGOU,
-            ] },
-            nextFollowUpAt: { lte: overdueFollowUpCutoff },
-            convertedServiceOrderId: null,
-          },
-          orderBy: { nextFollowUpAt: 'asc' },
-          take: 50,
-        }),
-        this.prisma.serviceOrder.findMany({
-          where: {
-            status: { notIn: [ServiceOrderStatus.ENTREGUE, ServiceOrderStatus.CANCELADA] },
-            updatedAt: { lte: stalledOsCutoff },
-          },
-          orderBy: { updatedAt: 'asc' },
-          take: 50,
-        }),
-      ]);
+      const [arrivals, noShows, checkedInWithoutOs, overdueFollowUps, stalledOrders] =
+        await this.prisma.$transaction([
+          this.prisma.lead.findMany({
+            where: {
+              status: { in: [LeadStatus.AGENDADO, LeadStatus.CONFIRMADO] },
+              appointmentStartAt: { gte: now, lte: arrivalEnd },
+              convertedServiceOrderId: null,
+              checkedInAt: null,
+              noShowAt: null,
+              appointmentCanceledAt: null,
+            },
+            orderBy: { appointmentStartAt: 'asc' },
+            take: 50,
+          }),
+          this.prisma.lead.findMany({
+            where: {
+              status: { in: [LeadStatus.AGENDADO, LeadStatus.CONFIRMADO] },
+              appointmentStartAt: { lte: noShowCutoff },
+              convertedServiceOrderId: null,
+              checkedInAt: null,
+              noShowAt: null,
+              appointmentCanceledAt: null,
+            },
+            orderBy: { appointmentStartAt: 'asc' },
+            take: 50,
+          }),
+          this.prisma.lead.findMany({
+            where: {
+              status: LeadStatus.CLIENTE_CHEGOU,
+              checkedInAt: { lte: checkedInCutoff },
+              convertedServiceOrderId: null,
+            },
+            orderBy: { checkedInAt: 'asc' },
+            take: 50,
+          }),
+          this.prisma.lead.findMany({
+            where: {
+              status: {
+                in: [
+                  LeadStatus.NOVO,
+                  LeadStatus.EM_ATENDIMENTO,
+                  LeadStatus.CONTATO_REALIZADO,
+                  LeadStatus.RETORNAR_DEPOIS,
+                  LeadStatus.AGENDADO,
+                  LeadStatus.CONFIRMADO,
+                  LeadStatus.CLIENTE_CHEGOU,
+                ],
+              },
+              nextFollowUpAt: { lte: overdueFollowUpCutoff },
+              convertedServiceOrderId: null,
+            },
+            orderBy: { nextFollowUpAt: 'asc' },
+            take: 50,
+          }),
+          this.prisma.serviceOrder.findMany({
+            where: {
+              status: { notIn: [ServiceOrderStatus.ENTREGUE, ServiceOrderStatus.CANCELADA] },
+              updatedAt: { lte: stalledOsCutoff },
+            },
+            orderBy: { updatedAt: 'asc' },
+            take: 50,
+          }),
+        ]);
 
       for (const lead of arrivals) {
         const start = lead.appointmentStartAt ?? now;
@@ -187,7 +188,10 @@ export class ReceptionPushAlertsService implements OnModuleInit, OnModuleDestroy
       }
 
       for (const order of stalledOrders) {
-        const hours = Math.max(24, Math.round((now.getTime() - order.updatedAt.getTime()) / 3_600_000));
+        const hours = Math.max(
+          24,
+          Math.round((now.getTime() - order.updatedAt.getTime()) / 3_600_000),
+        );
         await this.notifications.notifyRolesOnce(
           order.tenantId,
           OS_ALERT_ROLES,

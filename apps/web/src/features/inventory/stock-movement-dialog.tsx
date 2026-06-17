@@ -52,7 +52,10 @@ export function StockMovementDialog({
     e.preventDefault();
     const parsed = stockMovementSchema.safeParse({ type, quantity, note });
     if (!parsed.success) {
-      toast.error(Object.values(zodFieldErrors(parsed.error, FIELD_LABELS))[0] ?? 'Verifique os campos do formulário');
+      toast.error(
+        Object.values(zodFieldErrors(parsed.error, FIELD_LABELS))[0] ??
+          'Verifique os campos do formulário',
+      );
       return;
     }
     try {
@@ -122,9 +125,7 @@ export function StockMovementDialog({
                   className="flex items-center justify-between rounded border px-2 py-1.5"
                 >
                   <div>
-                    <span className="font-medium">
-                      {STOCK_MOVEMENT_LABELS[m.type]}
-                    </span>{' '}
+                    <span className="font-medium">{STOCK_MOVEMENT_LABELS[m.type]}</span>{' '}
                     <span className="text-muted-foreground">
                       {m.quantity} → saldo {m.balanceAfter}
                     </span>

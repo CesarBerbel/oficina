@@ -4,8 +4,7 @@
  * Em caso de 401, tenta um refresh transparente uma vez e repete a requisição.
  */
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
 
 let accessToken: string | null = null;
 
@@ -34,10 +33,7 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
   skipAuthRetry?: boolean;
 }
 
-async function rawRequest<T>(
-  path: string,
-  options: RequestOptions = {},
-): Promise<T> {
+async function rawRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, skipAuthRetry, ...rest } = options;
 
   const res = await fetch(`${API_URL}${path}`, {
@@ -70,15 +66,14 @@ async function rawRequest<T>(
             if (typeof detail !== 'object' || detail === null) return '';
             const record = detail as { path?: unknown; message?: unknown };
             const path = typeof record.path === 'string' && record.path ? record.path : 'Campo';
-            const detailMessage = typeof record.message === 'string' ? record.message : 'valor inválido';
+            const detailMessage =
+              typeof record.message === 'string' ? record.message : 'valor inválido';
             return `${path}: ${detailMessage}`;
           })
           .filter(Boolean)
           .join('; ');
       } else {
-        message = Array.isArray(data.message)
-          ? data.message.join(', ')
-          : (data.message ?? message);
+        message = Array.isArray(data.message) ? data.message.join(', ') : (data.message ?? message);
       }
     } catch {
       /* resposta sem corpo JSON */
@@ -139,7 +134,6 @@ export async function openAuthedResource(path: string): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-
 export async function uploadAuthedFile(file: File): Promise<{ url: string }> {
   const form = new FormData();
   form.append('file', file);
@@ -162,7 +156,7 @@ export async function uploadAuthedFile(file: File): Promise<{ url: string }> {
     let message = 'Falha ao enviar arquivo';
     try {
       const data = await res.json();
-      message = Array.isArray(data.message) ? data.message.join(', ') : data.message ?? message;
+      message = Array.isArray(data.message) ? data.message.join(', ') : (data.message ?? message);
     } catch {
       /* resposta sem JSON */
     }

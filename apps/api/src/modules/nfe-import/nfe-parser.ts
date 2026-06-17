@@ -73,9 +73,7 @@ function looksLikeXml(buffer: Buffer): boolean {
 
 function assertXmlSize(size: number, label: string): void {
   if (size > MAX_XML_FILE_BYTES) {
-    throw new Error(
-      `${label} excede o limite de ${MAX_XML_FILE_BYTES / 1024 / 1024} MB`,
-    );
+    throw new Error(`${label} excede o limite de ${MAX_XML_FILE_BYTES / 1024 / 1024} MB`);
   }
 }
 
@@ -90,14 +88,10 @@ function readXmlsFromZip(buffer: Buffer): string[] {
     }
 
     if (xmls.length >= MAX_XML_FILES_PER_ZIP) {
-      throw new Error(
-        `ZIP excede o limite de ${MAX_XML_FILES_PER_ZIP} arquivos XML`,
-      );
+      throw new Error(`ZIP excede o limite de ${MAX_XML_FILES_PER_ZIP} arquivos XML`);
     }
 
-    const declaredSize = Number(
-      (entry as { header?: { size?: number } }).header?.size ?? 0,
-    );
+    const declaredSize = Number((entry as { header?: { size?: number } }).header?.size ?? 0);
     if (declaredSize > 0) {
       assertXmlSize(declaredSize, `XML ${entry.entryName}`);
       totalUncompressedBytes += declaredSize;

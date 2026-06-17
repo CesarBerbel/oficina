@@ -17,8 +17,8 @@ export const createVehicleSchema = z.object({
   plate: placaSchema,
   manufacturer: z.string().trim().min(1, 'Informe o fabricante').max(60),
   model: z.string().trim().min(1, 'Informe o modelo').max(80),
-  modelYear: z
-    .coerce.number()
+  modelYear: z.coerce
+    .number()
     .int()
     .min(1900)
     .max(currentYear + 1)

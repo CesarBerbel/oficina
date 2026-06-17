@@ -1,16 +1,6 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  Prisma,
-  type MessageChannel,
-  type MessageEvent,
-  type MessageStatus,
-} from '@prisma/client';
+import { Prisma, type MessageChannel, type MessageEvent, type MessageStatus } from '@prisma/client';
 import type {
   CreateTemplateInput,
   ListMessagesQuery,
@@ -26,8 +16,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { MailService } from '../../infra/mail/mail.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 const brl = (n: number): string =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 
@@ -42,9 +31,7 @@ export class MessagingService {
   ) {}
 
   // ─── Templates ───
-  private toTemplate(
-    t: Prisma.MessageTemplateGetPayload<object>,
-  ): MessageTemplateDto {
+  private toTemplate(t: Prisma.MessageTemplateGetPayload<object>): MessageTemplateDto {
     return {
       id: t.id,
       name: t.name,
@@ -99,7 +86,10 @@ export class MessagingService {
     return body.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, path: string) => {
       const value = path
         .split('.')
-        .reduce<unknown>((acc, key) => (acc == null ? undefined : (acc as Record<string, unknown>)[key]), ctx);
+        .reduce<unknown>(
+          (acc, key) => (acc == null ? undefined : (acc as Record<string, unknown>)[key]),
+          ctx,
+        );
       return value == null ? '' : String(value);
     });
   }
@@ -118,7 +108,10 @@ export class MessagingService {
     return {
       order,
       ctx: {
-        cliente: { nome: order.customer.name, telefone: order.customer.phone ?? order.customer.whatsapp ?? '' },
+        cliente: {
+          nome: order.customer.name,
+          telefone: order.customer.phone ?? order.customer.whatsapp ?? '',
+        },
         os: {
           numero: order.number,
           status: order.status,
@@ -168,11 +161,7 @@ export class MessagingService {
   }
 
   /** Dispara mensagens automáticas configuradas para um evento de uma OS. */
-  async dispatchOrderEvent(
-    tenantId: string,
-    event: MessageEvent,
-    orderId: string,
-  ): Promise<void> {
+  async dispatchOrderEvent(tenantId: string, event: MessageEvent, orderId: string): Promise<void> {
     const templates = await this.prisma.messageTemplate.findMany({
       where: { tenantId, event, active: true, autoSend: true },
     });
@@ -207,10 +196,7 @@ export class MessagingService {
   }
 
   /** Dispara a mensagem de aniversário (CUSTOMER_BIRTHDAY) para um cliente. */
-  async dispatchCustomerBirthday(
-    tenantId: string,
-    customerId: string,
-  ): Promise<void> {
+  async dispatchCustomerBirthday(tenantId: string, customerId: string): Promise<void> {
     const templates = await this.prisma.messageTemplate.findMany({
       where: { tenantId, event: 'CUSTOMER_BIRTHDAY', active: true, autoSend: true },
     });
@@ -279,10 +265,7 @@ export class MessagingService {
    * Envia o link do orçamento para o e-mail do cliente da OS. Usa um template
    * de e-mail ativo para QUOTE_SENT, se houver; caso contrário, um corpo padrão.
    */
-  async sendQuoteEmail(
-    tenantId: string,
-    orderId: string,
-  ): Promise<{ to: string }> {
+  async sendQuoteEmail(tenantId: string, orderId: string): Promise<{ to: string }> {
     const built = await this.contextForOrder(tenantId, orderId);
     if (!built) throw new NotFoundException('OS não encontrada');
 
@@ -343,8 +326,7 @@ export class MessagingService {
       select: { name: true },
     });
     const shop = tenant?.name ?? 'Oficina';
-    const webOrigin =
-      this.config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000';
+    const webOrigin = this.config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000';
     const link = `${webOrigin}/site/consulta?placa=${encodeURIComponent(params.plate)}`;
     const veiculo = `${params.plate} - ${params.vehicleLabel}`;
 
@@ -422,19 +404,11 @@ export class MessagingService {
   }
 
   /** Envia um e-mail de teste para validar a configuração de envio (SMTP/log). */
-  async sendTestEmail(
-    actor: AuthenticatedUser,
-    to: string,
-  ): Promise<SendTestEmailResult> {
+  async sendTestEmail(actor: AuthenticatedUser, to: string): Promise<SendTestEmailResult> {
     const body =
       'Este é um e-mail de teste do sistema da oficina. ' +
       'Se você recebeu esta mensagem, o envio por e-mail está funcionando.';
-    const res = await this.deliver(
-      'EMAIL',
-      to,
-      body,
-      'Teste de e-mail — Oficina',
-    );
+    const res = await this.deliver('EMAIL', to, body, 'Teste de e-mail — Oficina');
     await this.prisma.messageLog.create({
       data: {
         tenantId: actor.tenantId,
@@ -450,10 +424,7 @@ export class MessagingService {
   }
 
   /** Envio manual a partir do painel. */
-  async sendManual(
-    actor: AuthenticatedUser,
-    input: SendMessageInput,
-  ): Promise<MessageLogDto> {
+  async sendManual(actor: AuthenticatedUser, input: SendMessageInput): Promise<MessageLogDto> {
     let body = input.body;
     let to = input.to ?? '';
     const event: MessageEvent = 'MANUAL';
@@ -512,10 +483,7 @@ export class MessagingService {
     };
   }
 
-  async listLogs(
-    tenantId: string,
-    query: ListMessagesQuery,
-  ): Promise<Paginated<MessageLogDto>> {
+  async listLogs(tenantId: string, query: ListMessagesQuery): Promise<Paginated<MessageLogDto>> {
     const { page, pageSize } = query;
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.messageLog.count({ where: { tenantId } }),

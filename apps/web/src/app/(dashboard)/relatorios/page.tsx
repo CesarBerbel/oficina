@@ -1,14 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  BarChart3,
-  DollarSign,
-  Gauge,
-  PackageCheck,
-  Receipt,
-  TrendingUp,
-} from 'lucide-react';
+import { BarChart3, DollarSign, Gauge, PackageCheck, Receipt, TrendingUp } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import type { NamedTotal } from '@oficina/shared';
 import { useReports } from '@/features/settings/use-settings';
@@ -28,7 +21,11 @@ export default function ReportsPage() {
   const { data, isLoading } = useReports(periodDays);
 
   if (isLoading || !data) {
-    return <div className="grid h-64 place-items-center"><CarLoader className="size-6 animate-spin text-muted-foreground" /></div>;
+    return (
+      <div className="grid h-64 place-items-center">
+        <CarLoader className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   const maxMonth = Math.max(1, ...data.revenueByMonth.map((m) => m.total));
@@ -40,7 +37,8 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Relatórios gerenciais</h1>
           <p className="text-muted-foreground">
-            Faturamento, margem estimada, funil da recepção, produtividade comercial e ranking operacional.
+            Faturamento, margem estimada, funil da recepção, produtividade comercial e ranking
+            operacional.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -59,21 +57,46 @@ export default function ReportsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={DollarSign} label="Faturamento" value={formatCurrency(data.revenueTotal)} />
-        <Kpi icon={TrendingUp} label="Lucro bruto estimado" value={formatCurrency(data.grossProfit)} />
+        <Kpi
+          icon={TrendingUp}
+          label="Lucro bruto estimado"
+          value={formatCurrency(data.grossProfit)}
+        />
         <Kpi icon={Gauge} label="Margem bruta" value={`${data.grossMargin}%`} />
         <Kpi icon={Receipt} label="Ticket médio" value={formatCurrency(data.averageTicket)} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={PackageCheck} label="OS entregues" value={String(data.deliveredCount)} tone="success" />
+        <Kpi
+          icon={PackageCheck}
+          label="OS entregues"
+          value={String(data.deliveredCount)}
+          tone="success"
+        />
         <Kpi icon={BarChart3} label="OS abertas" value={String(data.openedOrders)} />
-        <Kpi icon={Gauge} label="Taxa de aprovação" value={`${data.approvalRate}%`} tone="warning" />
-        <Kpi icon={TrendingUp} label="Conversão de leads" value={`${data.conversionRate}%`} tone="success" />
+        <Kpi
+          icon={Gauge}
+          label="Taxa de aprovação"
+          value={`${data.approvalRate}%`}
+          tone="warning"
+        />
+        <Kpi
+          icon={TrendingUp}
+          label="Conversão de leads"
+          value={`${data.conversionRate}%`}
+          tone="success"
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <BarCard title="Faturamento por mês" items={data.revenueByMonth} max={maxMonth} currency />
-        <BarCard title="Faturamento diário — últimos 30 dias" items={data.dailyRevenue} max={maxDay} currency compact />
+        <BarCard
+          title="Faturamento diário — últimos 30 dias"
+          items={data.dailyRevenue}
+          max={maxDay}
+          currency
+          compact
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -83,10 +106,22 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
-        <RankCard title="Top serviços (R$)" items={data.topServices} format={(v) => formatCurrency(v)} />
+        <RankCard
+          title="Top serviços (R$)"
+          items={data.topServices}
+          format={(v) => formatCurrency(v)}
+        />
         <RankCard title="Top peças (qtd)" items={data.topParts} format={(v) => String(v)} />
-        <RankCard title="Faturamento por técnico" items={data.revenueByTechnician} format={(v) => formatCurrency(v)} />
-        <RankCard title="Clientes por faturamento" items={data.revenueByCustomer} format={(v) => formatCurrency(v)} />
+        <RankCard
+          title="Faturamento por técnico"
+          items={data.revenueByTechnician}
+          format={(v) => formatCurrency(v)}
+        />
+        <RankCard
+          title="Clientes por faturamento"
+          items={data.revenueByCustomer}
+          format={(v) => formatCurrency(v)}
+        />
       </div>
     </div>
   );
@@ -116,7 +151,9 @@ function Kpi({
           <p className="text-sm text-muted-foreground">{label}</p>
           <p className="mt-1 text-2xl font-bold">{value}</p>
         </div>
-        <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${toneClass}`}><Icon className="size-5" /></span>
+        <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${toneClass}`}>
+          <Icon className="size-5" />
+        </span>
       </CardContent>
     </Card>
   );
@@ -137,15 +174,24 @@ function BarCard({
 }) {
   return (
     <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-2">
         {items.map((m) => (
           <div key={m.month} className="flex items-center gap-3 text-sm">
-            <span className={compact ? 'w-20 text-muted-foreground' : 'w-16 text-muted-foreground'}>{compact ? m.month.slice(5) : m.month}</span>
+            <span className={compact ? 'w-20 text-muted-foreground' : 'w-16 text-muted-foreground'}>
+              {compact ? m.month.slice(5) : m.month}
+            </span>
             <div className="h-5 flex-1 rounded bg-muted">
-              <div className="h-5 rounded bg-primary" style={{ width: `${(m.total / max) * 100}%` }} />
+              <div
+                className="h-5 rounded bg-primary"
+                style={{ width: `${(m.total / max) * 100}%` }}
+              />
             </div>
-            <span className="w-24 text-right tabular-nums">{currency ? formatCurrency(m.total) : m.total}</span>
+            <span className="w-24 text-right tabular-nums">
+              {currency ? formatCurrency(m.total) : m.total}
+            </span>
           </div>
         ))}
       </CardContent>
@@ -153,17 +199,29 @@ function BarCard({
   );
 }
 
-function StatusCard({ title, items }: { title: string; items: { status: string; label: string; count: number }[] }) {
+function StatusCard({
+  title,
+  items,
+}: {
+  title: string;
+  items: { status: string; label: string; count: number }[];
+}) {
   return (
     <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-1.5 text-sm">
-        {items.length === 0 ? <p className="text-muted-foreground">Sem dados.</p> : items.map((s) => (
-          <div key={s.status} className="flex justify-between gap-3">
-            <span className="truncate text-muted-foreground">{s.label}</span>
-            <span className="font-medium">{s.count}</span>
-          </div>
-        ))}
+        {items.length === 0 ? (
+          <p className="text-muted-foreground">Sem dados.</p>
+        ) : (
+          items.map((s) => (
+            <div key={s.status} className="flex justify-between gap-3">
+              <span className="truncate text-muted-foreground">{s.label}</span>
+              <span className="font-medium">{s.count}</span>
+            </div>
+          ))
+        )}
       </CardContent>
     </Card>
   );
@@ -172,7 +230,9 @@ function StatusCard({ title, items }: { title: string; items: { status: string; 
 function CostCard({ servicesCost, partsCost }: { servicesCost: number; partsCost: number }) {
   return (
     <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-base">Custos estimados</CardTitle></CardHeader>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Custos estimados</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-2 text-sm">
         <div className="flex justify-between gap-3">
           <span className="text-muted-foreground">Mão de obra/catálogo</span>
@@ -190,17 +250,31 @@ function CostCard({ servicesCost, partsCost }: { servicesCost: number; partsCost
   );
 }
 
-function RankCard({ title, items, format }: { title: string; items: NamedTotal[]; format: (v: number) => string }) {
+function RankCard({
+  title,
+  items,
+  format,
+}: {
+  title: string;
+  items: NamedTotal[];
+  format: (v: number) => string;
+}) {
   return (
     <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-1.5 text-sm">
-        {items.length === 0 ? <p className="text-muted-foreground">Sem dados.</p> : items.map((i, idx) => (
-          <div key={idx} className="flex justify-between gap-2">
-            <span className="truncate text-muted-foreground">{i.name}</span>
-            <span className="shrink-0 font-medium">{format(i.value)}</span>
-          </div>
-        ))}
+        {items.length === 0 ? (
+          <p className="text-muted-foreground">Sem dados.</p>
+        ) : (
+          items.map((i, idx) => (
+            <div key={idx} className="flex justify-between gap-2">
+              <span className="truncate text-muted-foreground">{i.name}</span>
+              <span className="shrink-0 font-medium">{format(i.value)}</span>
+            </div>
+          ))
+        )}
       </CardContent>
     </Card>
   );

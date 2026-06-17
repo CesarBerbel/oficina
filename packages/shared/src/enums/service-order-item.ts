@@ -4,13 +4,9 @@ export const ServiceOrderItemKind = {
   PART: 'PART',
 } as const;
 
-export type ServiceOrderItemKind =
-  (typeof ServiceOrderItemKind)[keyof typeof ServiceOrderItemKind];
+export type ServiceOrderItemKind = (typeof ServiceOrderItemKind)[keyof typeof ServiceOrderItemKind];
 
-export const SERVICE_ORDER_ITEM_KIND_LABELS: Record<
-  ServiceOrderItemKind,
-  string
-> = {
+export const SERVICE_ORDER_ITEM_KIND_LABELS: Record<ServiceOrderItemKind, string> = {
   SERVICE: 'Serviço',
   PART: 'Peça',
 };

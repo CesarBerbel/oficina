@@ -30,12 +30,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const STATUS_STYLE: Record<ChecklistStatus, string> = {
   OK: 'data-[on=true]:bg-emerald-500 data-[on=true]:text-white',
@@ -106,9 +101,7 @@ function CheckinFormContent() {
   }, [presetOsId]);
 
   function setItem(i: number, patch: Partial<ChecklistItem>) {
-    setChecklist((list) =>
-      list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)),
-    );
+    setChecklist((list) => list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -149,9 +142,7 @@ function CheckinFormContent() {
       <div className="flex items-center gap-3">
         <BackButton fallbackHref="/check-in" iconOnly />
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Check-in do veículo
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">Check-in do veículo</h1>
           <p className="text-muted-foreground">
             Estado do veículo no recebimento, vinculado a uma OS.
           </p>
@@ -196,16 +187,11 @@ function CheckinFormContent() {
               onChange={(e) => setKm(e.target.value)}
               placeholder="Ex.: 84500"
             />
-            {errors.km && (
-              <p className="text-xs text-destructive">{errors.km}</p>
-            )}
+            {errors.km && <p className="text-xs text-destructive">{errors.km}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Combustível</Label>
-            <Select
-              value={fuelLevel}
-              onChange={(e) => setFuelLevel(e.target.value)}
-            >
+            <Select value={fuelLevel} onChange={(e) => setFuelLevel(e.target.value)}>
               <option value="">—</option>
               {FUEL_LEVELS.map((f) => (
                 <option key={f} value={f}>
@@ -241,15 +227,14 @@ function CheckinFormContent() {
                   </button>
                 ))}
               </div>
-              {it.status !== ChecklistStatus.OK &&
-                it.status !== ChecklistStatus.NA && (
-                  <Input
-                    className="basis-full sm:basis-auto sm:flex-1"
-                    placeholder="Observação"
-                    value={it.note ?? ''}
-                    onChange={(e) => setItem(i, { note: e.target.value })}
-                  />
-                )}
+              {it.status !== ChecklistStatus.OK && it.status !== ChecklistStatus.NA && (
+                <Input
+                  className="basis-full sm:basis-auto sm:flex-1"
+                  placeholder="Observação"
+                  value={it.note ?? ''}
+                  onChange={(e) => setItem(i, { note: e.target.value })}
+                />
+              )}
             </div>
           ))}
         </CardContent>

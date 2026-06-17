@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   canTransition,
@@ -20,8 +16,7 @@ import { parseNfeBuffer } from '../nfe-import/nfe-parser';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 type Tx = Prisma.TransactionClient | PrismaClient;
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 const round3 = (n: number): number => Math.round(n * 1000) / 1000;
 const PURCHASE_NUMBER_RETRY_ATTEMPTS = 5;
@@ -92,9 +87,7 @@ export class PurchasesService {
   }
 
   private isUniqueConstraintError(err: unknown): boolean {
-    return (
-      err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002'
-    );
+    return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
   }
 
   /**
@@ -180,10 +173,7 @@ export class PurchasesService {
     }
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreatePurchaseInput,
-  ): Promise<PurchaseOrderDto> {
+  async create(actor: AuthenticatedUser, input: CreatePurchaseInput): Promise<PurchaseOrderDto> {
     await this.assertParts(
       actor.groupId,
       input.items.map((i) => i.partId),
@@ -196,9 +186,7 @@ export class PurchasesService {
       if (!s) throw new BadRequestException('Fornecedor inválido');
     }
 
-    const total = round2(
-      input.items.reduce((acc, i) => acc + i.quantity * i.unitCost, 0),
-    );
+    const total = round2(input.items.reduce((acc, i) => acc + i.quantity * i.unitCost, 0));
 
     const created = await this.withPurchaseNumberRetry(() =>
       this.prisma.$transaction(async (tx) => {
@@ -242,9 +230,7 @@ export class PurchasesService {
    * Gera pedidos com as peças abaixo do estoque mínimo, agrupados por fornecedor
    * (um pedido por fornecedor) e ignorando peças que já têm pedido em aberto.
    */
-  async createFromShortages(
-    actor: AuthenticatedUser,
-  ): Promise<{ created: number }> {
+  async createFromShortages(actor: AuthenticatedUser): Promise<{ created: number }> {
     // Peças abaixo do mínimo NA OFICINA do usuário (saldo por filial, mínimo do grupo).
     const parts = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT p."id"
@@ -269,9 +255,7 @@ export class PurchasesService {
       ),
     );
     if (created === 0) {
-      throw new BadRequestException(
-        'As peças em falta já possuem pedido de compra em aberto.',
-      );
+      throw new BadRequestException('As peças em falta já possuem pedido de compra em aberto.');
     }
 
     await this.audit.record({
@@ -346,9 +330,7 @@ export class PurchasesService {
           throw new BadRequestException('Este item já foi totalmente recebido');
         }
         if (quantity > remaining) {
-          throw new BadRequestException(
-            'Quantidade recebida excede o saldo pendente do item',
-          );
+          throw new BadRequestException('Quantidade recebida excede o saldo pendente do item');
         }
 
         recvMap.set(received.itemId, quantity);
@@ -356,9 +338,7 @@ export class PurchasesService {
       }
 
       if (positiveReceipts === 0) {
-        throw new BadRequestException(
-          'Informe ao menos uma quantidade positiva para receber',
-        );
+        throw new BadRequestException('Informe ao menos uma quantidade positiva para receber');
       }
 
       for (const item of order.items) {
@@ -385,18 +365,12 @@ export class PurchasesService {
         where: { purchaseOrderId: id },
         select: { quantity: true, receivedQuantity: true },
       });
-      const allReceived = items.every(
-        (i) => dec(i.receivedQuantity) >= dec(i.quantity),
-      );
+      const allReceived = items.every((i) => dec(i.receivedQuantity) >= dec(i.quantity));
       const anyReceived = items.some((i) => dec(i.receivedQuantity) > 0);
       await tx.purchaseOrder.update({
         where: { id },
         data: {
-          status: allReceived
-            ? 'RECEBIDO'
-            : anyReceived
-              ? 'PARCIALMENTE_RECEBIDO'
-              : order.status,
+          status: allReceived ? 'RECEBIDO' : anyReceived ? 'PARCIALMENTE_RECEBIDO' : order.status,
         },
       });
 
@@ -700,9 +674,7 @@ export class PurchasesService {
     });
     if (!order) throw new NotFoundException('OS não encontrada');
     if (!['ORCAMENTO_APROVADO', 'AGUARDANDO_PECA'].includes(order.status)) {
-      throw new BadRequestException(
-        'Gere o pedido de compra após a aprovação do orçamento.',
-      );
+      throw new BadRequestException('Gere o pedido de compra após a aprovação do orçamento.');
     }
 
     const needs = await this.orderPartNeeds(this.prisma, orderId);
@@ -842,9 +814,7 @@ export class PurchasesService {
         select: { partId: true, currentStock: true },
       }),
     ]);
-    const currentByPart = new Map(
-      stocks.map((s) => [s.partId, dec(s.currentStock)]),
-    );
+    const currentByPart = new Map(stocks.map((s) => [s.partId, dec(s.currentStock)]));
     const lines: {
       partId: string;
       supplierId: string | null;

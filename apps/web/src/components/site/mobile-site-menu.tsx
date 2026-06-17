@@ -15,13 +15,7 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function MobileSiteMenu({
-  nav,
-  waHref,
-}: {
-  nav: SiteNavItem[];
-  waHref: string | null;
-}) {
+export function MobileSiteMenu({ nav, waHref }: { nav: SiteNavItem[]; waHref: string | null }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 

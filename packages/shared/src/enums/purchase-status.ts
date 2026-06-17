@@ -7,14 +7,12 @@ export const PurchaseOrderStatus = {
   CANCELADO: 'CANCELADO',
 } as const;
 
-export type PurchaseOrderStatus =
-  (typeof PurchaseOrderStatus)[keyof typeof PurchaseOrderStatus];
+export type PurchaseOrderStatus = (typeof PurchaseOrderStatus)[keyof typeof PurchaseOrderStatus];
 
-export const PURCHASE_ORDER_STATUS_LABELS: Record<PurchaseOrderStatus, string> =
-  {
-    ABERTO: 'Aberto',
-    ENVIADO: 'Enviado',
-    PARCIALMENTE_RECEBIDO: 'Parcialmente recebido',
-    RECEBIDO: 'Recebido',
-    CANCELADO: 'Cancelado',
-  };
+export const PURCHASE_ORDER_STATUS_LABELS: Record<PurchaseOrderStatus, string> = {
+  ABERTO: 'Aberto',
+  ENVIADO: 'Enviado',
+  PARCIALMENTE_RECEBIDO: 'Parcialmente recebido',
+  RECEBIDO: 'Recebido',
+  CANCELADO: 'Cancelado',
+};

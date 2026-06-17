@@ -7,11 +7,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  nfeConfirmSchema,
-  Permission,
-  type NfeConfirmInput,
-} from '@oficina/shared';
+import { nfeConfirmSchema, Permission, type NfeConfirmInput } from '@oficina/shared';
 import { NfeImportService } from './nfe-import.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -24,13 +20,8 @@ export class NfeImportController {
 
   @Post('parse')
   @RequirePermission(Permission.NFE_IMPORT)
-  @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }),
-  )
-  parse(
-    @CurrentUser() actor: AuthenticatedUser,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
+  parse(@CurrentUser() actor: AuthenticatedUser, @UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('Envie um arquivo .xml ou .zip');
     return this.nfe.parse(actor.groupId, file.buffer, file.originalname);
   }

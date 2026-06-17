@@ -15,10 +15,7 @@ export const createBranchSchema = z.object({
     .toLowerCase()
     .min(2, 'Informe o identificador da filial')
     .max(80, 'Identificador muito longo')
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      'Use apenas letras minúsculas, números e hífens',
-    ),
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use apenas letras minúsculas, números e hífens'),
   cnpj: z
     .string()
     .trim()
@@ -27,10 +24,7 @@ export const createBranchSchema = z.object({
     .or(z.literal('').transform(() => undefined)),
   adminName: z.string().trim().min(2, 'Informe o nome do administrador').max(120),
   adminEmail: z.string().trim().toLowerCase().email('E-mail inválido'),
-  password: z
-    .string()
-    .min(8, 'Mínimo de 8 caracteres')
-    .max(72, 'Máximo de 72 caracteres'),
+  password: z.string().min(8, 'Mínimo de 8 caracteres').max(72, 'Máximo de 72 caracteres'),
 });
 export type CreateBranchInput = z.infer<typeof createBranchSchema>;
 

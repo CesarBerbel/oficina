@@ -1,5 +1,9 @@
 import { Body, Controller, Get, Put } from '@nestjs/common';
-import { Permission, updateOperationalSettingsSchema, type UpdateOperationalSettingsInput } from '@oficina/shared';
+import {
+  Permission,
+  updateOperationalSettingsSchema,
+  type UpdateOperationalSettingsInput,
+} from '@oficina/shared';
 import { DashboardService } from './dashboard.service';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -22,7 +26,6 @@ export class DashboardController {
     return this.dashboard.productivity(actor.tenantId);
   }
 
-
   @Get('operational')
   @RequirePermission(Permission.DASHBOARD_READ)
   operational(@CurrentUser() actor: AuthenticatedUser) {
@@ -39,7 +42,8 @@ export class DashboardController {
   @RequirePermission(Permission.SETTINGS_MANAGE)
   updateOperationalSettings(
     @CurrentUser() actor: AuthenticatedUser,
-    @Body(new ZodValidationPipe(updateOperationalSettingsSchema)) body: UpdateOperationalSettingsInput,
+    @Body(new ZodValidationPipe(updateOperationalSettingsSchema))
+    body: UpdateOperationalSettingsInput,
   ) {
     return this.dashboard.updateOperationalSettings(actor.tenantId, body);
   }

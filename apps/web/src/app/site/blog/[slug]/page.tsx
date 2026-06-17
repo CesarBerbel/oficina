@@ -21,11 +21,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function BlogPost({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const [post, site] = await Promise.all([getPublicPost(slug), getPublicSite()]);
   if (!post) notFound();
@@ -50,9 +46,7 @@ export default async function BlogPost({
         alt={post.title}
         className="mt-6 w-full rounded-xl object-cover"
       />
-      <div className="mt-6 whitespace-pre-wrap text-pretty leading-relaxed">
-        {post.content}
-      </div>
+      <div className="mt-6 whitespace-pre-wrap text-pretty leading-relaxed">{post.content}</div>
     </article>
   );
 }

@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreateCustomerInput,
   Customer360Dto,
@@ -33,8 +28,6 @@ export function useCustomers(params: Partial<ListCustomersQuery>) {
   });
 }
 
-
-
 export function useCustomer360(id: string | undefined) {
   return useQuery({
     queryKey: ['customers', '360', id],
@@ -54,8 +47,7 @@ export function useCustomer(id: string | undefined) {
 export function useCreateCustomer() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateCustomerInput) =>
-      api.post<CustomerDto>('/customers', input),
+    mutationFn: (input: CreateCustomerInput) => api.post<CustomerDto>('/customers', input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
   });
 }
@@ -63,8 +55,7 @@ export function useCreateCustomer() {
 export function useUpdateCustomer(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateCustomerInput) =>
-      api.put<CustomerDto>(`/customers/${id}`, input),
+    mutationFn: (input: UpdateCustomerInput) => api.put<CustomerDto>(`/customers/${id}`, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
   });
 }

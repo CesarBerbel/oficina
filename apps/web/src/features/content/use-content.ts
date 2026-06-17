@@ -41,7 +41,8 @@ export function useSiteSettings() {
 export function useUpdateSiteSettings() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateSiteSettingsInput) => api.put<SiteSettingsDto>('/site-settings', input),
+    mutationFn: (input: UpdateSiteSettingsInput) =>
+      api.put<SiteSettingsDto>('/site-settings', input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['site-settings'] }),
   });
 }

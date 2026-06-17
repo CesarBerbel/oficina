@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, QuoteItemDecision } from '@prisma/client';
 import {
   canTransition,
@@ -20,8 +16,7 @@ import { ServiceOrderDomainError } from '../service-orders/domain/service-order.
 import { PurchasesService } from '../purchases/purchases.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 const brl = (n: number): string =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
@@ -57,21 +52,13 @@ export class QuotesService {
     });
     if (!order) throw new NotFoundException('OS não encontrada');
     if (order.status === 'ENTRADA') {
-      throw new ServiceOrderDomainError(
-        'Conclua o diagnóstico antes de gerar o orçamento.',
-      );
+      throw new ServiceOrderDomainError('Conclua o diagnóstico antes de gerar o orçamento.');
     }
     // Orçamento só pode ser gerado/regerado a partir do diagnóstico pronto,
     // enquanto está em orçamento, ou após uma recusa (novo orçamento).
-    const ALLOWED_GENERATE_STATUSES = [
-      'DIAGNOSTICO_PRONTO',
-      'ORCAMENTO',
-      'ORCAMENTO_RECUSADO',
-    ];
+    const ALLOWED_GENERATE_STATUSES = ['DIAGNOSTICO_PRONTO', 'ORCAMENTO', 'ORCAMENTO_RECUSADO'];
     if (!ALLOWED_GENERATE_STATUSES.includes(order.status)) {
-      throw new ServiceOrderDomainError(
-        'Não é possível gerar orçamento neste estágio da OS.',
-      );
+      throw new ServiceOrderDomainError('Não é possível gerar orçamento neste estágio da OS.');
     }
     if (order.items.length === 0) {
       throw new BadRequestException('Adicione itens à OS antes de gerar o orçamento');
@@ -207,27 +194,19 @@ export class QuotesService {
    * destravando a edição de itens (serviços, combos, peças) e permitindo gerar
    * um novo orçamento. Registra a reabertura no histórico da OS.
    */
-  async reopen(
-    actor: AuthenticatedUser,
-    orderId: string,
-  ): Promise<QuoteDto | null> {
+  async reopen(actor: AuthenticatedUser, orderId: string): Promise<QuoteDto | null> {
     const order = await this.prisma.serviceOrder.findFirst({
       where: { id: orderId, tenantId: actor.tenantId },
       select: { id: true, status: true },
     });
     if (!order) throw new NotFoundException('OS não encontrada');
-    if (
-      order.status !== 'ORCAMENTO_APROVADO' &&
-      order.status !== 'AGUARDANDO_PECA'
-    ) {
+    if (order.status !== 'ORCAMENTO_APROVADO' && order.status !== 'AGUARDANDO_PECA') {
       throw new ServiceOrderDomainError(
         'Só é possível reabrir o orçamento de uma OS aprovada ou aguardando peça.',
       );
     }
     if (!canTransition(order.status, 'DIAGNOSTICO_PRONTO')) {
-      throw new ServiceOrderDomainError(
-        'Não é possível reabrir o orçamento neste estágio da OS.',
-      );
+      throw new ServiceOrderDomainError('Não é possível reabrir o orçamento neste estágio da OS.');
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -266,18 +245,12 @@ export class QuotesService {
    * Gera o pedido de compra das peças aprovadas que estão em falta (sob demanda,
    * via botão). Disponível após a aprovação do orçamento.
    */
-  async generatePurchase(
-    actor: AuthenticatedUser,
-    orderId: string,
-  ): Promise<{ created: number }> {
+  async generatePurchase(actor: AuthenticatedUser, orderId: string): Promise<{ created: number }> {
     return this.purchases.generatePurchaseForOrder(actor, orderId);
   }
 
   /** Envia o link do orçamento para o e-mail do cliente. */
-  async sendEmail(
-    actor: AuthenticatedUser,
-    orderId: string,
-  ): Promise<{ to: string }> {
+  async sendEmail(actor: AuthenticatedUser, orderId: string): Promise<{ to: string }> {
     const order = await this.prisma.serviceOrder.findFirst({
       where: { id: orderId, tenantId: actor.tenantId },
       select: { id: true, quote: { select: { id: true, status: true } } },
@@ -287,10 +260,7 @@ export class QuotesService {
       throw new BadRequestException('Gere o orçamento antes de enviar por e-mail');
     }
     // Orçamento aprovado não pode ser reenviado.
-    if (
-      order.quote.status === 'APROVADO' ||
-      order.quote.status === 'APROVADO_PARCIAL'
-    ) {
+    if (order.quote.status === 'APROVADO' || order.quote.status === 'APROVADO_PARCIAL') {
       throw new BadRequestException('Orçamento já aprovado — não pode ser reenviado.');
     }
 
@@ -329,10 +299,7 @@ export class QuotesService {
     return res;
   }
 
-  async getByOrder(
-    tenantId: string,
-    orderId: string,
-  ): Promise<QuoteDto | null> {
+  async getByOrder(tenantId: string, orderId: string): Promise<QuoteDto | null> {
     const order = await this.prisma.serviceOrder.findFirst({
       where: { id: orderId, tenantId },
       select: { publicToken: true, quote: { include: quoteInclude } },
@@ -368,24 +335,18 @@ export class QuotesService {
       throw new ServiceOrderDomainError('Este orçamento já foi respondido');
     }
 
-    const decisionMap = new Map(
-      input.itemDecisions.map((d) => [d.itemId, d.decision]),
-    );
+    const decisionMap = new Map(input.itemDecisions.map((d) => [d.itemId, d.decision]));
 
     // Decisão bruta informada pelo cliente (default = aprovado).
     const raw = new Map<string, 'APROVADO' | 'RECUSADO'>();
     for (const it of quote.items) {
-      raw.set(
-        it.id,
-        input.reject ? 'RECUSADO' : (decisionMap.get(it.id) ?? 'APROVADO'),
-      );
+      raw.set(it.id, input.reject ? 'RECUSADO' : (decisionMap.get(it.id) ?? 'APROVADO'));
     }
 
     // Cascata: serviço + peças vinculadas formam um grupo (chave = parentItemId
     // ?? id). Se qualquer membro foi recusado, todo o grupo é recusado — assim
     // recusar uma peça recusa o serviço, e recusar o serviço recusa as peças.
-    const groupKey = (it: { id: string; parentItemId: string | null }) =>
-      it.parentItemId ?? it.id;
+    const groupKey = (it: { id: string; parentItemId: string | null }) => it.parentItemId ?? it.id;
     const rejectedGroups = new Set<string>();
     for (const it of quote.items) {
       if (raw.get(it.id) === 'RECUSADO') rejectedGroups.add(groupKey(it));
@@ -405,17 +366,11 @@ export class QuotesService {
     // Itens da OS correspondentes aos itens recusados — serão removidos da OS
     // (e dos totais) quando houver aprovação parcial.
     const rejectedOrderItemIds = quote.items
-      .filter(
-        (it) => rejectedGroups.has(groupKey(it)) && it.serviceOrderItemId,
-      )
+      .filter((it) => rejectedGroups.has(groupKey(it)) && it.serviceOrderItemId)
       .map((it) => it.serviceOrderItemId as string);
 
     const decisionType =
-      input.reject || approved === 0
-        ? 'RECUSA'
-        : refused === 0
-          ? 'TOTAL'
-          : 'PARCIAL';
+      input.reject || approved === 0 ? 'RECUSA' : refused === 0 ? 'TOTAL' : 'PARCIAL';
     const status =
       decisionType === 'RECUSA'
         ? 'RECUSADO'
@@ -537,32 +492,23 @@ export class QuotesService {
       },
     });
 
-    await this.notifications.notifyRoles(
-      order.tenantId,
-      ['ADMIN', 'ATENDENTE'],
-      {
-        type: 'QUOTE_DECISION',
-        title:
-          decisionType === 'RECUSA'
-            ? `Orçamento da OS #${order.number} recusado`
-            : `Orçamento da OS #${order.number} aprovado${decisionType === 'PARCIAL' ? ' (parcial)' : ''}`,
-        body: input.signatureName
-          ? `Resposta do cliente · ${input.signatureName}`
-          : 'O cliente respondeu o orçamento.',
-        link: `/os/${order.id}`,
-        entity: 'ServiceOrder',
-        entityId: order.id,
-      },
-    );
+    await this.notifications.notifyRoles(order.tenantId, ['ADMIN', 'ATENDENTE'], {
+      type: 'QUOTE_DECISION',
+      title:
+        decisionType === 'RECUSA'
+          ? `Orçamento da OS #${order.number} recusado`
+          : `Orçamento da OS #${order.number} aprovado${decisionType === 'PARCIAL' ? ' (parcial)' : ''}`,
+      body: input.signatureName
+        ? `Resposta do cliente · ${input.signatureName}`
+        : 'O cliente respondeu o orçamento.',
+      link: `/os/${order.id}`,
+      entity: 'ServiceOrder',
+      entityId: order.id,
+    });
 
     if (approved > 0) {
       // Decisão já comitada; enfileira a mensagem de aprovação no outbox.
-      await this.outbox.enqueueOrderEvent(
-        this.prisma,
-        order.tenantId,
-        'QUOTE_APPROVED',
-        order.id,
-      );
+      await this.outbox.enqueueOrderEvent(this.prisma, order.tenantId, 'QUOTE_APPROVED', order.id);
     }
 
     const fresh = await this.prisma.quote.findUniqueOrThrow({
@@ -573,10 +519,7 @@ export class QuotesService {
   }
 
   /** Recalcula os totais da OS a partir dos itens restantes (menos o desconto). */
-  private async recomputeOrderTotals(
-    tx: Prisma.TransactionClient,
-    orderId: string,
-  ): Promise<void> {
+  private async recomputeOrderTotals(tx: Prisma.TransactionClient, orderId: string): Promise<void> {
     const items = await tx.serviceOrderItem.findMany({
       where: { serviceOrderId: orderId },
       select: { kind: true, total: true },

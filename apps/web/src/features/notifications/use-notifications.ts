@@ -1,16 +1,7 @@
 'use client';
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
-import type {
-  ListNotificationsQuery,
-  NotificationDto,
-  Paginated,
-} from '@oficina/shared';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ListNotificationsQuery, NotificationDto, Paginated } from '@oficina/shared';
 import { api } from '@/lib/api';
 
 function qs(params: Record<string, unknown>): string {
@@ -25,8 +16,7 @@ function qs(params: Record<string, unknown>): string {
 export function useNotifications(params: Partial<ListNotificationsQuery>) {
   return useQuery({
     queryKey: ['notifications', params],
-    queryFn: () =>
-      api.get<Paginated<NotificationDto>>(`/notifications${qs(params)}`),
+    queryFn: () => api.get<Paginated<NotificationDto>>(`/notifications${qs(params)}`),
     placeholderData: keepPreviousData,
   });
 }

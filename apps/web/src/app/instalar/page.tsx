@@ -155,9 +155,7 @@ export default function InstalarPage() {
         <div className="space-y-6">
           {/* Oficina matriz */}
           <section className="space-y-4">
-            <h2 className="text-sm font-semibold text-muted-foreground">
-              Oficina matriz
-            </h2>
+            <h2 className="text-sm font-semibold text-muted-foreground">Oficina matriz</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nome da oficina" error={errors.shopName} required>
                 <Input
@@ -218,27 +216,42 @@ export default function InstalarPage() {
               </div>
               <div className="sm:col-span-3">
                 <Field label="Rua" error={errors.addressStreet}>
-                  <Input value={form.addressStreet} onChange={(e) => set('addressStreet', e.target.value)} />
+                  <Input
+                    value={form.addressStreet}
+                    onChange={(e) => set('addressStreet', e.target.value)}
+                  />
                 </Field>
               </div>
               <div className="sm:col-span-1">
                 <Field label="Número" error={errors.addressNumber}>
-                  <Input value={form.addressNumber} onChange={(e) => set('addressNumber', e.target.value)} />
+                  <Input
+                    value={form.addressNumber}
+                    onChange={(e) => set('addressNumber', e.target.value)}
+                  />
                 </Field>
               </div>
               <div className="sm:col-span-2">
                 <Field label="Complemento" error={errors.addressComplement}>
-                  <Input value={form.addressComplement} onChange={(e) => set('addressComplement', e.target.value)} />
+                  <Input
+                    value={form.addressComplement}
+                    onChange={(e) => set('addressComplement', e.target.value)}
+                  />
                 </Field>
               </div>
               <div className="sm:col-span-2">
                 <Field label="Bairro" error={errors.addressDistrict}>
-                  <Input value={form.addressDistrict} onChange={(e) => set('addressDistrict', e.target.value)} />
+                  <Input
+                    value={form.addressDistrict}
+                    onChange={(e) => set('addressDistrict', e.target.value)}
+                  />
                 </Field>
               </div>
               <div className="sm:col-span-1">
                 <Field label="Cidade" error={errors.addressCity}>
-                  <Input value={form.addressCity} onChange={(e) => set('addressCity', e.target.value)} />
+                  <Input
+                    value={form.addressCity}
+                    onChange={(e) => set('addressCity', e.target.value)}
+                  />
                 </Field>
               </div>
               <div className="sm:col-span-1">

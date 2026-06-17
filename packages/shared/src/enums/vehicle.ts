@@ -31,8 +31,7 @@ export const TransmissionType = {
   CVT: 'CVT',
 } as const;
 
-export type TransmissionType =
-  (typeof TransmissionType)[keyof typeof TransmissionType];
+export type TransmissionType = (typeof TransmissionType)[keyof typeof TransmissionType];
 
 export const TRANSMISSION_LABELS: Record<TransmissionType, string> = {
   MANUAL: 'Manual',
@@ -41,6 +40,4 @@ export const TRANSMISSION_LABELS: Record<TransmissionType, string> = {
   CVT: 'CVT',
 };
 
-export const TRANSMISSION_TYPES = Object.values(
-  TransmissionType,
-) as TransmissionType[];
+export const TRANSMISSION_TYPES = Object.values(TransmissionType) as TransmissionType[];

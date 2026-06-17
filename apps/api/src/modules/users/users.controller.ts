@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Put,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import {
   createUserSchema,
   listUsersQuerySchema,
@@ -41,10 +32,7 @@ export class UsersController {
 
   @Get(':id')
   @RequirePermission(Permission.USERS_READ)
-  findOne(
-    @CurrentUser() actor: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
     return this.users.findOne(actor.tenantId, id);
   }
 

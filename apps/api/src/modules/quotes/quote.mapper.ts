@@ -1,8 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { QuoteDto } from '@oficina/shared';
 
-const dec = (v: Prisma.Decimal | number | null | undefined): number =>
-  v == null ? 0 : Number(v);
+const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 
 export const quoteInclude = {
   items: { orderBy: { id: 'asc' } },

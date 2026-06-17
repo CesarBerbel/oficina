@@ -172,7 +172,6 @@ describe('Validações de OS e máquina de estados (e2e)', () => {
       .expect(422);
   });
 
-
   it('não mostra OS canceladas, entregues ou recusadas no kanban técnico', async () => {
     const admin = await loginAs(app);
     const activeOrder = await createOrder(admin.token, 'KBN1A01');
@@ -198,9 +197,7 @@ describe('Validações de OS e máquina de estados (e2e)', () => {
       .set(authHeader(admin.token))
       .expect(200);
 
-    const allBoardIds = Object.values(
-      board.body as Record<string, Array<{ id: string }>>,
-    )
+    const allBoardIds = Object.values(board.body as Record<string, Array<{ id: string }>>)
       .flat()
       .map((order) => order.id);
 
@@ -212,5 +209,4 @@ describe('Validações de OS e máquina de estados (e2e)', () => {
     expect(board.body.CANCELADA).toBeUndefined();
     expect(board.body.ENTREGUE).toBeUndefined();
   });
-
 });

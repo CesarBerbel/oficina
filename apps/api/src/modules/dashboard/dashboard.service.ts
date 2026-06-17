@@ -1,7 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { type ServiceOrderStatus } from '@prisma/client';
 import { SERVICE_ORDER_STATUS_LABELS } from '@oficina/shared';
-import type { ActionItem, DashboardMetrics, DashboardProductivityDto, OperationalDashboardDto, OperationalDashboardSettingsDto, OperationalPriority, UpdateOperationalSettingsInput } from '@oficina/shared';
+import type {
+  ActionItem,
+  DashboardMetrics,
+  DashboardProductivityDto,
+  OperationalDashboardDto,
+  OperationalDashboardSettingsDto,
+  OperationalPriority,
+  UpdateOperationalSettingsInput,
+} from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
 const HOUR = 1000 * 60 * 60;
@@ -38,7 +46,8 @@ export class DashboardService {
 
   async getOperationalSettings(tenantId: string): Promise<OperationalDashboardSettingsDto> {
     const existing = await this.prisma.operationalSettings.findUnique({ where: { tenantId } });
-    const settings = existing ?? await this.prisma.operationalSettings.create({ data: { tenantId } });
+    const settings =
+      existing ?? (await this.prisma.operationalSettings.create({ data: { tenantId } }));
     return this.toOperationalSettingsDto(settings);
   }
 
@@ -54,7 +63,11 @@ export class DashboardService {
     return this.toOperationalSettingsDto(updated);
   }
 
-  private priorityByAge(minutes: number, mediumMinutes: number, highMinutes: number): OperationalPriority {
+  private priorityByAge(
+    minutes: number,
+    mediumMinutes: number,
+    highMinutes: number,
+  ): OperationalPriority {
     if (minutes >= highMinutes) return 'alta';
     if (minutes >= mediumMinutes) return 'media';
     return 'baixa';
@@ -72,71 +85,106 @@ export class DashboardService {
     const approvalSince = new Date(now.getTime() - settings.pendingApprovalHours * HOUR);
     const waitingSince = new Date(now.getTime() - settings.waitingCustomerMinutes * 60_000);
 
-    const [appointmentsToday, upcomingLeads, waitingLeads, inExecution, pendingApprovals, stalledOrders, crmRows] =
-      await Promise.all([
-        this.prisma.lead.count({
-          where: {
-            tenantId,
-            appointmentStartAt: { gte: startOfDay, lte: endOfDay },
-            appointmentCanceledAt: null,
-          },
-        }),
-        this.prisma.lead.findMany({
-          where: {
-            tenantId,
-            appointmentStartAt: { gte: now, lte: lookahead },
-            appointmentCanceledAt: null,
-          },
-          orderBy: { appointmentStartAt: 'asc' },
-          take: 8,
-          select: {
-            id: true,
-            name: true,
-            plate: true,
-            vehicle: true,
-            appointmentStartAt: true,
-            appointmentEndAt: true,
-            appointmentServiceType: true,
-            status: true,
-          },
-        }),
-        this.prisma.lead.findMany({
-          where: {
-            tenantId,
-            checkedInAt: { lte: waitingSince },
-            convertedServiceOrderId: null,
-            status: 'CLIENTE_CHEGOU',
-          },
-          orderBy: { checkedInAt: 'asc' },
-          take: 10,
-          select: { id: true, name: true, plate: true, checkedInAt: true },
-        }),
-        this.prisma.serviceOrder.count({ where: { tenantId, status: { in: ['EM_EXECUCAO', 'EM_TESTE'] } } }),
-        this.prisma.serviceOrder.findMany({
-          where: { tenantId, status: 'ORCAMENTO', openedAt: { lte: approvalSince } },
-          orderBy: { openedAt: 'asc' },
-          take: 10,
-          select: { id: true, number: true, openedAt: true, customer: { select: { name: true } }, vehicle: { select: { plate: true } } },
-        }),
-        this.prisma.serviceOrder.findMany({
-          where: { tenantId, status: { in: ['ENTRADA', 'ORCAMENTO_APROVADO', 'EM_EXECUCAO'] }, updatedAt: { lte: stalledSince } },
-          orderBy: { updatedAt: 'asc' },
-          take: 10,
-          select: { id: true, number: true, status: true, updatedAt: true, customer: { select: { name: true } }, vehicle: { select: { plate: true } } },
-        }),
-        this.prisma.crmSettings.findUnique({ where: { tenantId }, select: { enabled: true } }),
-      ]);
+    const [
+      appointmentsToday,
+      upcomingLeads,
+      waitingLeads,
+      inExecution,
+      pendingApprovals,
+      stalledOrders,
+      crmRows,
+    ] = await Promise.all([
+      this.prisma.lead.count({
+        where: {
+          tenantId,
+          appointmentStartAt: { gte: startOfDay, lte: endOfDay },
+          appointmentCanceledAt: null,
+        },
+      }),
+      this.prisma.lead.findMany({
+        where: {
+          tenantId,
+          appointmentStartAt: { gte: now, lte: lookahead },
+          appointmentCanceledAt: null,
+        },
+        orderBy: { appointmentStartAt: 'asc' },
+        take: 8,
+        select: {
+          id: true,
+          name: true,
+          plate: true,
+          vehicle: true,
+          appointmentStartAt: true,
+          appointmentEndAt: true,
+          appointmentServiceType: true,
+          status: true,
+        },
+      }),
+      this.prisma.lead.findMany({
+        where: {
+          tenantId,
+          checkedInAt: { lte: waitingSince },
+          convertedServiceOrderId: null,
+          status: 'CLIENTE_CHEGOU',
+        },
+        orderBy: { checkedInAt: 'asc' },
+        take: 10,
+        select: { id: true, name: true, plate: true, checkedInAt: true },
+      }),
+      this.prisma.serviceOrder.count({
+        where: { tenantId, status: { in: ['EM_EXECUCAO', 'EM_TESTE'] } },
+      }),
+      this.prisma.serviceOrder.findMany({
+        where: { tenantId, status: 'ORCAMENTO', openedAt: { lte: approvalSince } },
+        orderBy: { openedAt: 'asc' },
+        take: 10,
+        select: {
+          id: true,
+          number: true,
+          openedAt: true,
+          customer: { select: { name: true } },
+          vehicle: { select: { plate: true } },
+        },
+      }),
+      this.prisma.serviceOrder.findMany({
+        where: {
+          tenantId,
+          status: { in: ['ENTRADA', 'ORCAMENTO_APROVADO', 'EM_EXECUCAO'] },
+          updatedAt: { lte: stalledSince },
+        },
+        orderBy: { updatedAt: 'asc' },
+        take: 10,
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          updatedAt: true,
+          customer: { select: { name: true } },
+          vehicle: { select: { plate: true } },
+        },
+      }),
+      this.prisma.crmSettings.findUnique({ where: { tenantId }, select: { enabled: true } }),
+    ]);
 
     const alerts: OperationalDashboardDto['alerts'] = [];
     if (settings.enableWaitingCustomerAlerts) {
       for (const lead of waitingLeads) {
-        const ageMinutes = lead.checkedInAt ? Math.round((now.getTime() - lead.checkedInAt.getTime()) / 60_000) : null;
+        const ageMinutes = lead.checkedInAt
+          ? Math.round((now.getTime() - lead.checkedInAt.getTime()) / 60_000)
+          : null;
         alerts.push({
           id: `lead-waiting-${lead.id}`,
           title: 'Cliente aguardando OS',
           description: `${lead.name} chegou${lead.plate ? ` com o veículo ${lead.plate}` : ''} e ainda não virou OS.`,
           category: 'recepcao',
-          priority: ageMinutes == null ? 'media' : this.priorityByAge(ageMinutes, settings.waitingCustomerMinutes, settings.waitingCustomerMinutes * 2),
+          priority:
+            ageMinutes == null
+              ? 'media'
+              : this.priorityByAge(
+                  ageMinutes,
+                  settings.waitingCustomerMinutes,
+                  settings.waitingCustomerMinutes * 2,
+                ),
           href: `/leads?id=${lead.id}`,
           ageMinutes,
         });
@@ -150,7 +198,11 @@ export class DashboardService {
           title: `OS #${order.number} aguardando aprovação`,
           description: `${order.customer.name} · ${order.vehicle.plate}`,
           category: 'oficina',
-          priority: this.priorityByAge(ageMinutes, settings.pendingApprovalHours * 60, settings.pendingApprovalHours * 120),
+          priority: this.priorityByAge(
+            ageMinutes,
+            settings.pendingApprovalHours * 60,
+            settings.pendingApprovalHours * 120,
+          ),
           href: `/os/${order.id}`,
           ageMinutes,
         });
@@ -164,16 +216,26 @@ export class DashboardService {
           title: `OS #${order.number} parada`,
           description: `${order.customer.name} · ${order.vehicle.plate} · ${SERVICE_ORDER_STATUS_LABELS[order.status]}`,
           category: 'oficina',
-          priority: this.priorityByAge(ageMinutes, settings.stalledServiceOrderHours * 60, settings.stalledServiceOrderHours * 120),
+          priority: this.priorityByAge(
+            ageMinutes,
+            settings.stalledServiceOrderHours * 60,
+            settings.stalledServiceOrderHours * 120,
+          ),
           href: `/os/${order.id}`,
           ageMinutes,
         });
       }
     }
 
-    const crmPriority = crmRows?.enabled ? await this.prisma.serviceOrder.count({
-      where: { tenantId, status: 'ENTREGUE', closedAt: { lte: new Date(now.getTime() - 180 * 24 * HOUR) } },
-    }) : 0;
+    const crmPriority = crmRows?.enabled
+      ? await this.prisma.serviceOrder.count({
+          where: {
+            tenantId,
+            status: 'ENTREGUE',
+            closedAt: { lte: new Date(now.getTime() - 180 * 24 * HOUR) },
+          },
+        })
+      : 0;
     if (settings.enableCrmAlerts && crmPriority >= settings.crmHighPriorityLimit) {
       alerts.push({
         id: 'crm-priority',
@@ -187,12 +249,54 @@ export class DashboardService {
     }
 
     const kpis: OperationalDashboardDto['kpis'] = [
-      { key: 'appointmentsToday', label: 'Agendamentos hoje', value: appointmentsToday, href: '/leads?view=agenda', priority: 'media', description: 'Agenda da Recepção para hoje.' },
-      { key: 'waitingCustomers', label: 'Clientes aguardando', value: waitingLeads.length, href: '/leads', priority: waitingLeads.length > 0 ? 'alta' : 'baixa', description: 'Check-ins sem OS criada.' },
-      { key: 'inExecution', label: 'OS em execução/teste', value: inExecution, href: '/kanban', priority: 'media', description: 'Serviços em andamento.' },
-      { key: 'pendingApprovals', label: 'Aprovações vencidas', value: pendingApprovals.length, href: '/os?status=ORCAMENTO', priority: pendingApprovals.length > 0 ? 'alta' : 'baixa', description: 'Orçamentos aguardando resposta acima do limite configurado.' },
-      { key: 'stalledOrders', label: 'OS paradas', value: stalledOrders.length, href: '/os', priority: stalledOrders.length > 0 ? 'alta' : 'baixa', description: 'OS sem atualização recente.' },
-      { key: 'crmPriority', label: 'CRM prioritário', value: crmPriority, href: '/crm', priority: crmPriority > 0 ? 'media' : 'baixa', description: 'Retenções e revisões possíveis.' },
+      {
+        key: 'appointmentsToday',
+        label: 'Agendamentos hoje',
+        value: appointmentsToday,
+        href: '/leads?view=agenda',
+        priority: 'media',
+        description: 'Agenda da Recepção para hoje.',
+      },
+      {
+        key: 'waitingCustomers',
+        label: 'Clientes aguardando',
+        value: waitingLeads.length,
+        href: '/leads',
+        priority: waitingLeads.length > 0 ? 'alta' : 'baixa',
+        description: 'Check-ins sem OS criada.',
+      },
+      {
+        key: 'inExecution',
+        label: 'OS em execução/teste',
+        value: inExecution,
+        href: '/kanban',
+        priority: 'media',
+        description: 'Serviços em andamento.',
+      },
+      {
+        key: 'pendingApprovals',
+        label: 'Aprovações vencidas',
+        value: pendingApprovals.length,
+        href: '/os?status=ORCAMENTO',
+        priority: pendingApprovals.length > 0 ? 'alta' : 'baixa',
+        description: 'Orçamentos aguardando resposta acima do limite configurado.',
+      },
+      {
+        key: 'stalledOrders',
+        label: 'OS paradas',
+        value: stalledOrders.length,
+        href: '/os',
+        priority: stalledOrders.length > 0 ? 'alta' : 'baixa',
+        description: 'OS sem atualização recente.',
+      },
+      {
+        key: 'crmPriority',
+        label: 'CRM prioritário',
+        value: crmPriority,
+        href: '/crm',
+        priority: crmPriority > 0 ? 'media' : 'baixa',
+        description: 'Retenções e revisões possíveis.',
+      },
     ];
 
     return {
@@ -209,13 +313,14 @@ export class DashboardService {
         status: lead.status,
         href: `/leads?id=${lead.id}`,
       })),
-      alerts: alerts.sort((a, b) => {
-        const order: Record<OperationalPriority, number> = { alta: 0, media: 1, baixa: 2 };
-        return order[a.priority] - order[b.priority] || (b.ageMinutes ?? 0) - (a.ageMinutes ?? 0);
-      }).slice(0, 20),
+      alerts: alerts
+        .sort((a, b) => {
+          const order: Record<OperationalPriority, number> = { alta: 0, media: 1, baixa: 2 };
+          return order[a.priority] - order[b.priority] || (b.ageMinutes ?? 0) - (a.ageMinutes ?? 0);
+        })
+        .slice(0, 20),
     };
   }
-
 
   /** Peças abaixo do mínimo NA oficina: saldo por filial, mínimo do grupo. */
   private async lowStockCount(tenantId: string): Promise<number> {
@@ -300,7 +405,12 @@ export class DashboardService {
 
     const delivered = await this.prisma.serviceOrder.findMany({
       where: { tenantId, closedAt: { gte: since }, status: 'ENTREGUE' },
-      select: { openedAt: true, closedAt: true, technicianId: true, technician: { select: { name: true } } },
+      select: {
+        openedAt: true,
+        closedAt: true,
+        technicianId: true,
+        technician: { select: { name: true } },
+      },
     });
 
     const average = (values: number[]): number | null => {
@@ -309,7 +419,9 @@ export class DashboardService {
     };
 
     const cycleHours = delivered
-      .map((order) => order.closedAt ? (order.closedAt.getTime() - order.openedAt.getTime()) / HOUR : null)
+      .map((order) =>
+        order.closedAt ? (order.closedAt.getTime() - order.openedAt.getTime()) / HOUR : null,
+      )
       .filter((value): value is number => value != null && value >= 0);
 
     const activeByTechnician = await this.prisma.serviceOrder.groupBy({
@@ -321,28 +433,33 @@ export class DashboardService {
       _count: { _all: true },
     });
 
-    const technicianIds = Array.from(new Set([
-      ...delivered.map((order) => order.technicianId).filter(Boolean),
-      ...activeByTechnician.map((row) => row.technicianId).filter(Boolean),
-    ])) as string[];
+    const technicianIds = Array.from(
+      new Set([
+        ...delivered.map((order) => order.technicianId).filter(Boolean),
+        ...activeByTechnician.map((row) => row.technicianId).filter(Boolean),
+      ]),
+    ) as string[];
     const users = await this.prisma.user.findMany({
       where: { tenantId, id: { in: technicianIds } },
       select: { id: true, name: true },
     });
     const names = new Map(users.map((user) => [user.id, user.name]));
 
-    const technicianMap = new Map<string, {
-      technicianId: string | null;
-      technicianName: string;
-      deliveredOrders: number;
-      activeOrders: number;
-      cycleHours: number[];
-    }>();
+    const technicianMap = new Map<
+      string,
+      {
+        technicianId: string | null;
+        technicianName: string;
+        deliveredOrders: number;
+        activeOrders: number;
+        cycleHours: number[];
+      }
+    >();
     const ensureTech = (id: string | null, name?: string | null) => {
       const key = id ?? 'unassigned';
       const existing = technicianMap.get(key);
       if (existing) return existing;
-      const technicianName = name ?? (id ? names.get(id) ?? 'Técnico' : 'Sem técnico');
+      const technicianName = name ?? (id ? (names.get(id) ?? 'Técnico') : 'Sem técnico');
       const created = {
         technicianId: id,
         technicianName,

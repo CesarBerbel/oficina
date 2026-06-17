@@ -74,7 +74,6 @@ export class ServiceOrdersController {
     return this.orders.transitions(actor.tenantId, id);
   }
 
-
   @Get(':id/timeline')
   @RequirePermission(Permission.OS_READ)
   timeline(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {

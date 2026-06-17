@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
   CreateCustomerInput,
@@ -49,7 +45,6 @@ const withCount = {
   include: { _count: { select: { vehicles: true } } },
 } satisfies Prisma.CustomerDefaultArgs;
 
-
 const dec = (value: Prisma.Decimal | number | null | undefined): number =>
   value == null ? 0 : Number(value);
 
@@ -81,7 +76,10 @@ const DEFAULT_CRM_SETTINGS = {
   enableRefusedQuoteRecovery: true,
 };
 
-function priorityByDays(days: number, settings: typeof DEFAULT_CRM_SETTINGS): 'baixa' | 'media' | 'alta' {
+function priorityByDays(
+  days: number,
+  settings: typeof DEFAULT_CRM_SETTINGS,
+): 'baixa' | 'media' | 'alta' {
   if (days >= settings.highPriorityDays) return 'alta';
   if (days >= settings.mediumPriorityDays) return 'media';
   return 'baixa';
@@ -105,10 +103,7 @@ export class CustomersService {
   ) {}
 
   // Clientes são compartilhados no grupo (matriz + filiais): escopo por groupId.
-  async list(
-    groupId: string,
-    query: ListCustomersQuery,
-  ): Promise<Paginated<CustomerDto>> {
+  async list(groupId: string, query: ListCustomersQuery): Promise<Paginated<CustomerDto>> {
     const { page, pageSize, search, type, sortBy, sortOrder } = query;
 
     const where: Prisma.CustomerWhereInput = {
@@ -130,8 +125,9 @@ export class CustomersService {
     };
 
     const orderBy: Prisma.CustomerOrderByWithRelationInput = {
-      [sortBy && ['name', 'createdAt'].includes(sortBy) ? sortBy : 'name']:
-        sortBy ? sortOrder : 'asc',
+      [sortBy && ['name', 'createdAt'].includes(sortBy) ? sortBy : 'name']: sortBy
+        ? sortOrder
+        : 'asc',
     };
 
     const [total, rows] = await this.prisma.$transaction([
@@ -156,8 +152,6 @@ export class CustomersService {
     };
   }
 
-
-
   // Cliente e veículos vêm do grupo (groupId); o histórico operacional (OS, leads,
   // check-ins, mensagens, CRM) continua restrito à oficina do usuário (tenantId).
   async find360(actor: AuthenticatedUser, id: string): Promise<Customer360Dto> {
@@ -168,53 +162,52 @@ export class CustomersService {
     });
     if (!customer) throw new NotFoundException('Cliente não encontrado');
 
-    const [vehicles, serviceOrders, leads, checkins, messages, crmSettingsRow] =
-      await Promise.all([
-        this.prisma.vehicle.findMany({
-          where: { tenantId: groupId, customerId: id },
-          include: { _count: { select: { serviceOrders: true } } },
-          orderBy: [{ updatedAt: 'desc' }, { plate: 'asc' }],
-        }),
-        this.prisma.serviceOrder.findMany({
-          where: { tenantId, customerId: id },
-          include: {
-            vehicle: true,
-            technician: { select: { name: true } },
-            quote: true,
-          },
-          orderBy: { updatedAt: 'desc' },
-          take: 40,
-        }),
-        this.prisma.lead.findMany({
-          where: {
-            tenantId,
-            OR: [
-              { matchedCustomerId: id },
-              { convertedCustomerId: id },
-              ...(customer.phone ? [{ phone: { contains: customer.phone } }] : []),
-              ...(customer.whatsapp ? [{ phone: { contains: customer.whatsapp } }] : []),
-              ...(customer.email ? [{ email: customer.email }] : []),
-            ],
-          },
-          orderBy: { updatedAt: 'desc' },
-          take: 30,
-        }),
-        this.prisma.vehicleCheckin.findMany({
-          where: { tenantId, customerId: id },
-          include: {
-            vehicle: { select: { plate: true } },
-            serviceOrder: { select: { id: true, number: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        }),
-        this.prisma.messageLog.findMany({
-          where: { tenantId, customerId: id },
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        }),
-        this.prisma.crmSettings.findUnique({ where: { tenantId } }),
-      ]);
+    const [vehicles, serviceOrders, leads, checkins, messages, crmSettingsRow] = await Promise.all([
+      this.prisma.vehicle.findMany({
+        where: { tenantId: groupId, customerId: id },
+        include: { _count: { select: { serviceOrders: true } } },
+        orderBy: [{ updatedAt: 'desc' }, { plate: 'asc' }],
+      }),
+      this.prisma.serviceOrder.findMany({
+        where: { tenantId, customerId: id },
+        include: {
+          vehicle: true,
+          technician: { select: { name: true } },
+          quote: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 40,
+      }),
+      this.prisma.lead.findMany({
+        where: {
+          tenantId,
+          OR: [
+            { matchedCustomerId: id },
+            { convertedCustomerId: id },
+            ...(customer.phone ? [{ phone: { contains: customer.phone } }] : []),
+            ...(customer.whatsapp ? [{ phone: { contains: customer.whatsapp } }] : []),
+            ...(customer.email ? [{ email: customer.email }] : []),
+          ],
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 30,
+      }),
+      this.prisma.vehicleCheckin.findMany({
+        where: { tenantId, customerId: id },
+        include: {
+          vehicle: { select: { plate: true } },
+          serviceOrder: { select: { id: true, number: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      this.prisma.messageLog.findMany({
+        where: { tenantId, customerId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      this.prisma.crmSettings.findUnique({ where: { tenantId } }),
+    ]);
 
     const serviceOrdersByVehicle = new Map<string, Date>();
     for (const order of serviceOrders) {
@@ -249,9 +242,10 @@ export class CustomersService {
       'PRONTO_RETIRAR',
     ]);
     const totalSpent = deliveredOrders.reduce((sum, order) => sum + dec(order.total), 0);
-    const lastVisit = deliveredOrders
-      .map((order) => order.closedAt ?? order.openedAt)
-      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    const lastVisit =
+      deliveredOrders
+        .map((order) => order.closedAt ?? order.openedAt)
+        .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 
     const settings = crmSettingsRow
       ? {
@@ -279,7 +273,9 @@ export class CustomersService {
       for (const vehicle of vehicles) {
         const lastOrder = deliveredOrders
           .filter((order) => order.vehicleId === vehicle.id)
-          .sort((a, b) => (b.closedAt ?? b.openedAt).getTime() - (a.closedAt ?? a.openedAt).getTime())[0];
+          .sort(
+            (a, b) => (b.closedAt ?? b.openedAt).getTime() - (a.closedAt ?? a.openedAt).getTime(),
+          )[0];
         const vehicleLabel = `${vehicle.plate} · ${vehicle.manufacturer} ${vehicle.model}`;
         if (lastOrder) {
           const days = diffDays(lastOrder.closedAt ?? lastOrder.openedAt);
@@ -309,7 +305,8 @@ export class CustomersService {
               kind: 'REVISAO_KM',
               title: 'Revisão preventiva por KM',
               reason: `Rodou ${(vehicle.currentKm - lastOrder.km).toLocaleString('pt-BR')} km desde a última OS`,
-              priority: vehicle.currentKm - lastOrder.km >= settings.reviewIntervalKm ? 'alta' : 'media',
+              priority:
+                vehicle.currentKm - lastOrder.km >= settings.reviewIntervalKm ? 'alta' : 'media',
               vehicleId: vehicle.id,
               vehicleLabel,
               suggestedMessage: renderCustomerMessage(
@@ -363,7 +360,10 @@ export class CustomersService {
       if (settings.enableRefusedQuoteRecovery) {
         for (const order of serviceOrders.filter((item) => item.status === 'ORCAMENTO_RECUSADO')) {
           const age = diffDays(order.updatedAt);
-          if (age >= settings.refusedQuoteMinimumAgeDays && age <= settings.refusedQuoteRecoveryDays) {
+          if (
+            age >= settings.refusedQuoteMinimumAgeDays &&
+            age <= settings.refusedQuoteRecoveryDays
+          ) {
             const vehicleLabel = `${order.vehicle.plate} · ${order.vehicle.manufacturer} ${order.vehicle.model}`;
             crmOpportunities.push({
               key: `refused-${order.id}`,
@@ -428,7 +428,10 @@ export class CustomersService {
         id: `checkin-${checkin.id}`,
         type: 'CHECKIN' as const,
         title: `Check-in OS #${checkin.serviceOrder.number}`,
-        description: compact([checkin.vehicle.plate, checkin.km != null ? `${checkin.km} km` : null]),
+        description: compact([
+          checkin.vehicle.plate,
+          checkin.km != null ? `${checkin.km} km` : null,
+        ]),
         href: `/check-in/${checkin.id}`,
         occurredAt: checkin.createdAt.toISOString(),
       })),
@@ -462,7 +465,9 @@ export class CustomersService {
         openServiceOrders: serviceOrders.filter((order) => openStatuses.has(order.status)).length,
         deliveredServiceOrders: deliveredOrders.length,
         quotes: quotes.length,
-        openLeads: leads.filter((lead) => !['CONVERTIDO', 'PERDIDO', 'CANCELADO', 'DESCARTADO'].includes(lead.status)).length,
+        openLeads: leads.filter(
+          (lead) => !['CONVERTIDO', 'PERDIDO', 'CANCELADO', 'DESCARTADO'].includes(lead.status),
+        ).length,
         crmOpportunities: crmOpportunities.length,
         totalSpent,
         averageTicket: deliveredOrders.length > 0 ? totalSpent / deliveredOrders.length : 0,
@@ -533,7 +538,6 @@ export class CustomersService {
     };
   }
 
-
   async findOne(groupId: string, id: string): Promise<CustomerDto> {
     const customer = await this.prisma.customer.findFirst({
       where: { id, tenantId: groupId },
@@ -543,16 +547,12 @@ export class CustomersService {
     return toDto(customer);
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreateCustomerInput,
-  ): Promise<CustomerDto> {
+  async create(actor: AuthenticatedUser, input: CreateCustomerInput): Promise<CustomerDto> {
     if (input.document) {
       const clash = await this.prisma.customer.findFirst({
         where: { tenantId: actor.groupId, document: input.document },
       });
-      if (clash)
-        throw new ConflictException('Já existe um cliente com este CPF/CNPJ');
+      if (clash) throw new ConflictException('Já existe um cliente com este CPF/CNPJ');
     }
 
     const { birthDate, ...rest } = input;
@@ -596,8 +596,7 @@ export class CustomersService {
           NOT: { id },
         },
       });
-      if (clash)
-        throw new ConflictException('CPF/CNPJ já cadastrado em outro cliente');
+      if (clash) throw new ConflictException('CPF/CNPJ já cadastrado em outro cliente');
     }
 
     const { birthDate, ...rest } = input;
@@ -629,9 +628,7 @@ export class CustomersService {
     });
     if (!current) throw new NotFoundException('Cliente não encontrado');
     if (current._count.vehicles > 0) {
-      throw new ConflictException(
-        'Não é possível excluir: o cliente possui veículos vinculados',
-      );
+      throw new ConflictException('Não é possível excluir: o cliente possui veículos vinculados');
     }
 
     await this.prisma.customer.delete({ where: { id } });

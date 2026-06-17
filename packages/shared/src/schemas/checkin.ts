@@ -1,9 +1,5 @@
 import { z } from 'zod';
-import {
-  ChecklistStatus,
-  DamageSeverity,
-  FuelLevel,
-} from '../enums/checkin.js';
+import { ChecklistStatus, DamageSeverity, FuelLevel } from '../enums/checkin.js';
 import { paginationQuerySchema } from './common.js';
 
 const optionalString = (max: number) =>

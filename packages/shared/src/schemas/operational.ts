@@ -1,7 +1,12 @@
 import { z } from 'zod';
 
 export type OperationalPriority = 'alta' | 'media' | 'baixa';
-export type OperationalNotificationCategory = 'recepcao' | 'oficina' | 'crm' | 'financeiro' | 'sistema';
+export type OperationalNotificationCategory =
+  | 'recepcao'
+  | 'oficina'
+  | 'crm'
+  | 'financeiro'
+  | 'sistema';
 
 export interface OperationalDashboardSettingsDto {
   appointmentLookaheadHours: number;

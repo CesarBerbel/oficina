@@ -41,7 +41,11 @@ export function AiAssistButton({
 
   return (
     <Button type="button" size="sm" variant="outline" onClick={run} disabled={assist.isPending}>
-      {assist.isPending ? <CarLoader className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+      {assist.isPending ? (
+        <CarLoader className="size-3.5 animate-spin" />
+      ) : (
+        <Sparkles className="size-3.5" />
+      )}
       {label}
     </Button>
   );

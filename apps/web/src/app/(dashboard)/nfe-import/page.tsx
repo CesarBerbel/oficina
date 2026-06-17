@@ -4,12 +4,7 @@ import { useRef, useState } from 'react';
 import { Upload, FileCheck2, PackagePlus, Save } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import {
-  PART_TYPES,
-  PART_TYPE_LABELS,
-  type NfeParseResult,
-  type PartType,
-} from '@oficina/shared';
+import { PART_TYPES, PART_TYPE_LABELS, type NfeParseResult, type PartType } from '@oficina/shared';
 import { parseNfe, useConfirmNfe } from '@/features/purchases/use-purchases';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,7 +133,11 @@ export default function NfeImportPage() {
             }}
           />
           <Button className="mt-4" onClick={() => fileRef.current?.click()} disabled={parsing}>
-            {parsing ? <CarLoader className="size-4 animate-spin" /> : <Upload className="size-4" />}
+            {parsing ? (
+              <CarLoader className="size-4 animate-spin" />
+            ) : (
+              <Upload className="size-4" />
+            )}
             Escolher arquivo
           </Button>
         </div>
@@ -149,15 +148,25 @@ export default function NfeImportPage() {
               <span className="font-medium">{result.fileName}</span>
               {result.supplierName && (
                 <span className="text-muted-foreground">
-                  {' '}· Fornecedor: {result.supplierName}
+                  {' '}
+                  · Fornecedor: {result.supplierName}
                   {result.supplierCnpj ? ` (${result.supplierCnpj})` : ''}
                   {result.matchedSupplierId && (
-                    <Badge variant="success" className="ml-2">cadastrado</Badge>
+                    <Badge variant="success" className="ml-2">
+                      cadastrado
+                    </Badge>
                   )}
                 </span>
               )}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => { setResult(null); setRows([]); }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setResult(null);
+                setRows([]);
+              }}
+            >
               Trocar arquivo
             </Button>
           </div>
@@ -182,25 +191,93 @@ export default function NfeImportPage() {
                 {rows.map((r, idx) => (
                   <tr key={idx} className="border-t">
                     <td className="p-2">
-                      <input type="checkbox" className="size-4" checked={r.include}
-                        onChange={(e) => setRow(idx, { include: e.target.checked })} />
+                      <input
+                        type="checkbox"
+                        className="size-4"
+                        checked={r.include}
+                        onChange={(e) => setRow(idx, { include: e.target.checked })}
+                      />
                     </td>
                     <td className="p-2 min-w-[180px]">
-                      <Input value={r.name} onChange={(e) => setRow(idx, { name: e.target.value })} className="h-8" />
-                      {r.matched && <Badge variant="warning" className="mt-1">atualiza existente</Badge>}
+                      <Input
+                        value={r.name}
+                        onChange={(e) => setRow(idx, { name: e.target.value })}
+                        className="h-8"
+                      />
+                      {r.matched && (
+                        <Badge variant="warning" className="mt-1">
+                          atualiza existente
+                        </Badge>
+                      )}
                     </td>
-                    <td className="p-2"><Input value={r.sku} onChange={(e) => setRow(idx, { sku: e.target.value })} className="h-8 w-28" /></td>
                     <td className="p-2">
-                      <Select value={r.type} onChange={(e) => setRow(idx, { type: e.target.value as PartType })} className="h-8 w-28">
-                        {PART_TYPES.map((t) => <option key={t} value={t}>{PART_TYPE_LABELS[t]}</option>)}
+                      <Input
+                        value={r.sku}
+                        onChange={(e) => setRow(idx, { sku: e.target.value })}
+                        className="h-8 w-28"
+                      />
+                    </td>
+                    <td className="p-2">
+                      <Select
+                        value={r.type}
+                        onChange={(e) => setRow(idx, { type: e.target.value as PartType })}
+                        className="h-8 w-28"
+                      >
+                        {PART_TYPES.map((t) => (
+                          <option key={t} value={t}>
+                            {PART_TYPE_LABELS[t]}
+                          </option>
+                        ))}
                       </Select>
                     </td>
-                    <td className="p-2"><Input value={r.unit} onChange={(e) => setRow(idx, { unit: e.target.value })} className="h-8 w-16" /></td>
-                    <td className="p-2"><Input type="number" step="any" value={r.quantity} onChange={(e) => setRow(idx, { quantity: e.target.value })} className="h-8 w-20 text-right" /></td>
-                    <td className="p-2"><Input type="number" step="0.01" value={r.costPrice} onChange={(e) => setRow(idx, { costPrice: e.target.value })} className="h-8 w-24 text-right" /></td>
-                    <td className="p-2"><Input type="number" step="0.01" value={r.salePrice} onChange={(e) => setRow(idx, { salePrice: e.target.value })} className="h-8 w-24 text-right" /></td>
-                    <td className="p-2"><Input type="number" step="any" value={r.minStock} onChange={(e) => setRow(idx, { minStock: e.target.value })} className="h-8 w-20 text-right" /></td>
-                    <td className="p-2 text-xs text-muted-foreground">{r.ncm ?? '—'}<br />{r.cfop ?? '—'}</td>
+                    <td className="p-2">
+                      <Input
+                        value={r.unit}
+                        onChange={(e) => setRow(idx, { unit: e.target.value })}
+                        className="h-8 w-16"
+                      />
+                    </td>
+                    <td className="p-2">
+                      <Input
+                        type="number"
+                        step="any"
+                        value={r.quantity}
+                        onChange={(e) => setRow(idx, { quantity: e.target.value })}
+                        className="h-8 w-20 text-right"
+                      />
+                    </td>
+                    <td className="p-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={r.costPrice}
+                        onChange={(e) => setRow(idx, { costPrice: e.target.value })}
+                        className="h-8 w-24 text-right"
+                      />
+                    </td>
+                    <td className="p-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={r.salePrice}
+                        onChange={(e) => setRow(idx, { salePrice: e.target.value })}
+                        className="h-8 w-24 text-right"
+                      />
+                    </td>
+                    <td className="p-2">
+                      <Input
+                        type="number"
+                        step="any"
+                        value={r.minStock}
+                        onChange={(e) => setRow(idx, { minStock: e.target.value })}
+                        className="h-8 w-20 text-right"
+                      />
+                    </td>
+                    <td className="p-2 text-xs text-muted-foreground">
+                      {r.ncm ?? '—'}
+                      <br />
+                      {r.cfop ?? '—'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -209,11 +286,19 @@ export default function NfeImportPage() {
 
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={() => doConfirm(false)} disabled={confirm.isPending}>
-              {confirm.isPending ? <CarLoader className="size-4 animate-spin" /> : <Save className="size-4" />}
+              {confirm.isPending ? (
+                <CarLoader className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
               Só cadastrar/atualizar
             </Button>
             <Button onClick={() => doConfirm(true)} disabled={confirm.isPending}>
-              {confirm.isPending ? <CarLoader className="size-4 animate-spin" /> : <PackagePlus className="size-4" />}
+              {confirm.isPending ? (
+                <CarLoader className="size-4 animate-spin" />
+              ) : (
+                <PackagePlus className="size-4" />
+              )}
               Cadastrar + dar entrada no estoque
             </Button>
           </div>

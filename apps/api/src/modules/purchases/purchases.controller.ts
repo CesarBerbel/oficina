@@ -85,9 +85,7 @@ export class PurchasesController {
 
   @Post(':id/receive-nfe')
   @RequirePermission(Permission.PURCHASES_WRITE)
-  @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }),
-  )
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
   receiveNfe(
     @CurrentUser() actor: AuthenticatedUser,
     @Param('id') id: string,

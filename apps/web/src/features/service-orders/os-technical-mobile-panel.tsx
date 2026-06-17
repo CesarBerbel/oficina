@@ -13,19 +13,9 @@ import { useCreateTechnicalUpdate } from './use-service-orders';
 
 type DraftChecklistItem = ServiceOrderTechnicalChecklistItem & { key: string };
 
-const DEFAULT_ITEMS = [
-  'Conferir vazamentos',
-  'Conferir aperto/fixações',
-  'Testar funcionamento',
-];
+const DEFAULT_ITEMS = ['Conferir vazamentos', 'Conferir aperto/fixações', 'Testar funcionamento'];
 
-export function OsTechnicalMobilePanel({
-  osId,
-  disabled,
-}: {
-  osId: string;
-  disabled: boolean;
-}) {
+export function OsTechnicalMobilePanel({ osId, disabled }: { osId: string; disabled: boolean }) {
   const createUpdate = useCreateTechnicalUpdate(osId);
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
@@ -46,9 +36,7 @@ export function OsTechnicalMobilePanel({
   }
 
   function updateItem(key: string, patch: Partial<DraftChecklistItem>) {
-    setItems((current) =>
-      current.map((item) => (item.key === key ? { ...item, ...patch } : item)),
-    );
+    setItems((current) => current.map((item) => (item.key === key ? { ...item, ...patch } : item)));
   }
 
   function removeItem(key: string) {

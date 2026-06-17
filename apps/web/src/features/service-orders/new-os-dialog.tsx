@@ -118,20 +118,16 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
       return;
     }
     setVehicleId((cur) =>
-      vehicleOptions.some((v) => v.id === cur)
-        ? cur
-        : (vehicleOptions[0]?.id ?? ''),
+      vehicleOptions.some((v) => v.id === cur) ? cur : (vehicleOptions[0]?.id ?? ''),
     );
   }, [customerId, vehicleOptions]);
 
-  const customerName =
-    customers?.data.find((c) => c.id === customerId)?.name ?? '';
+  const customerName = customers?.data.find((c) => c.id === customerId)?.name ?? '';
   const vehicleLabel = (() => {
     const v = vehicleOptions.find((veh) => veh.id === vehicleId);
     return v ? `${v.plate} — ${v.manufacturer} ${v.model}` : '';
   })();
-  const technicianName =
-    technicians?.find((t) => t.id === technicianId)?.name ?? '';
+  const technicianName = technicians?.find((t) => t.id === technicianId)?.name ?? '';
 
   function validateStep(target: number): boolean {
     const next: Record<string, string> = {};
@@ -223,12 +219,7 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
                   </span>
                 </div>
                 {i < STEPS.length - 1 && (
-                  <span
-                    className={cn(
-                      'h-px flex-1',
-                      i < step ? 'bg-emerald-600' : 'bg-border',
-                    )}
-                  />
+                  <span className={cn('h-px flex-1', i < step ? 'bg-emerald-600' : 'bg-border')} />
                 )}
               </li>
             );
@@ -283,9 +274,7 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
                   }
                   emptyText="Nenhum veículo para este cliente"
                 />
-                {errors.vehicleId && (
-                  <p className="text-xs text-destructive">{errors.vehicleId}</p>
-                )}
+                {errors.vehicleId && <p className="text-xs text-destructive">{errors.vehicleId}</p>}
               </div>
             </>
           )}
@@ -304,11 +293,7 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
               </div>
               <div className="space-y-1.5">
                 <Label>Data prevista de entrega</Label>
-                <Input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                />
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
                 {errors.dueDate && <p className="text-xs text-destructive">{errors.dueDate}</p>}
               </div>
               <div className="space-y-1.5 sm:col-span-2">
@@ -350,9 +335,7 @@ export function NewOsDialog({ open, onOpenChange }: Props) {
 
               {/* Revisão */}
               <div className="space-y-1 rounded-lg border bg-muted/40 p-3 text-sm">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Revisão
-                </p>
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Revisão</p>
                 <ReviewRow label="Cliente" value={customerName} />
                 <ReviewRow label="Veículo" value={vehicleLabel} />
                 {km && <ReviewRow label="KM" value={km} />}

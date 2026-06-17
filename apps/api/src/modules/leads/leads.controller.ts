@@ -53,7 +53,6 @@ export class LeadsController {
     return this.leads.createDirectReception(actor, body);
   }
 
-
   @Get('schedule-blocks')
   @RequirePermission(Permission.CUSTOMERS_READ)
   scheduleBlocks(

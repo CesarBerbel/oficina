@@ -18,12 +18,7 @@ import { useCheckin } from '@/features/checkins/use-checkins';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/back-button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const STATUS_BADGE: Record<ChecklistStatus, string> = {
   OK: 'bg-emerald-100 text-emerald-700',
@@ -48,11 +43,7 @@ function formatDate(iso: string): string {
   });
 }
 
-export default function CheckinDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function CheckinDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: c, isLoading, isError } = useCheckin(id);
 
@@ -82,9 +73,7 @@ export default function CheckinDetailPage({
             <Badge variant="outline" className="font-mono">
               {c.vehiclePlate}
             </Badge>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {c.vehicleLabel}
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">{c.vehicleLabel}</h1>
           </div>
           <p className="text-muted-foreground">
             {c.customerName} · {formatDate(c.createdAt)}
@@ -103,7 +92,11 @@ export default function CheckinDetailPage({
         </Button>
         {c.serviceOrderNumber && (
           <Button variant="outline" asChild>
-            <Link href={`/os/${c.serviceOrderId}?returnTo=${encodeURIComponent(`/check-in/${c.id}`)}`}>OS #{c.serviceOrderNumber}</Link>
+            <Link
+              href={`/os/${c.serviceOrderId}?returnTo=${encodeURIComponent(`/check-in/${c.id}`)}`}
+            >
+              OS #{c.serviceOrderNumber}
+            </Link>
           </Button>
         )}
       </div>
@@ -138,9 +131,7 @@ export default function CheckinDetailPage({
               >
                 <span>
                   {it.item}
-                  {it.note && (
-                    <span className="text-muted-foreground"> — {it.note}</span>
-                  )}
+                  {it.note && <span className="text-muted-foreground"> — {it.note}</span>}
                 </span>
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[it.status as ChecklistStatus]}`}
@@ -161,8 +152,28 @@ export default function CheckinDetailPage({
           <CardContent className="space-y-3">
             <div className="relative mx-auto aspect-[5/2] w-full max-w-md rounded-xl border bg-muted/40">
               <svg viewBox="0 0 500 200" className="h-full w-full">
-                <rect x="60" y="35" width="380" height="130" rx="55" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground/50" />
-                <rect x="150" y="60" width="200" height="80" rx="20" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground/40" />
+                <rect
+                  x="60"
+                  y="35"
+                  width="380"
+                  height="130"
+                  rx="55"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="text-muted-foreground/50"
+                />
+                <rect
+                  x="150"
+                  y="60"
+                  width="200"
+                  height="80"
+                  rx="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="text-muted-foreground/40"
+                />
               </svg>
               {c.damages.map((p, i) => (
                 <span
@@ -206,13 +217,7 @@ export default function CheckinDetailPage({
           <CardContent>
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
               {c.photos.map((url) => (
-                <a
-                  key={url}
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="aspect-square"
-                >
+                <a key={url} href={url} target="_blank" rel="noreferrer" className="aspect-square">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={url}
@@ -232,9 +237,7 @@ export default function CheckinDetailPage({
             <CardTitle>Observações e assinatura</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {c.notes && (
-              <p className="whitespace-pre-wrap text-sm">{c.notes}</p>
-            )}
+            {c.notes && <p className="whitespace-pre-wrap text-sm">{c.notes}</p>}
             {c.signatureUrl && (
               <div>
                 <p className="mb-1 text-xs text-muted-foreground">
@@ -255,13 +258,7 @@ export default function CheckinDetailPage({
   );
 }
 
-function Info({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Info({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>

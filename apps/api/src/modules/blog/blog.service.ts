@@ -42,10 +42,7 @@ export class BlogService {
     };
   }
 
-  async list(
-    tenantId: string,
-    query: ListBlogPostsQuery,
-  ): Promise<Paginated<BlogPostDto>> {
+  async list(tenantId: string, query: ListBlogPostsQuery): Promise<Paginated<BlogPostDto>> {
     const { page, pageSize, search, status } = query;
     const where: Prisma.BlogPostWhereInput = {
       tenantId,
@@ -87,10 +84,7 @@ export class BlogService {
     }
   }
 
-  async create(
-    actor: AuthenticatedUser,
-    input: CreateBlogPostInput,
-  ): Promise<BlogPostDto> {
+  async create(actor: AuthenticatedUser, input: CreateBlogPostInput): Promise<BlogPostDto> {
     const slug = await this.uniqueSlug(
       actor.tenantId,
       input.slug ? slugify(input.slug) : slugify(input.title),
@@ -126,8 +120,7 @@ export class BlogService {
     let slug = current.slug;
     if (input.slug) slug = await this.uniqueSlug(actor.tenantId, slugify(input.slug), id);
 
-    const becomingPublished =
-      input.status === 'PUBLICADO' && current.status !== 'PUBLICADO';
+    const becomingPublished = input.status === 'PUBLICADO' && current.status !== 'PUBLICADO';
 
     const updated = await this.prisma.blogPost.update({
       where: { id },

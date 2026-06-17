@@ -1,6 +1,13 @@
 'use client';
 
-import { BellRing, CalendarClock, CheckCircle2, MessageCircle, UserCheck, type LucideIcon } from 'lucide-react';
+import {
+  BellRing,
+  CalendarClock,
+  CheckCircle2,
+  MessageCircle,
+  UserCheck,
+  type LucideIcon,
+} from 'lucide-react';
 import { type LeadDto, type LeadStatus } from '@oficina/shared';
 import { Badge } from '@/components/ui/badge';
 import { leadPriority } from '../reception-utils';
@@ -19,11 +26,29 @@ const JOURNEY_COLUMNS: Array<{
     helper: 'Atendimento em andamento',
     icon: MessageCircle,
   },
-  { title: 'Agenda', statuses: ['AGENDADO', 'CONFIRMADO'], helper: 'Horário marcado', icon: CalendarClock },
-  { title: 'Chegou', statuses: ['CLIENTE_CHEGOU'], helper: 'Pronto para virar OS', icon: UserCheck },
+  {
+    title: 'Agenda',
+    statuses: ['AGENDADO', 'CONFIRMADO'],
+    helper: 'Horário marcado',
+    icon: CalendarClock,
+  },
+  {
+    title: 'Chegou',
+    statuses: ['CLIENTE_CHEGOU'],
+    helper: 'Pronto para virar OS',
+    icon: UserCheck,
+  },
   {
     title: 'Encerrados',
-    statuses: ['CONVERTIDO', 'NAO_COMPARECEU', 'CANCELADO', 'PERDIDO', 'DUPLICADO', 'INVALIDO', 'DESCARTADO'],
+    statuses: [
+      'CONVERTIDO',
+      'NAO_COMPARECEU',
+      'CANCELADO',
+      'PERDIDO',
+      'DUPLICADO',
+      'INVALIDO',
+      'DESCARTADO',
+    ],
     helper: 'Sem ação imediata',
     icon: CheckCircle2,
   },
@@ -61,7 +86,9 @@ export function ReceptionKanban({
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{column.title}</p>
-                    <p className="text-[11px] leading-tight text-muted-foreground">{column.helper}</p>
+                    <p className="text-[11px] leading-tight text-muted-foreground">
+                      {column.helper}
+                    </p>
                   </div>
                 </div>
                 <Badge variant="secondary">{columnLeads.length}</Badge>

@@ -46,9 +46,7 @@ export const diagnoseServiceOrderSchema = z.object({
   notes: optionalString(4000),
 });
 
-export type DiagnoseServiceOrderInput = z.infer<
-  typeof diagnoseServiceOrderSchema
->;
+export type DiagnoseServiceOrderInput = z.infer<typeof diagnoseServiceOrderSchema>;
 
 export const changeStatusSchema = z.object({
   status: z.nativeEnum(ServiceOrderStatus),
@@ -94,7 +92,6 @@ export type CreateServiceOrderTechnicalUpdateInput = z.infer<
   typeof createServiceOrderTechnicalUpdateSchema
 >;
 
-
 export const addItemSchema = z.object({
   kind: z.nativeEnum(ServiceOrderItemKind),
   description: z.string().trim().min(1, 'Informe a descrição').max(200),
@@ -120,9 +117,7 @@ export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 export const addServiceFromCatalogSchema = z.object({
   serviceId: z.string().min(1),
 });
-export type AddServiceFromCatalogInput = z.infer<
-  typeof addServiceFromCatalogSchema
->;
+export type AddServiceFromCatalogInput = z.infer<typeof addServiceFromCatalogSchema>;
 
 /** Adicionar uma peça do catálogo (baixa estoque). */
 export const addPartFromCatalogSchema = z.object({
@@ -143,9 +138,7 @@ export const listServiceOrdersQuerySchema = paginationQuerySchema.extend({
   customerId: z.string().optional(),
 });
 
-export type ListServiceOrdersQuery = z.infer<
-  typeof listServiceOrdersQuerySchema
->;
+export type ListServiceOrdersQuery = z.infer<typeof listServiceOrdersQuerySchema>;
 
 // ─── DTOs ───
 export interface ServiceOrderItemDto {
@@ -169,7 +162,6 @@ export interface ServiceOrderStatusHistoryDto {
   userName: string | null;
   createdAt: string;
 }
-
 
 export interface ServiceOrderEventDto {
   id: string;

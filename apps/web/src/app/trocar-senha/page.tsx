@@ -26,9 +26,7 @@ export default function ChangePasswordPage() {
   const [mandatoryParam, setMandatoryParam] = useState(false);
 
   useEffect(() => {
-    setMandatoryParam(
-      new URLSearchParams(window.location.search).get('obrigatoria') === '1',
-    );
+    setMandatoryParam(new URLSearchParams(window.location.search).get('obrigatoria') === '1');
   }, []);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -72,10 +70,7 @@ export default function ChangePasswordPage() {
 
   return (
     <main className="grid min-h-dvh place-items-center bg-muted/40 p-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-xl border bg-card p-8 shadow-sm"
-      >
+      <form onSubmit={onSubmit} className="w-full max-w-sm rounded-xl border bg-card p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <KeyRound className="size-6" />
@@ -124,9 +119,7 @@ export default function ChangePasswordPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            {errors.password && (
-              <p className="text-xs text-destructive">{errors.password}</p>
-            )}
+            {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
           </div>
 
           <div className="space-y-1.5">

@@ -9,11 +9,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { AppTopbar } from '@/components/app-topbar';
 import { cn } from '@/lib/utils';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { status, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -45,15 +41,8 @@ export default function DashboardLayout({
       {/* Drawer mobile */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setMobileOpen(false)}
-          />
-          <aside
-            className={cn(
-              'absolute left-0 top-0 h-full w-72 border-r bg-card shadow-xl',
-            )}
-          >
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
+          <aside className={cn('absolute left-0 top-0 h-full w-72 border-r bg-card shadow-xl')}>
             <AppSidebar onNavigate={() => setMobileOpen(false)} />
           </aside>
         </div>
