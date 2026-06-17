@@ -7,7 +7,6 @@ import {
 import { randomBytes } from 'node:crypto';
 import { Prisma, QuoteItemDecision, type PrismaClient, type MessageEvent } from '@prisma/client';
 import {
-  isOrderEditable,
   isTerminalStatus,
   type AddItemInput,
   type ChangeStatusInput,
@@ -32,17 +31,19 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OutboxService } from '../outbox/outbox.service';
 import { PurchasesService } from '../purchases/purchases.service';
-import { toQuoteDto } from '../quotes/quote.mapper';
 import {
   summaryInclude,
   boardInclude,
   eventInclude,
   detailInclude,
-  type SummaryRow,
-  type BoardRow,
-  type EventRow,
-  type DetailRow,
 } from './service-orders.includes';
+import {
+  availableTransitionsFor,
+  toBoardItemDto,
+  toDetailDto,
+  toEventDto,
+  toSummaryDto,
+} from './service-orders.mapper';
 import { ServiceOrderStateMachine } from './domain/service-order.state-machine';
 import { ServiceOrderDomainError } from './domain/service-order.errors';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -73,60 +74,7 @@ export class ServiceOrdersService {
     private readonly outbox: OutboxService,
   ) {}
 
-  // ─── Mapping ───
-  private isOverdue(row: { dueDate: Date | null; status: ServiceOrderStatus }): boolean {
-    if (!row.dueDate) return false;
-    if (['ENTREGUE', 'CANCELADA', 'PRONTO_RETIRAR'].includes(row.status)) return false;
-    return row.dueDate.getTime() < Date.now();
-  }
-
-  private toSummary(row: SummaryRow): ServiceOrderSummaryDto {
-    const year = row.vehicle.modelYear ? ` ${row.vehicle.modelYear}` : '';
-    return {
-      id: row.id,
-      number: row.number,
-      status: row.status,
-      customerId: row.customerId,
-      customerName: row.customer.name,
-      vehicleId: row.vehicleId,
-      vehiclePlate: row.vehicle.plate,
-      vehicleLabel: `${row.vehicle.manufacturer} ${row.vehicle.model}${year}`,
-      technicianId: row.technicianId,
-      technicianName: row.technician?.name ?? null,
-      total: dec(row.total),
-      openedAt: row.openedAt.toISOString(),
-      dueDate: row.dueDate ? row.dueDate.toISOString() : null,
-      isOverdue: this.isOverdue(row),
-    };
-  }
-
-  private toBoardItem(row: BoardRow): ServiceOrderBoardItemDto {
-    return {
-      ...this.toSummary(row),
-      availableTransitions: this.availableTransitionsFor({
-        status: row.status,
-        diagnosis: row.diagnosis,
-        itemCount: row.items.length,
-        quoteStatus: row.quote?.status ?? null,
-      }),
-    };
-  }
-
-  private toEvent(row: EventRow): ServiceOrderEventDto {
-    return {
-      id: row.id,
-      type: row.type,
-      title: row.title,
-      description: row.description,
-      visibility: row.visibility,
-      fromStatus: row.fromStatus,
-      toStatus: row.toStatus,
-      checklist: (row.checklist as unknown as ServiceOrderTechnicalChecklistItem[] | null) ?? [],
-      photos: row.photos,
-      createdByName: row.createdBy?.name ?? null,
-      createdAt: row.createdAt.toISOString(),
-    };
-  }
+  // ─── Mapping → ./service-orders.mapper.ts ───
 
   private statusEventTitle(status: ServiceOrderStatus): string {
     const titles: Partial<Record<ServiceOrderStatus, string>> = {
@@ -184,66 +132,6 @@ export class ServiceOrdersService {
     });
   }
 
-  private toDetail(row: DetailRow): ServiceOrderDetailDto {
-    return {
-      ...this.toSummary(row),
-      km: row.km,
-      reportedProblem: row.reportedProblem,
-      diagnosis: row.diagnosis,
-      notes: row.notes,
-      customerPhone: row.customer.phone,
-      customerWhatsapp: row.customer.whatsapp,
-      vehicleManufacturer: row.vehicle.manufacturer,
-      vehicleModel: row.vehicle.model,
-      vehicleModelYear: row.vehicle.modelYear,
-      totalServices: dec(row.totalServices),
-      totalParts: dec(row.totalParts),
-      discount: dec(row.discount),
-      editable: isOrderEditable(row.status),
-      terminal: isTerminalStatus(row.status),
-      availableTransitions: this.availableTransitionsFor({
-        status: row.status,
-        diagnosis: row.diagnosis,
-        itemCount: row.items.length,
-        quoteStatus: row.quote?.status ?? null,
-      }),
-      items: (() => {
-        const byId = new Map(row.items.map((it) => [it.id, it.description]));
-        return row.items.map((it) => ({
-          id: it.id,
-          kind: it.kind,
-          description: it.description,
-          quantity: dec(it.quantity),
-          unitPrice: dec(it.unitPrice),
-          total: dec(it.total),
-          comboLabel: it.comboLabel,
-          parentItemId: it.parentItemId,
-          linkedServiceName: it.parentItemId ? (byId.get(it.parentItemId) ?? null) : null,
-        }));
-      })(),
-      history: row.history.map((h) => ({
-        id: h.id,
-        status: h.status,
-        note: h.note,
-        userName: h.user?.name ?? null,
-        createdAt: h.createdAt.toISOString(),
-      })),
-      events: row.events.map((event) => this.toEvent(event)),
-      publicToken: row.publicToken,
-      quote: row.quote ? toQuoteDto(row.quote, row.publicToken) : null,
-      checkinId: row.checkins[0]?.id ?? null,
-    };
-  }
-
-  private availableTransitionsFor(context: {
-    status: ServiceOrderStatus;
-    diagnosis: string | null;
-    itemCount: number;
-    quoteStatus: 'RASCUNHO' | 'ENVIADO' | 'APROVADO' | 'APROVADO_PARCIAL' | 'RECUSADO' | null;
-  }): ServiceOrderTransitionDto[] {
-    return ServiceOrderStateMachine.availableTransitions(context);
-  }
-
   // ─── Queries ───
   async list(
     tenantId: string,
@@ -278,7 +166,7 @@ export class ServiceOrdersService {
     ]);
 
     return {
-      data: rows.map((r) => this.toSummary(r)),
+      data: rows.map((r) => toSummaryDto(r)),
       meta: {
         page,
         pageSize,
@@ -305,7 +193,7 @@ export class ServiceOrdersService {
     });
     const grouped: Record<string, ServiceOrderBoardItemDto[]> = {};
     for (const row of rows) {
-      (grouped[row.status] ??= []).push(this.toBoardItem(row));
+      (grouped[row.status] ??= []).push(toBoardItemDto(row));
     }
     return grouped;
   }
@@ -331,7 +219,7 @@ export class ServiceOrdersService {
     });
     if (!row) throw new NotFoundException('OS não encontrada');
 
-    return this.availableTransitionsFor({
+    return availableTransitionsFor({
       status: row.status,
       diagnosis: row.diagnosis,
       itemCount: row.items.length,
@@ -345,7 +233,7 @@ export class ServiceOrdersService {
       include: detailInclude,
     });
     if (!row) throw new NotFoundException('OS não encontrada');
-    return this.toDetail(row);
+    return toDetailDto(row);
   }
 
   // ─── Commands ───
@@ -463,7 +351,7 @@ export class ServiceOrdersService {
       after: { number: created.number, status: created.status },
     });
 
-    return this.toDetail(created);
+    return toDetailDto(created);
   }
 
   private async loadEditable(tenantId: string, id: string) {
@@ -761,7 +649,7 @@ export class ServiceOrdersService {
       orderBy: { createdAt: 'desc' },
       include: eventInclude,
     });
-    return events.map((event) => this.toEvent(event));
+    return events.map((event) => toEventDto(event));
   }
 
   async technicalUpdate(
