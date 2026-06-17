@@ -5,6 +5,11 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
+
+# Permissões mínimas (somente leitura do repositório).
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -69,6 +74,7 @@ jobs:
   # ── Testes unitários da API ──
   unit:
     name: Testes unitários (API)
+    needs: static
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -84,6 +90,7 @@ jobs:
   # ── Testes E2E da API (Postgres real) ──
   api-e2e:
     name: E2E da API (Postgres)
+    needs: static
     runs-on: ubuntu-latest
     timeout-minutes: 25
     services:
@@ -113,6 +120,7 @@ jobs:
   # ── E2E de frontend REAL: sobe API + Web e roda o Playwright contra eles ──
   web-e2e:
     name: E2E de frontend (Playwright)
+    needs: static
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -185,6 +193,7 @@ jobs:
   # ── Build das imagens Docker (valida os Dockerfiles de produção) ──
   docker-build:
     name: Build de imagens Docker
+    needs: static
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
