@@ -1109,7 +1109,7 @@ export class ServiceOrdersService {
   ): Promise<ServiceOrderDetailDto> {
     await this.loadEditable(actor.tenantId, orderId);
     const service = await this.prisma.service.findFirst({
-      where: { id: serviceId, tenantId: actor.tenantId },
+      where: { id: serviceId, tenantId: actor.groupId },
       include: {
         defaultParts: {
           include: {
@@ -1170,7 +1170,7 @@ export class ServiceOrdersService {
   ): Promise<ServiceOrderDetailDto> {
     await this.loadEditable(actor.tenantId, orderId);
     const part = await this.prisma.part.findFirst({
-      where: { id: partId, tenantId: actor.tenantId },
+      where: { id: partId, tenantId: actor.groupId },
       select: { id: true, name: true, salePrice: true, costPrice: true },
     });
     if (!part) throw new BadRequestException('Peça inválida');
@@ -1204,7 +1204,7 @@ export class ServiceOrdersService {
   ): Promise<ServiceOrderDetailDto> {
     await this.loadEditable(actor.tenantId, orderId);
     const combo = await this.prisma.combo.findFirst({
-      where: { id: comboId, tenantId: actor.tenantId },
+      where: { id: comboId, tenantId: actor.groupId },
       include: {
         services: {
           orderBy: { position: 'asc' },

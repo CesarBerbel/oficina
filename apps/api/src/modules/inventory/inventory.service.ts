@@ -22,15 +22,24 @@ const dec = (v: Prisma.Decimal | number | null | undefined): number =>
   v == null ? 0 : Number(v);
 const round3 = (n: number): number => Math.round(n * 1000) / 1000;
 
-const partInclude = {
-  supplierRef: { select: { name: true } },
-} satisfies Prisma.PartInclude;
+// Catálogo é do grupo; o saldo (PartStock) é da filial. O include traz só o
+// estoque da oficina do usuário.
+function partInclude(branchId: string) {
+  return {
+    supplierRef: { select: { name: true } },
+    stocks: {
+      where: { tenantId: branchId },
+      select: { currentStock: true, reservedStock: true },
+    },
+  } satisfies Prisma.PartInclude;
+}
 
-type PartRow = Prisma.PartGetPayload<{ include: typeof partInclude }>;
+type PartRow = Prisma.PartGetPayload<{ include: ReturnType<typeof partInclude> }>;
 
 function toDto(p: PartRow): PartDto {
-  const currentStock = dec(p.currentStock);
-  const reservedStock = dec(p.reservedStock);
+  const stock = p.stocks[0];
+  const currentStock = dec(stock?.currentStock);
+  const reservedStock = dec(stock?.reservedStock);
   const minStock = dec(p.minStock);
   return {
     id: p.id,
@@ -65,16 +74,30 @@ export class InventoryService {
   ) {}
 
   async list(
-    tenantId: string,
+    actor: AuthenticatedUser,
     query: ListPartsQuery,
   ): Promise<Paginated<PartDto>> {
+    const { groupId, tenantId } = actor;
     const { page, pageSize, search, type, lowStock, sortBy, sortOrder } = query;
+
+    // Baixo estoque cruza saldo da filial com o mínimo da peça (tabelas distintas):
+    // resolvido por consulta direta que considera peças sem saldo na filial (= 0).
+    let lowStockIds: string[] | undefined;
+    if (lowStock) {
+      const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+        SELECT p."id"
+        FROM "parts" p
+        LEFT JOIN "part_stock" ps ON ps."partId" = p."id" AND ps."tenantId" = ${tenantId}
+        WHERE p."tenantId" = ${groupId}
+          AND COALESCE(ps."currentStock", 0) <= p."minStock"
+      `;
+      lowStockIds = rows.map((r) => r.id);
+    }
+
     const where: Prisma.PartWhereInput = {
-      tenantId,
+      tenantId: groupId,
       ...(type ? { type } : {}),
-      ...(lowStock
-        ? { currentStock: { lte: this.prisma.part.fields.minStock } }
-        : {}),
+      ...(lowStockIds ? { id: { in: lowStockIds } } : {}),
       ...(search
         ? {
             OR: [
@@ -88,16 +111,16 @@ export class InventoryService {
         : {}),
     };
 
+    // currentStock agora é por filial (relação) — ordenação fica por nome.
     const orderBy: Prisma.PartOrderByWithRelationInput = {
-      [sortBy && ['name', 'currentStock'].includes(sortBy) ? sortBy : 'name']:
-        sortBy ? sortOrder : 'asc',
+      name: sortBy ? sortOrder : 'asc',
     };
 
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.part.count({ where }),
       this.prisma.part.findMany({
         where,
-        include: partInclude,
+        include: partInclude(tenantId),
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -115,23 +138,23 @@ export class InventoryService {
     };
   }
 
-  async findOne(tenantId: string, id: string): Promise<PartDto> {
+  async findOne(actor: AuthenticatedUser, id: string): Promise<PartDto> {
     const part = await this.prisma.part.findFirst({
-      where: { id, tenantId },
-      include: partInclude,
+      where: { id, tenantId: actor.groupId },
+      include: partInclude(actor.tenantId),
     });
     if (!part) throw new NotFoundException('Peça não encontrada');
     return toDto(part);
   }
 
-  /** Garante que o fornecedor informado existe no tenant. */
+  /** Garante que o fornecedor informado existe no grupo. */
   private async assertSupplier(
-    tenantId: string,
+    groupId: string,
     supplierId: string | undefined,
   ): Promise<void> {
     if (!supplierId) return;
     const s = await this.prisma.supplier.findFirst({
-      where: { id: supplierId, tenantId },
+      where: { id: supplierId, tenantId: groupId },
       select: { id: true },
     });
     if (!s) throw new NotFoundException('Fornecedor inválido');
@@ -143,22 +166,22 @@ export class InventoryService {
   ): Promise<PartDto> {
     if (input.sku) {
       const clash = await this.prisma.part.findFirst({
-        where: { tenantId: actor.tenantId, sku: input.sku },
+        where: { tenantId: actor.groupId, sku: input.sku },
       });
       if (clash) throw new ConflictException('Já existe uma peça com este código');
     }
-    await this.assertSupplier(actor.tenantId, input.supplierId);
+    await this.assertSupplier(actor.groupId, input.supplierId);
 
     const { initialStock, ...data } = input;
 
     const part = await this.prisma.$transaction(async (tx) => {
       const created = await tx.part.create({
         data: {
-          tenantId: actor.tenantId,
+          tenantId: actor.groupId,
           ...data,
-          currentStock: 0,
         },
       });
+      // Estoque inicial entra na oficina do usuário (filial).
       if (initialStock && initialStock > 0) {
         await applyStockMovement(tx, {
           tenantId: actor.tenantId,
@@ -172,7 +195,7 @@ export class InventoryService {
       }
       return tx.part.findUniqueOrThrow({
         where: { id: created.id },
-        include: partInclude,
+        include: partInclude(actor.tenantId),
       });
     });
 
@@ -195,22 +218,21 @@ export class InventoryService {
     input: UpdatePartInput,
   ): Promise<PartDto> {
     const current = await this.prisma.part.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
     });
     if (!current) throw new NotFoundException('Peça não encontrada');
 
     if (input.sku && input.sku !== current.sku) {
       const clash = await this.prisma.part.findFirst({
-        where: { tenantId: actor.tenantId, sku: input.sku, NOT: { id } },
+        where: { tenantId: actor.groupId, sku: input.sku, NOT: { id } },
       });
       if (clash) throw new ConflictException('Código já usado por outra peça');
     }
-    await this.assertSupplier(actor.tenantId, input.supplierId);
+    await this.assertSupplier(actor.groupId, input.supplierId);
 
-    const updated = await this.prisma.part.update({
+    await this.prisma.part.update({
       where: { id },
       data: input,
-      include: partInclude,
     });
 
     await this.audit.record({
@@ -222,21 +244,22 @@ export class InventoryService {
       entityId: id,
     });
 
-    return toDto(updated);
+    return this.findOne(actor, id);
   }
 
   async movements(
-    tenantId: string,
+    actor: AuthenticatedUser,
     partId: string,
   ): Promise<StockMovementDto[]> {
     const part = await this.prisma.part.findFirst({
-      where: { id: partId, tenantId },
+      where: { id: partId, tenantId: actor.groupId },
       select: { id: true },
     });
     if (!part) throw new NotFoundException('Peça não encontrada');
 
+    // Movimentos são da oficina (filial) do usuário.
     const rows = await this.prisma.stockMovement.findMany({
-      where: { partId },
+      where: { partId, tenantId: actor.tenantId },
       orderBy: { createdAt: 'desc' },
       take: 100,
       include: { user: { select: { name: true } } },
@@ -260,7 +283,7 @@ export class InventoryService {
     input: StockMovementInput,
   ): Promise<PartDto> {
     const part = await this.prisma.part.findFirst({
-      where: { id: partId, tenantId: actor.tenantId },
+      where: { id: partId, tenantId: actor.groupId },
       select: { id: true },
     });
     if (!part) throw new NotFoundException('Peça não encontrada');
@@ -288,6 +311,6 @@ export class InventoryService {
       after: { type: input.type, quantity: input.quantity },
     });
 
-    return this.findOne(actor.tenantId, partId);
+    return this.findOne(actor, partId);
   }
 }

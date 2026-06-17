@@ -50,12 +50,13 @@ export class CombosService {
     private readonly audit: AuditService,
   ) {}
 
+  // Combos (catálogo) são compartilhados no grupo: escopo por groupId.
   private async assertServices(
-    tenantId: string,
+    groupId: string,
     serviceIds: string[],
   ): Promise<void> {
     const count = await this.prisma.service.count({
-      where: { tenantId, id: { in: serviceIds } },
+      where: { tenantId: groupId, id: { in: serviceIds } },
     });
     if (count !== new Set(serviceIds).size) {
       throw new BadRequestException('Um ou mais serviços do combo são inválidos');
@@ -63,12 +64,12 @@ export class CombosService {
   }
 
   async list(
-    tenantId: string,
+    groupId: string,
     query: ListCombosQuery,
   ): Promise<Paginated<ComboDto>> {
     const { page, pageSize, search } = query;
     const where: Prisma.ComboWhereInput = {
-      tenantId,
+      tenantId: groupId,
       ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
     };
 
@@ -94,9 +95,9 @@ export class CombosService {
     };
   }
 
-  async findOne(tenantId: string, id: string): Promise<ComboDto> {
+  async findOne(groupId: string, id: string): Promise<ComboDto> {
     const combo = await this.prisma.combo.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId: groupId },
       include,
     });
     if (!combo) throw new NotFoundException('Combo não encontrado');
@@ -107,11 +108,11 @@ export class CombosService {
     actor: AuthenticatedUser,
     input: CreateComboInput,
   ): Promise<ComboDto> {
-    await this.assertServices(actor.tenantId, input.serviceIds);
+    await this.assertServices(actor.groupId, input.serviceIds);
 
     const created = await this.prisma.combo.create({
       data: {
-        tenantId: actor.tenantId,
+        tenantId: actor.groupId,
         name: input.name,
         description: input.description ?? null,
         active: input.active,
@@ -144,13 +145,13 @@ export class CombosService {
     input: UpdateComboInput,
   ): Promise<ComboDto> {
     const current = await this.prisma.combo.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
       select: { id: true },
     });
     if (!current) throw new NotFoundException('Combo não encontrado');
 
     if (input.serviceIds) {
-      await this.assertServices(actor.tenantId, input.serviceIds);
+      await this.assertServices(actor.groupId, input.serviceIds);
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -185,12 +186,12 @@ export class CombosService {
       entityId: id,
     });
 
-    return this.findOne(actor.tenantId, id);
+    return this.findOne(actor.groupId, id);
   }
 
   async remove(actor: AuthenticatedUser, id: string): Promise<void> {
     const current = await this.prisma.combo.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
       select: { id: true },
     });
     if (!current) throw new NotFoundException('Combo não encontrado');

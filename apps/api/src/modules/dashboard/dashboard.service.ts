@@ -217,6 +217,19 @@ export class DashboardService {
   }
 
 
+  /** Peças abaixo do mínimo NA oficina: saldo por filial, mínimo do grupo. */
+  private async lowStockCount(tenantId: string): Promise<number> {
+    const rows = await this.prisma.$queryRaw<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count
+      FROM "parts" p
+      LEFT JOIN "part_stock" ps ON ps."partId" = p."id" AND ps."tenantId" = ${tenantId}
+      WHERE p."tenantId" = (SELECT COALESCE(t."parentId", t."id") FROM "tenants" t WHERE t."id" = ${tenantId})
+        AND p."active" = true
+        AND COALESCE(ps."currentStock", 0) <= p."minStock"
+    `;
+    return rows[0]?.count ?? 0;
+  }
+
   async metrics(tenantId: string): Promise<DashboardMetrics> {
     const now = new Date();
     const [byStatus, overdue, lowStock, pendingPurchases, openQuotes, leads, failedMessages] =
@@ -233,13 +246,7 @@ export class DashboardService {
             status: { notIn: ['ENTREGUE', 'CANCELADA', 'PRONTO_RETIRAR'] },
           },
         }),
-        this.prisma.part.count({
-          where: {
-            tenantId,
-            active: true,
-            currentStock: { lte: this.prisma.part.fields.minStock },
-          },
-        }),
+        this.lowStockCount(tenantId),
         this.prisma.purchaseOrder.count({
           where: {
             tenantId,
@@ -486,13 +493,7 @@ export class DashboardService {
     }
 
     // Estoque baixo
-    const lowStock = await this.prisma.part.count({
-      where: {
-        tenantId,
-        active: true,
-        currentStock: { lte: this.prisma.part.fields.minStock },
-      },
-    });
+    const lowStock = await this.lowStockCount(tenantId);
     if (lowStock > 0) {
       actions.push({
         key: 'estoque-baixo',

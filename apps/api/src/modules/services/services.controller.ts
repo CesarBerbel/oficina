@@ -35,13 +35,13 @@ export class ServicesController {
     @Query(new ZodValidationPipe(listServicesQuerySchema))
     query: ListServicesQuery,
   ) {
-    return this.services.list(actor.tenantId, query);
+    return this.services.list(actor.groupId, query);
   }
 
   @Get(':id')
   @RequirePermission(Permission.SERVICES_READ)
   findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
-    return this.services.findOne(actor.tenantId, id);
+    return this.services.findOne(actor.groupId, id);
   }
 
   @Post()

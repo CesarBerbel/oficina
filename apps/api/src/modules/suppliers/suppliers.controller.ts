@@ -25,7 +25,7 @@ export class SuppliersController {
     @Query(new ZodValidationPipe(listSuppliersQuerySchema))
     query: ListSuppliersQuery,
   ) {
-    return this.suppliers.list(actor.tenantId, query);
+    return this.suppliers.list(actor.groupId, query);
   }
 
   @Post()

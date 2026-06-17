@@ -34,13 +34,13 @@ export class CombosController {
     @CurrentUser() actor: AuthenticatedUser,
     @Query(new ZodValidationPipe(listCombosQuerySchema)) query: ListCombosQuery,
   ) {
-    return this.combos.list(actor.tenantId, query);
+    return this.combos.list(actor.groupId, query);
   }
 
   @Get(':id')
   @RequirePermission(Permission.SERVICES_READ)
   findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
-    return this.combos.findOne(actor.tenantId, id);
+    return this.combos.findOne(actor.groupId, id);
   }
 
   @Post()

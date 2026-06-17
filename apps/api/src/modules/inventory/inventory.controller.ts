@@ -34,19 +34,19 @@ export class InventoryController {
     @CurrentUser() actor: AuthenticatedUser,
     @Query(new ZodValidationPipe(listPartsQuerySchema)) query: ListPartsQuery,
   ) {
-    return this.inventory.list(actor.tenantId, query);
+    return this.inventory.list(actor, query);
   }
 
   @Get(':id')
   @RequirePermission(Permission.INVENTORY_READ)
   findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
-    return this.inventory.findOne(actor.tenantId, id);
+    return this.inventory.findOne(actor, id);
   }
 
   @Get(':id/movements')
   @RequirePermission(Permission.INVENTORY_READ)
   movements(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
-    return this.inventory.movements(actor.tenantId, id);
+    return this.inventory.movements(actor, id);
   }
 
   @Post()

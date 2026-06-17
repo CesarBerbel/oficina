@@ -223,8 +223,14 @@ export class SiteService {
       where: { tenantId, published: true, tenant: { active: true } },
     });
     if (!settings) return null;
+    // Catálogo de serviços é do grupo (matriz). Resolve o grupo da oficina do site.
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: settings.tenantId },
+      select: { parentId: true },
+    });
+    const groupId = tenant?.parentId ?? settings.tenantId;
     const services = await this.prisma.service.findMany({
-      where: { tenantId: settings.tenantId, active: true, showOnSite: true },
+      where: { tenantId: groupId, active: true, showOnSite: true },
       orderBy: { name: 'asc' },
       take: 60,
       select: { id: true, name: true, description: true, category: true, salePrice: true },

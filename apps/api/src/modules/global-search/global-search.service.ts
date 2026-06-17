@@ -116,8 +116,9 @@ export class GlobalSearchService {
         take: limit,
       }),
       this.prisma.part.findMany({
+        include: { stocks: { where: { tenantId }, select: { currentStock: true } } },
         where: {
-          tenantId,
+          tenantId: groupId,
           OR: [
             { name: { contains: q, mode: 'insensitive' } },
             { sku: { contains: q, mode: 'insensitive' } },
@@ -132,7 +133,7 @@ export class GlobalSearchService {
       }),
       this.prisma.service.findMany({
         where: {
-          tenantId,
+          tenantId: groupId,
           OR: [
             { name: { contains: q, mode: 'insensitive' } },
             { category: { contains: q, mode: 'insensitive' } },
@@ -204,7 +205,7 @@ export class GlobalSearchService {
         type: GlobalSearchEntityType.PART,
         title: part.name,
         subtitle: compact([part.sku ? `Código ${part.sku}` : null, part.ncm ? `NCM ${part.ncm}` : null, part.brand]),
-        description: compact([part.category, `${part.currentStock.toString()} ${part.unit}`]),
+        description: compact([part.category, `${Number(part.stocks[0]?.currentStock ?? 0)} ${part.unit}`]),
         badge: part.active ? 'Ativa' : 'Inativa',
         href: `/estoque?search=${encodeURIComponent(part.name)}`,
         score: 12 + scoreText([part.name, part.sku, part.ncm, part.brand, part.category, part.description], q),

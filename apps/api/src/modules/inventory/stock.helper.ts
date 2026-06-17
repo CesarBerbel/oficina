@@ -44,14 +44,18 @@ export async function applyStockMovement(
     throw new BadRequestException('Quantidade de estoque inválida');
   }
 
-  const part = await tx.part.findFirst({
-    where: { id: params.partId, tenantId: params.tenantId },
-    select: { id: true, name: true, unit: true, currentStock: true },
+  // A peça (catálogo) é do grupo; o saldo é por filial (params.tenantId).
+  const part = await tx.part.findUnique({
+    where: { id: params.partId },
+    select: { id: true, name: true, unit: true },
   });
   if (!part) {
     throw new Error('Peça não encontrada para movimentação de estoque');
   }
 
+  const key = {
+    tenantId_partId: { tenantId: params.tenantId, partId: part.id },
+  };
   let newBalance: number;
 
   if (params.setAbsolute) {
@@ -59,44 +63,47 @@ export async function applyStockMovement(
     if (newBalance < 0) {
       throw new BadRequestException('Estoque não pode ficar negativo');
     }
-    await tx.part.update({
-      where: { id: part.id },
-      data: { currentStock: newBalance },
+    await tx.partStock.upsert({
+      where: key,
+      create: { tenantId: params.tenantId, partId: part.id, currentStock: newBalance },
+      update: { currentStock: newBalance },
     });
   } else if (SIGN[params.type] === -1) {
-    const updated = await tx.part.updateMany({
+    // Atualização condicional atômica para impedir saldo negativo.
+    const updated = await tx.partStock.updateMany({
       where: {
-        id: part.id,
         tenantId: params.tenantId,
+        partId: part.id,
         currentStock: { gte: quantity },
       },
       data: { currentStock: { decrement: quantity } },
     });
 
     if (updated.count !== 1) {
-      const latest = await tx.part.findFirst({
-        where: { id: part.id, tenantId: params.tenantId },
+      const latest = await tx.partStock.findUnique({
+        where: key,
         select: { currentStock: true },
       });
-      const available = dec(latest?.currentStock ?? part.currentStock);
+      const available = dec(latest?.currentStock);
       throw new BadRequestException(
         `Estoque insuficiente de "${part.name}": disponível ${round3(available)} ${part.unit}, ` +
           `necessário ${quantity} ${part.unit}.`,
       );
     }
 
-    const updatedPart = await tx.part.findUniqueOrThrow({
-      where: { id: part.id },
+    const after = await tx.partStock.findUniqueOrThrow({
+      where: key,
       select: { currentStock: true },
     });
-    newBalance = round3(dec(updatedPart.currentStock));
+    newBalance = round3(dec(after.currentStock));
   } else {
-    const updatedPart = await tx.part.update({
-      where: { id: part.id },
-      data: { currentStock: { increment: quantity } },
+    const after = await tx.partStock.upsert({
+      where: key,
+      create: { tenantId: params.tenantId, partId: part.id, currentStock: quantity },
+      update: { currentStock: { increment: quantity } },
       select: { currentStock: true },
     });
-    newBalance = round3(dec(updatedPart.currentStock));
+    newBalance = round3(dec(after.currentStock));
   }
 
   await tx.stockMovement.create({
