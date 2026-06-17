@@ -30,6 +30,8 @@ const baseEnvSchema = z.object({
 
   RATE_LIMIT_TTL: z.coerce.number().int().default(60),
   RATE_LIMIT_MAX: z.coerce.number().int().default(120),
+  /** Tentativas de login por minuto (relaxado em CI/e2e). */
+  AUTH_LOGIN_RATE_LIMIT: z.coerce.number().int().default(5),
 
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_DIR: z.string().default('./uploads'),
