@@ -36,7 +36,7 @@ export class CategoriesController {
     @Query(new ZodValidationPipe(listCategoriesQuerySchema))
     query: ListCategoriesQuery,
   ) {
-    return this.categories.list(actor.tenantId, query.kind);
+    return this.categories.list(actor.groupId, query.kind);
   }
 
   @Post()
