@@ -21,7 +21,7 @@ import { quoteInclude, toQuoteDto } from '../quotes/quote.mapper';
 const dec = (v: Prisma.Decimal | number | null | undefined): number =>
   v == null ? 0 : Number(v);
 
-const CODE_TTL_MS = 5 * 60 * 60 * 1000; // 5 horas
+const CODE_TTL_MS = 15 * 60 * 1000; // 15 minutos (código de acesso de uso curto)
 const MAX_ATTEMPTS = 5;
 const SESSION_TTL = '5h';
 const GARAGE_SCOPE = 'garage';

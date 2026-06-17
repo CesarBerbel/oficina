@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
-/** Schema de validação das variáveis de ambiente. Validado no boot. */
-export const envSchema = z.object({
+/** Schema base das variáveis de ambiente. O `envSchema` (abaixo) adiciona as
+ * regras de produção. Validado no boot. */
+const baseEnvSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
     .default('development'),
@@ -50,6 +51,35 @@ export const envSchema = z.object({
   SMTP_PASS: z.string().optional().default(''),
   /** Remetente exibido. Cai para SMTP_USER quando vazio. */
   SMTP_FROM: z.string().optional().default(''),
+});
+
+/** Valores placeholder/de exemplo que jamais devem ir para produção. */
+const WEAK_SECRET = /change|example|placeholder|secret-with|oficina-(ci|e2e|dev)/i;
+
+/**
+ * Em produção, exige segredos fortes e distintos e cookies seguros. Em
+ * desenvolvimento/teste mantém as regras brandas (defaults/valores de exemplo).
+ */
+export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
+  if (env.NODE_ENV !== 'production') return;
+
+  const fail = (path: string, message: string) =>
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+
+  for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'] as const) {
+    const value = env[key];
+    if (value.length < 32) fail(key, 'Em produção precisa de ao menos 32 caracteres.');
+    if (WEAK_SECRET.test(value)) fail(key, 'Segredo de exemplo/placeholder não é permitido em produção.');
+  }
+  if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {
+    fail('JWT_REFRESH_SECRET', 'Deve ser diferente de JWT_ACCESS_SECRET.');
+  }
+  if (/^0+$/.test(env.ENCRYPTION_KEY)) {
+    fail('ENCRYPTION_KEY', 'Não use uma chave só de zeros em produção.');
+  }
+  if (!env.AUTH_COOKIE_SECURE) {
+    fail('AUTH_COOKIE_SECURE', 'Deve ser "true" em produção (cookies sob HTTPS).');
+  }
 });
 
 export type Env = z.infer<typeof envSchema>;

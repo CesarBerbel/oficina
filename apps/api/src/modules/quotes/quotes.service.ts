@@ -14,6 +14,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MessagingService } from '../messaging/messaging.service';
+import { OutboxService } from '../outbox/outbox.service';
 import { quoteInclude, toQuoteDto } from './quote.mapper';
 import { ServiceOrderDomainError } from '../service-orders/domain/service-order.errors';
 import { PurchasesService } from '../purchases/purchases.service';
@@ -38,6 +39,7 @@ export class QuotesService {
     private readonly notifications: NotificationsService,
     private readonly messaging: MessagingService,
     private readonly purchases: PurchasesService,
+    private readonly outbox: OutboxService,
   ) {}
 
   /** Gera (ou regenera) o orçamento da OS a partir dos itens atuais. */
@@ -178,6 +180,9 @@ export class QuotesService {
         },
       });
 
+      // Mensagem de orçamento enviado via outbox (atômico com a geração).
+      await this.outbox.enqueueOrderEvent(tx, actor.tenantId, 'QUOTE_SENT', orderId);
+
       return tx.quote.findUniqueOrThrow({
         where: { id: q.id },
         include: quoteInclude,
@@ -193,8 +198,6 @@ export class QuotesService {
       entityId: quote.id,
       after: { total: dec(quote.total) },
     });
-
-    await this.messaging.dispatchOrderEvent(actor.tenantId, 'QUOTE_SENT', orderId);
 
     return toQuoteDto(quote, order.publicToken);
   }
@@ -553,7 +556,9 @@ export class QuotesService {
     );
 
     if (approved > 0) {
-      await this.messaging.dispatchOrderEvent(
+      // Decisão já comitada; enfileira a mensagem de aprovação no outbox.
+      await this.outbox.enqueueOrderEvent(
+        this.prisma,
         order.tenantId,
         'QUOTE_APPROVED',
         order.id,

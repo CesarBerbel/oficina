@@ -28,6 +28,7 @@ import { NfeImportModule } from './modules/nfe-import/nfe-import.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
+import { OutboxModule } from './modules/outbox/outbox.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { SiteModule } from './modules/site/site.module';
 import { CategoriesModule } from './modules/categories/categories.module';
@@ -81,6 +82,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     AuditModule,
     NotificationsModule,
     MessagingModule,
+    OutboxModule,
     TenantsModule,
     DashboardModule,
     SiteModule,
