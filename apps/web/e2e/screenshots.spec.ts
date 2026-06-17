@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import path from 'node:path';
+import { login } from './support';
 
 /**
  * Captura screenshots de todas as telas do sistema para o tutorial.
@@ -75,9 +76,7 @@ test('captura telas internas (logado)', async ({ page }) => {
   // Login
   await page.goto('/login');
   await shot(page, '00-login');
-  await page.getByRole('button', { name: 'Preencher dados de demonstração' }).click();
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+  await login(page);
 
   for (const [route, name] of DASHBOARD_ROUTES) {
     await go(page, route, name);

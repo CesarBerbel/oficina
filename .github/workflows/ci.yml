@@ -10,12 +10,79 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Variáveis de ambiente comuns (banco descartável + segredos de teste).
+# DATABASE_URL só é usada nos jobs que sobem o serviço Postgres.
+env:
+  DATABASE_URL: postgresql://oficina:oficina_test_pwd@localhost:5434/oficina_test?schema=public
+  NODE_ENV: test
+  APP_NAME: Oficina CI
+  API_GLOBAL_PREFIX: api
+  API_PORT: '3333'
+  WEB_ORIGIN: http://localhost:3000
+  JWT_ACCESS_SECRET: oficina-ci-access-secret-with-more-than-16-chars
+  JWT_ACCESS_TTL: 15m
+  JWT_REFRESH_SECRET: oficina-ci-refresh-secret-with-more-than-16-chars
+  JWT_REFRESH_TTL: 7d
+  AUTH_COOKIE_NAME: oficina_ci_rt
+  AUTH_COOKIE_SECURE: 'false'
+  ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  RATE_LIMIT_TTL: '60'
+  RATE_LIMIT_MAX: '1000'
+  STORAGE_DRIVER: local
+  STORAGE_LOCAL_DIR: /tmp/oficina-ci-uploads
+  MAIL_DRIVER: log
+  SMTP_HOST: ''
+  SMTP_PORT: '465'
+  SMTP_SECURE: 'true'
+  SMTP_USER: ''
+  SMTP_PASS: ''
+  SMTP_FROM: ''
+  VAPID_PUBLIC_KEY: ''
+  VAPID_PRIVATE_KEY: ''
+  VAPID_SUBJECT: mailto:ci@oficina.local
+
 jobs:
-  build-and-test:
-    name: Validate, build and test
+  # ── Lint, typecheck, validação do schema e build de tudo ──
+  static:
+    name: Lint, typecheck e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Build shared package
+        run: pnpm --filter @oficina/shared build
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+      - name: Validate Prisma schema
+        run: pnpm prisma:validate
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Build all packages
+        run: pnpm build
+
+  # ── Testes unitários da API ──
+  unit:
+    name: Testes unitários (API)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Build shared package
+        run: pnpm --filter @oficina/shared build
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+      - name: Run API unit tests
+        run: pnpm --filter @oficina/api test
+
+  # ── Testes E2E da API (Postgres real) ──
+  api-e2e:
+    name: E2E da API (Postgres)
     runs-on: ubuntu-latest
     timeout-minutes: 25
-
     services:
       postgres:
         image: postgres:16-alpine
@@ -29,90 +96,85 @@ jobs:
           --health-cmd "pg_isready -U oficina -d oficina_test"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DATABASE_URL: postgresql://oficina:oficina_test_pwd@localhost:5434/oficina_test?schema=public
-      NODE_ENV: test
-      APP_NAME: Oficina CI
-      API_GLOBAL_PREFIX: api
-      WEB_ORIGIN: http://localhost:3000
-      JWT_ACCESS_SECRET: oficina-ci-access-secret-with-more-than-16-chars
-      JWT_ACCESS_TTL: 15m
-      JWT_REFRESH_SECRET: oficina-ci-refresh-secret-with-more-than-16-chars
-      JWT_REFRESH_TTL: 7d
-      AUTH_COOKIE_NAME: oficina_ci_rt
-      AUTH_COOKIE_SECURE: 'false'
-      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      RATE_LIMIT_TTL: '60'
-      RATE_LIMIT_MAX: '1000'
-      STORAGE_DRIVER: local
-      STORAGE_LOCAL_DIR: /tmp/oficina-ci-uploads
-      MAIL_DRIVER: log
-      SMTP_HOST: ''
-      SMTP_PORT: '465'
-      SMTP_SECURE: 'true'
-      SMTP_USER: ''
-      SMTP_PASS: ''
-      SMTP_FROM: ''
-      VAPID_PUBLIC_KEY: ''
-      VAPID_PRIVATE_KEY: ''
-      VAPID_SUBJECT: mailto:ci@oficina.local
-
+          --health-retries 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.9
-          run_install: false
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Validate Prisma schema
-        run: pnpm prisma:validate
-
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
       - name: Generate Prisma client
         run: pnpm prisma:generate
-
-      - name: Apply test database migrations
+      - name: Apply migrations
         run: pnpm prisma:deploy
-
-      - name: Build shared package
-        run: pnpm --filter @oficina/shared build
-
-      - name: Typecheck API
-        run: pnpm --filter @oficina/api typecheck
-
-      - name: Typecheck Web
-        run: pnpm --filter @oficina/web typecheck
-
-      - name: Build all packages
-        run: pnpm build
-
-      - name: Run API unit tests
-        run: pnpm --filter @oficina/api test
-
       - name: Run API E2E tests
         run: pnpm --filter @oficina/api test:e2e
+
+  # ── E2E de frontend REAL: sobe API + Web e roda o Playwright contra eles ──
+  web-e2e:
+    name: E2E de frontend (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: oficina
+          POSTGRES_PASSWORD: oficina_test_pwd
+          POSTGRES_DB: oficina_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U oficina -d oficina_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Credenciais do seed (batem com os padrões do e2e/support.ts).
+      SEED_TENANT_NAME: Oficina Modelo
+      SEED_ADMIN_EMAIL: admin@oficina.local
+      SEED_ADMIN_PASSWORD: Admin@123
+      E2E_TENANT_SLUG: oficina-modelo
+      E2E_EMAIL: admin@oficina.local
+      E2E_PASSWORD: Admin@123
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+      - name: Apply migrations + seed
+        run: |
+          pnpm prisma:deploy
+          pnpm --filter @oficina/api prisma:seed
+      - name: Build (shared, API, Web)
+        run: pnpm build
+      - name: Start API and Web
+        run: |
+          pnpm --filter @oficina/api start > /tmp/api.log 2>&1 &
+          pnpm --filter @oficina/web start > /tmp/web.log 2>&1 &
+      - name: Wait for API and Web
+        run: |
+          for i in $(seq 1 60); do
+            api=$(curl -fsS -o /dev/null -w "%{http_code}" http://localhost:3333/api/health || echo 000)
+            web=$(curl -fsS -o /dev/null -w "%{http_code}" http://localhost:3000/login || echo 000)
+            if [ "$api" = "200" ] && [ "$web" = "200" ]; then echo "stack pronto"; exit 0; fi
+            sleep 3
+          done
+          echo "::error::stack não respondeu a tempo"; echo "--- API ---"; cat /tmp/api.log; echo "--- WEB ---"; cat /tmp/web.log; exit 1
+      - name: Install Playwright browser
+        run: pnpm --filter @oficina/web exec playwright install --with-deps chromium
+      - name: Run web E2E
+        run: pnpm --filter @oficina/web test:e2e
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7
+      - name: Upload server logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: |
+            /tmp/api.log
+            /tmp/web.log
+          retention-days: 7

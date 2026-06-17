@@ -6,6 +6,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  // screenshots.spec é utilitário de docs (sem asserções) — fora do gate de testes.
+  testIgnore: '**/screenshots.spec.ts',
   // Serial: evita contenção de cold-compile do `next dev` entre testes paralelos.
   fullyParallel: false,
   workers: 1,
