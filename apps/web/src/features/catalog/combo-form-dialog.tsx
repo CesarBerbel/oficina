@@ -27,9 +27,13 @@ const FIELD_LABELS = {
 };
 
 export function ComboFormDialog({
-  open, onOpenChange, combo,
+  open, onOpenChange, combo, onCreated,
 }: {
-  open: boolean; onOpenChange: (o: boolean) => void; combo?: ComboDto | null;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  combo?: ComboDto | null;
+  /** Chamado com o combo recém-criado (ex.: criação inline na OS). */
+  onCreated?: (combo: ComboDto) => void;
 }) {
   const isEdit = !!combo;
   const [name, setName] = useState('');
@@ -75,7 +79,11 @@ export function ComboFormDialog({
     }
     try {
       if (isEdit) { await update.mutateAsync(parsed.data); toast.success('Combo atualizado'); }
-      else { await create.mutateAsync(parsed.data as never); toast.success('Combo criado'); }
+      else {
+        const createdCombo = (await create.mutateAsync(parsed.data as never)) as ComboDto;
+        toast.success('Combo criado');
+        onCreated?.(createdCombo);
+      }
       onOpenChange(false);
     } catch (err) { toast.error(apiErrorMessage(err, FIELD_LABELS)); }
   }

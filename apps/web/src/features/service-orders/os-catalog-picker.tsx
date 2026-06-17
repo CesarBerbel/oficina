@@ -8,6 +8,9 @@ import { ApiError } from '@/lib/api';
 import { useServices, useCombos } from '@/features/catalog/use-catalog';
 import { useParts } from '@/features/inventory/use-inventory';
 import { useAddFromCatalog } from './use-service-orders';
+import { ServiceFormDialog } from '@/features/catalog/service-form-dialog';
+import { ComboFormDialog } from '@/features/catalog/combo-form-dialog';
+import { PartFormDialog } from '@/features/inventory/part-form-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
@@ -28,6 +31,9 @@ export function OsCatalogPicker({ osId }: { osId: string }) {
   const [comboId, setComboId] = useState('');
   const [partId, setPartId] = useState('');
   const [partQty, setPartQty] = useState('1');
+  const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
+  const [comboDialogOpen, setComboDialogOpen] = useState(false);
+  const [partDialogOpen, setPartDialogOpen] = useState(false);
 
   const serviceOptions = useMemo(
     () => (services?.data ?? []).map((s) => ({ value: s.id, label: s.name })),
@@ -60,67 +66,120 @@ export function OsCatalogPicker({ osId }: { osId: string }) {
   return (
     <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
       {/* Serviço */}
-      <div className="flex gap-2">
-        <SearchableSelect
-          className="flex-1"
-          value={serviceId}
-          onChange={setServiceId}
-          options={serviceOptions}
-          placeholder="Serviço do catálogo..."
-        />
-        <Button
-          size="icon" variant="outline" aria-label="Adicionar serviço" className="shrink-0"
-          disabled={!serviceId || addService.isPending}
-          onClick={() => run(() => addService.mutateAsync(serviceId), 'Serviço adicionado', () => setServiceId(''))}
-        >
-          {addService.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
-        </Button>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">Serviço</span>
+          <button
+            type="button"
+            onClick={() => setServiceDialogOpen(true)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            <Plus className="size-3" /> Novo serviço
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <SearchableSelect
+            className="flex-1"
+            value={serviceId}
+            onChange={setServiceId}
+            options={serviceOptions}
+            placeholder="Serviço do catálogo..."
+          />
+          <Button
+            size="icon" variant="outline" aria-label="Adicionar serviço" className="shrink-0"
+            disabled={!serviceId || addService.isPending}
+            onClick={() => run(() => addService.mutateAsync(serviceId), 'Serviço adicionado', () => setServiceId(''))}
+          >
+            {addService.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          </Button>
+        </div>
       </div>
 
       {/* Combo */}
-      <div className="flex gap-2">
-        <SearchableSelect
-          className="flex-1"
-          value={comboId}
-          onChange={setComboId}
-          options={comboOptions}
-          placeholder="Combo (expande nos serviços)..."
-        />
-        <Button
-          size="icon" variant="outline" aria-label="Adicionar combo" className="shrink-0"
-          disabled={!comboId || addCombo.isPending}
-          onClick={() => run(() => addCombo.mutateAsync(comboId), 'Combo expandido na OS', () => setComboId(''))}
-        >
-          {addCombo.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
-        </Button>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">Combo</span>
+          <button
+            type="button"
+            onClick={() => setComboDialogOpen(true)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            <Plus className="size-3" /> Novo combo
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <SearchableSelect
+            className="flex-1"
+            value={comboId}
+            onChange={setComboId}
+            options={comboOptions}
+            placeholder="Combo (expande nos serviços)..."
+          />
+          <Button
+            size="icon" variant="outline" aria-label="Adicionar combo" className="shrink-0"
+            disabled={!comboId || addCombo.isPending}
+            onClick={() => run(() => addCombo.mutateAsync(comboId), 'Combo expandido na OS', () => setComboId(''))}
+          >
+            {addCombo.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          </Button>
+        </div>
       </div>
 
       {/* Peça */}
-      <div className="flex gap-2">
-        <SearchableSelect
-          className="flex-1"
-          value={partId}
-          onChange={setPartId}
-          options={partOptions}
-          placeholder="Peça do estoque..."
-        />
-        <Input
-          type="number" step="any" value={partQty}
-          onChange={(e) => setPartQty(e.target.value)}
-          className="w-20 shrink-0" aria-label="Quantidade da peça"
-        />
-        <Button
-          size="icon" variant="outline" aria-label="Adicionar peça" className="shrink-0"
-          disabled={!partId || addPart.isPending}
-          onClick={() => run(
-            () => addPart.mutateAsync({ partId, quantity: Number(partQty) || 1 }),
-            'Peça adicionada (estoque baixado)',
-            () => { setPartId(''); setPartQty('1'); },
-          )}
-        >
-          {addPart.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
-        </Button>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">Peça</span>
+          <button
+            type="button"
+            onClick={() => setPartDialogOpen(true)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            <Plus className="size-3" /> Nova peça
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <SearchableSelect
+            className="flex-1"
+            value={partId}
+            onChange={setPartId}
+            options={partOptions}
+            placeholder="Peça do estoque..."
+          />
+          <Input
+            type="number" step="any" value={partQty}
+            onChange={(e) => setPartQty(e.target.value)}
+            className="w-20 shrink-0" aria-label="Quantidade da peça"
+          />
+          <Button
+            size="icon" variant="outline" aria-label="Adicionar peça" className="shrink-0"
+            disabled={!partId || addPart.isPending}
+            onClick={() => run(
+              () => addPart.mutateAsync({ partId, quantity: Number(partQty) || 1 }),
+              'Peça adicionada (estoque baixado)',
+              () => { setPartId(''); setPartQty('1'); },
+            )}
+          >
+            {addPart.isPending ? <CarLoader className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          </Button>
+        </div>
       </div>
+
+      {/* Cadastro inline: autosseleciona o recém-criado no respectivo seletor */}
+      <ServiceFormDialog
+        open={serviceDialogOpen}
+        onOpenChange={setServiceDialogOpen}
+        onCreated={(s) => setServiceId(s.id)}
+      />
+      <ComboFormDialog
+        open={comboDialogOpen}
+        onOpenChange={setComboDialogOpen}
+        onCreated={(c) => setComboId(c.id)}
+      />
+      <PartFormDialog
+        open={partDialogOpen}
+        onOpenChange={setPartDialogOpen}
+        onCreated={(p) => setPartId(p.id)}
+      />
     </div>
   );
 }
