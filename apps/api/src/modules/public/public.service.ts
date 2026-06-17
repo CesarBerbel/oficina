@@ -33,6 +33,12 @@ export class PublicService {
 
     const year = order.vehicle.modelYear ? ` ${order.vehicle.modelYear}` : '';
 
+    // Orçamento aprovado não fica mais acessível publicamente (não pode ser
+    // reaberto/aprovado de novo pelo link). O acompanhamento da OS continua.
+    const quoteDecided =
+      order.quote?.status === 'APROVADO' ||
+      order.quote?.status === 'APROVADO_PARCIAL';
+
     return {
       shopName: order.tenant.name,
       number: order.number,
@@ -44,7 +50,7 @@ export class PublicService {
       vehiclePlate: order.vehicle.plate,
       reportedProblem: order.reportedProblem,
       diagnosis: order.diagnosis,
-      publicNotes: order.quote?.publicNotes ?? null,
+      publicNotes: quoteDecided ? null : order.quote?.publicNotes ?? null,
       items: order.items.map((it) => ({
         kind: it.kind,
         description: it.description,
@@ -72,7 +78,10 @@ export class PublicService {
               photos: [],
               createdAt: h.createdAt.toISOString(),
             })),
-      quote: order.quote ? toQuoteDto(order.quote, order.publicToken) : null,
+      quote:
+        order.quote && !quoteDecided
+          ? toQuoteDto(order.quote, order.publicToken)
+          : null,
     };
   }
 }

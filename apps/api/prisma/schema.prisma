@@ -1233,6 +1233,8 @@ model Quote {
   tenantId        String
   serviceOrderId  String            @unique
   status          QuoteStatus       @default(ENVIADO)
+  // Quantas vezes o orçamento foi enviado/gerado (reenvios exigem motivo).
+  sendCount       Int               @default(0)
   publicNotes     String?
   totalServices   Decimal           @default(0) @db.Decimal(12, 2)
   totalParts      Decimal           @default(0) @db.Decimal(12, 2)

@@ -16,6 +16,7 @@ export function toQuoteDto(quote: QuoteRow, publicToken: string): QuoteDto {
     id: quote.id,
     status: quote.status,
     token: publicToken,
+    sendCount: quote.sendCount,
     publicNotes: quote.publicNotes,
     totalServices: dec(quote.totalServices),
     totalParts: dec(quote.totalParts),
