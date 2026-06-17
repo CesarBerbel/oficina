@@ -12,14 +12,10 @@ import type {
   CreateReceptionScheduleBlockInput,
   CreateDirectReceptionLeadInput,
   CreateLeadInput,
-  LeadContactAttemptDto,
-  LeadCustomerSuggestionDto,
   LeadDetailDto,
   LeadDto,
-  LeadEventDto,
   LeadMatchSummaryDto,
   LeadStatus,
-  LeadVehicleMatchDto,
   LinkLeadCustomerInput,
   LinkLeadVehicleInput,
   ListLeadsQuery,
@@ -34,129 +30,29 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import {
+  ACTIVE_RECEPTION_STATUSES,
+  OPEN_APPOINTMENT_STATUSES,
+  RECEPTION_ALERT_ARRIVAL_WINDOW_MINUTES,
+  RECEPTION_ALERT_NO_SHOW_TOLERANCE_MINUTES,
+  UNIQUE_CONSTRAINT_RETRY_ATTEMPTS,
+  digits,
+  firstLine,
+  leadDetailInclude,
+  normalizePlate,
+  type LeadRow,
+} from './leads.support';
+import {
+  customerSuggestion,
+  evaluateMatch,
+  toContactDto,
+  toDto,
+  toEventDto,
+  toScheduleBlockDto,
+  vehicleMatchDto,
+} from './leads.mapper';
 
-const UNIQUE_CONSTRAINT_RETRY_ATTEMPTS = 3;
-const RECEPTION_ALERT_ARRIVAL_WINDOW_MINUTES = 60;
-const RECEPTION_ALERT_NO_SHOW_TOLERANCE_MINUTES = 15;
-const OPEN_APPOINTMENT_STATUSES: LeadStatus[] = ['AGENDADO', 'CONFIRMADO'];
-const ACTIVE_RECEPTION_STATUSES: LeadStatus[] = [
-  'NOVO',
-  'EM_ATENDIMENTO',
-  'CONTATO_REALIZADO',
-  'RETORNAR_DEPOIS',
-  'AGENDADO',
-  'CONFIRMADO',
-  'CLIENTE_CHEGOU',
-];
-
-const leadDetailInclude = {
-  contactAttempts: { orderBy: { createdAt: 'desc' } },
-  events: { orderBy: { createdAt: 'desc' } },
-} satisfies Prisma.LeadInclude;
-
-type LeadRow = Prisma.LeadGetPayload<object>;
-type LeadDetailRow = Prisma.LeadGetPayload<{ include: typeof leadDetailInclude }>;
-type ReceptionScheduleBlockRow = Prisma.ReceptionScheduleBlockGetPayload<{
-  include: { technician: { select: { name: true } } };
-}>;
 type Tx = Prisma.TransactionClient;
-
-type CustomerSuggestionSource = {
-  id: string;
-  name: string;
-  phone: string | null;
-  whatsapp: string | null;
-  email: string | null;
-};
-
-type VehicleMatchSource = {
-  id: string;
-  plate: string;
-  manufacturer: string;
-  model: string;
-  modelYear: number | null;
-  customerId: string;
-  customer: { name: string };
-};
-
-function digits(value: string | null | undefined): string {
-  return (value ?? '').replace(/\D/g, '');
-}
-
-function normalizePlate(value: string | null | undefined): string | null {
-  const normalized = (value ?? '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  return normalized.length >= 7 ? normalized : null;
-}
-
-function firstLine(value: string): string {
-  return value.split(/\r?\n/)[0]?.trim() ?? value;
-}
-
-type OperationalPriority = 'BAIXA' | 'MEDIA' | 'ALTA' | 'CRITICA';
-
-function leadOperationalScore(
-  lead: Pick<
-    LeadRow,
-    | 'status'
-    | 'conflictLevel'
-    | 'nextFollowUpAt'
-    | 'appointmentStartAt'
-    | 'checkedInAt'
-    | 'convertedServiceOrderId'
-    | 'createdAt'
-  >,
-): { score: number; priority: OperationalPriority; reasons: string[] } {
-  const now = Date.now();
-  let score = 0;
-  const reasons: string[] = [];
-
-  if (lead.conflictLevel === 'CONFLITO') {
-    score += 45;
-    reasons.push('conflito cliente/placa');
-  } else if (lead.conflictLevel === 'ATENCAO') {
-    score += 25;
-    reasons.push('dados precisam de conferência');
-  }
-
-  if (lead.nextFollowUpAt && lead.nextFollowUpAt.getTime() <= now) {
-    score += 35;
-    reasons.push('retorno combinado vencido');
-  }
-
-  if (lead.appointmentStartAt) {
-    const minutes = Math.round((lead.appointmentStartAt.getTime() - now) / 60_000);
-    if (['AGENDADO', 'CONFIRMADO'].includes(lead.status) && minutes <= 15 && minutes >= 0) {
-      score += 30;
-      reasons.push('chegada nos próximos 15 minutos');
-    }
-    if (['AGENDADO', 'CONFIRMADO'].includes(lead.status) && minutes < -15) {
-      score += 50;
-      reasons.push('horário já passou');
-    }
-  }
-
-  if (lead.status === 'CLIENTE_CHEGOU' && lead.checkedInAt && !lead.convertedServiceOrderId) {
-    const waiting = Math.round((now - lead.checkedInAt.getTime()) / 60_000);
-    if (waiting >= 10) {
-      score += 45;
-      reasons.push('cliente aguardando abertura da OS');
-    }
-  }
-  const ageHours = Math.round((now - lead.createdAt.getTime()) / 3_600_000);
-  if (['NOVO', 'EM_ATENDIMENTO'].includes(lead.status) && ageHours >= 24) {
-    score += 20;
-    reasons.push('atendimento aberto há mais de 24h');
-  }
-
-  const bounded = Math.min(100, score);
-  const priority: OperationalPriority =
-    bounded >= 80 ? 'CRITICA' : bounded >= 55 ? 'ALTA' : bounded >= 25 ? 'MEDIA' : 'BAIXA';
-  return {
-    score: bounded,
-    priority,
-    reasons: reasons.length > 0 ? reasons : ['sem pendências críticas'],
-  };
-}
 
 @Injectable()
 export class LeadsService {
@@ -165,57 +61,6 @@ export class LeadsService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
   ) {}
-
-  private toDto(l: LeadRow): LeadDto {
-    const operational = leadOperationalScore(l);
-    return {
-      id: l.id,
-      name: l.name,
-      phone: l.phone,
-      email: l.email,
-      plate: l.plate,
-      vehicle: l.vehicle,
-      message: l.message,
-      status: l.status,
-      assignedToId: l.assignedToId,
-      assignedToName: l.assignedToName,
-      matchedCustomerId: l.matchedCustomerId,
-      matchedVehicleId: l.matchedVehicleId,
-      convertedCustomerId: l.convertedCustomerId,
-      convertedVehicleId: l.convertedVehicleId,
-      convertedServiceOrderId: l.convertedServiceOrderId,
-      conflictLevel: l.conflictLevel,
-      conflictReason: l.conflictReason,
-      operationalScore: operational.score,
-      operationalPriority: operational.priority,
-      operationalReasons: operational.reasons,
-      nextFollowUpAt: l.nextFollowUpAt?.toISOString() ?? null,
-      appointmentStartAt: l.appointmentStartAt?.toISOString() ?? null,
-      appointmentEndAt: l.appointmentEndAt?.toISOString() ?? null,
-      appointmentServiceType: l.appointmentServiceType,
-      appointmentNotes: l.appointmentNotes,
-      appointmentConfirmedAt: l.appointmentConfirmedAt?.toISOString() ?? null,
-      checkedInAt: l.checkedInAt?.toISOString() ?? null,
-      noShowAt: l.noShowAt?.toISOString() ?? null,
-      appointmentCanceledAt: l.appointmentCanceledAt?.toISOString() ?? null,
-      createdAt: l.createdAt.toISOString(),
-      updatedAt: l.updatedAt.toISOString(),
-    };
-  }
-
-  private toScheduleBlockDto(row: ReceptionScheduleBlockRow): ReceptionScheduleBlockDto {
-    return {
-      id: row.id,
-      technicianId: row.technicianId,
-      technicianName: row.technician?.name ?? null,
-      title: row.title,
-      notes: row.notes,
-      startAt: row.startAt.toISOString(),
-      endAt: row.endAt.toISOString(),
-      createdByName: row.createdByName,
-      createdAt: row.createdAt.toISOString(),
-    };
-  }
 
   private async technicianForSchedule(
     tenantId: string,
@@ -228,29 +73,6 @@ export class LeadsService {
     });
     if (!technician) throw new BadRequestException('Técnico não encontrado ou inativo');
     return technician;
-  }
-
-  private toContactDto(row: LeadDetailRow['contactAttempts'][number]): LeadContactAttemptDto {
-    return {
-      id: row.id,
-      channel: row.channel,
-      outcome: row.outcome,
-      notes: row.notes,
-      nextFollowUpAt: row.nextFollowUpAt?.toISOString() ?? null,
-      userName: row.userName,
-      createdAt: row.createdAt.toISOString(),
-    };
-  }
-
-  private toEventDto(row: LeadDetailRow['events'][number]): LeadEventDto {
-    return {
-      id: row.id,
-      type: row.type,
-      title: row.title,
-      description: row.description,
-      userName: row.userName,
-      createdAt: row.createdAt.toISOString(),
-    };
   }
 
   private async recordEvent(
@@ -277,110 +99,6 @@ export class LeadsService {
         metadata: input.metadata ?? undefined,
       },
     });
-  }
-
-  private customerSuggestion(
-    customer: CustomerSuggestionSource,
-    lead: Pick<LeadRow, 'name' | 'phone' | 'email'>,
-  ): LeadCustomerSuggestionDto {
-    const leadPhone = digits(lead.phone);
-    const customerPhone = digits(customer.phone);
-    const customerWhatsapp = digits(customer.whatsapp);
-    const leadEmail = lead.email?.toLowerCase() ?? null;
-    const customerEmail = customer.email?.toLowerCase() ?? null;
-    const leadName = lead.name.toLowerCase();
-    const customerName = customer.name.toLowerCase();
-    let score = 0;
-    const reasons: string[] = [];
-
-    if (leadPhone && (leadPhone === customerPhone || leadPhone === customerWhatsapp)) {
-      score += 70;
-      reasons.push('telefone confere');
-    }
-    if (leadEmail && customerEmail && leadEmail === customerEmail) {
-      score += 60;
-      reasons.push('e-mail confere');
-    }
-    if (customerName === leadName) {
-      score += 40;
-      reasons.push('nome igual');
-    } else if (customerName.includes(leadName) || leadName.includes(customerName)) {
-      score += 25;
-      reasons.push('nome parecido');
-    }
-
-    return {
-      id: customer.id,
-      name: customer.name,
-      phone: customer.phone,
-      whatsapp: customer.whatsapp,
-      email: customer.email,
-      score,
-      reason: reasons.length > 0 ? reasons.join(', ') : 'possível correspondência',
-    };
-  }
-
-  private vehicleMatchDto(vehicle: VehicleMatchSource): LeadVehicleMatchDto {
-    return {
-      id: vehicle.id,
-      plate: vehicle.plate,
-      manufacturer: vehicle.manufacturer,
-      model: vehicle.model,
-      modelYear: vehicle.modelYear,
-      customerId: vehicle.customerId,
-      customerName: vehicle.customer.name,
-    };
-  }
-
-  private evaluateMatch(
-    lead: LeadRow,
-    suggestedCustomers: LeadCustomerSuggestionDto[],
-    vehicle: LeadVehicleMatchDto | null,
-  ): LeadMatchSummaryDto {
-    const preferredCustomerId = lead.matchedCustomerId ?? suggestedCustomers[0]?.id ?? null;
-
-    if (vehicle && preferredCustomerId && vehicle.customerId !== preferredCustomerId) {
-      return {
-        suggestedCustomers,
-        vehicle,
-        conflictLevel: 'ATENCAO',
-        conflictReason: `A placa ${vehicle.plate} já está cadastrada para ${vehicle.customerName}. Confira antes de vincular ao cliente informado.`,
-      };
-    }
-
-    if (vehicle && preferredCustomerId && vehicle.customerId === preferredCustomerId) {
-      return {
-        suggestedCustomers,
-        vehicle,
-        conflictLevel: 'OK',
-        conflictReason: 'Cliente e veículo conferem.',
-      };
-    }
-
-    if (vehicle && !preferredCustomerId) {
-      return {
-        suggestedCustomers,
-        vehicle,
-        conflictLevel: 'ATENCAO',
-        conflictReason: `A placa ${vehicle.plate} já existe e pertence a ${vehicle.customerName}.`,
-      };
-    }
-
-    if (!vehicle && suggestedCustomers.length > 0) {
-      return {
-        suggestedCustomers,
-        vehicle,
-        conflictLevel: 'ATENCAO',
-        conflictReason: 'Cliente parecido encontrado. Confira telefone/e-mail antes de vincular.',
-      };
-    }
-
-    return {
-      suggestedCustomers,
-      vehicle,
-      conflictLevel: 'SEM_DADOS',
-      conflictReason: 'Nenhum cliente ou veículo encontrado automaticamente.',
-    };
   }
 
   /** Resolve o grupo (matriz) de uma oficina a partir do seu tenantId. */
@@ -414,7 +132,7 @@ export class LeadsService {
     });
 
     const suggestedCustomers = customers
-      .map((customer) => this.customerSuggestion(customer, lead))
+      .map((customer) => customerSuggestion(customer, lead))
       .filter((customer) => customer.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
@@ -434,11 +152,7 @@ export class LeadsService {
         })
       : null;
 
-    return this.evaluateMatch(
-      lead,
-      suggestedCustomers,
-      vehicle ? this.vehicleMatchDto(vehicle) : null,
-    );
+    return evaluateMatch(lead, suggestedCustomers, vehicle ? vehicleMatchDto(vehicle) : null);
   }
 
   private async syncMatchSnapshot(lead: LeadRow): Promise<LeadMatchSummaryDto> {
@@ -600,7 +314,7 @@ export class LeadsService {
       }),
     ]);
     return {
-      data: rows.map((l) => this.toDto(l)),
+      data: rows.map((l) => toDto(l)),
       meta: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
     };
   }
@@ -671,7 +385,7 @@ export class LeadsService {
       upcomingArrivals: upcomingRows.map((lead) => {
         const appointmentTime = lead.appointmentStartAt?.getTime() ?? now.getTime();
         return {
-          ...this.toDto(lead),
+          ...toDto(lead),
           minutesUntilAppointment: Math.max(
             0,
             Math.round((appointmentTime - now.getTime()) / 60_000),
@@ -683,7 +397,7 @@ export class LeadsService {
       noShowCandidates: noShowRows.map((lead) => {
         const appointmentTime = lead.appointmentStartAt?.getTime() ?? now.getTime();
         return {
-          ...this.toDto(lead),
+          ...toDto(lead),
           minutesUntilAppointment: null,
           minutesLate: Math.max(0, Math.round((now.getTime() - appointmentTime) / 60_000)),
           alertReason: 'Horário já passou. Registre chegada ou não comparecimento.',
@@ -692,7 +406,7 @@ export class LeadsService {
       overdueFollowUps: overdueFollowUpRows.map((lead) => {
         const followUpTime = lead.nextFollowUpAt?.getTime() ?? now.getTime();
         return {
-          ...this.toDto(lead),
+          ...toDto(lead),
           minutesUntilAppointment: null,
           minutesLate: Math.max(0, Math.round((now.getTime() - followUpTime) / 60_000)),
           alertReason: 'Retorno combinado vencido.',
@@ -701,7 +415,7 @@ export class LeadsService {
       checkedInWithoutOs: checkedInRows.map((lead) => {
         const checkedInTime = lead.checkedInAt?.getTime() ?? now.getTime();
         return {
-          ...this.toDto(lead),
+          ...toDto(lead),
           minutesUntilAppointment: null,
           minutesLate: Math.max(0, Math.round((now.getTime() - checkedInTime) / 60_000)),
           alertReason: 'Cliente chegou e ainda nao virou OS.',
@@ -718,10 +432,10 @@ export class LeadsService {
     if (!lead) throw new NotFoundException('Atendimento não encontrado');
     const match = await this.buildMatch(tenantId, lead);
     return {
-      ...this.toDto(lead),
+      ...toDto(lead),
       match,
-      contactAttempts: lead.contactAttempts.map((row) => this.toContactDto(row)),
-      events: lead.events.map((row) => this.toEventDto(row)),
+      contactAttempts: lead.contactAttempts.map((row) => toContactDto(row)),
+      events: lead.events.map((row) => toEventDto(row)),
     };
   }
 
@@ -846,7 +560,7 @@ export class LeadsService {
       include: { technician: { select: { name: true } } },
       orderBy: { startAt: 'asc' },
     });
-    return rows.map((row) => this.toScheduleBlockDto(row));
+    return rows.map((row) => toScheduleBlockDto(row));
   }
 
   async createScheduleBlock(
@@ -883,7 +597,7 @@ export class LeadsService {
       entityId: row.id,
     });
 
-    return this.toScheduleBlockDto(row);
+    return toScheduleBlockDto(row);
   }
 
   async deleteScheduleBlock(actor: AuthenticatedUser, id: string): Promise<void> {
