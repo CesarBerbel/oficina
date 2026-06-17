@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { AuditLogDto, ListAuditQuery, Paginated } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { getRequestContext } from '../../common/request-context';
 
 export interface AuditEntry {
   tenantId: string;
@@ -27,6 +28,8 @@ export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
   async record(entry: AuditEntry): Promise<void> {
+    // IP/User-Agent caem para o contexto do request quando não informados.
+    const ctx = getRequestContext();
     try {
       await this.prisma.auditLog.create({
         data: {
@@ -38,8 +41,8 @@ export class AuditService {
           entityId: entry.entityId ?? null,
           before: (entry.before ?? Prisma.JsonNull) as Prisma.InputJsonValue,
           after: (entry.after ?? Prisma.JsonNull) as Prisma.InputJsonValue,
-          ip: entry.ip ?? null,
-          userAgent: entry.userAgent ?? null,
+          ip: entry.ip ?? ctx?.ip ?? null,
+          userAgent: entry.userAgent ?? ctx?.userAgent ?? null,
         },
       });
     } catch (err) {

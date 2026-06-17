@@ -52,7 +52,9 @@ export const Permission = {
 
   // Configurações / IA
   SETTINGS_MANAGE: 'settings:manage',
-  AI_MANAGE: 'ai:manage',
+  AI_READ: 'ai:read', // ver configuração/uso da IA
+  AI_USE: 'ai:use', // usar a IA (assistente/geração de texto)
+  AI_MANAGE: 'ai:manage', // gerir provedores/chaves da IA
 
   // Dashboard
   DASHBOARD_READ: 'dashboard:read',
@@ -87,6 +89,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.MESSAGES_READ,
     Permission.MESSAGES_WRITE,
     Permission.UPLOADS_WRITE,
+    Permission.AI_USE,
   ],
 
   TECNICO: [
@@ -99,6 +102,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.SERVICES_READ,
     Permission.INVENTORY_READ,
     Permission.UPLOADS_WRITE,
+    Permission.AI_USE,
   ],
 
   ESTOQUISTA: [
@@ -116,6 +120,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.NFE_IMPORT,
     Permission.SERVICES_READ,
     Permission.UPLOADS_WRITE,
+    Permission.AI_USE,
   ],
 };
 

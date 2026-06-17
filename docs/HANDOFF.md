@@ -2,15 +2,18 @@
 
 > Cole este prompt em uma nova sessão para continuar o desenvolvimento.
 > Ele resume o que existe, as convenções e o que falta.
+>
+> ⚠️ **O estado atual é mantido em [`docs/STATUS.md`](STATUS.md)** — consulte lá a
+> lista real do que está implementado, testes e CI. As notas abaixo são histórico.
 
 ---
 
 ## Contexto
 
 Estou desenvolvendo um **sistema completo de gestão para oficina mecânica**
-(substituto moderno do "MotorMind"), já com 10 fases entregues. O código está em
-`C:\claude\oficina` (Windows, sem git inicializado). Quero que você continue a
-partir do estado atual, mantendo a arquitetura e os padrões existentes.
+(substituto moderno do "MotorMind"). O código está em `C:\claude\oficina`
+(Windows), versionado em Git/GitHub (`CesarBerbel/oficina`) com CI. Quero que você
+continue a partir do estado atual, mantendo a arquitetura e os padrões existentes.
 
 ### Stack
 - **Monorepo** pnpm workspaces + Turborepo: `apps/api` (NestJS 10), `apps/web`
@@ -18,12 +21,15 @@ partir do estado atual, mantendo a arquitetura e os padrões existentes.
 - **Backend**: NestJS + Prisma + PostgreSQL 16. Auth JWT (access + refresh
   httpOnly) com RBAC por perfil. Validação Zod (mesmos schemas no front).
 - **Frontend**: Next.js + TypeScript + Tailwind + shadcn/ui + TanStack Query.
-- **Multi-tenant**: todas as tabelas têm `tenantId`. O **login já é por oficina**
-  (campo "Oficina" = `slug` do tenant + e-mail + senha); falta o fluxo de cadastro
-  de novas oficinas e resolução por domínio para virar SaaS completo.
+- **Multi-tenant matriz/filial**: todas as tabelas têm `tenantId`; catálogo e
+  clientes compartilhados no grupo (`groupId`) e estoque por filial. Login por
+  oficina (slug + e-mail + senha) e **instalação web** da matriz. Falta resolução
+  por domínio próprio para virar SaaS multi-domínio.
 - **Deploy**: Docker + Docker Compose + Nginx, com proxy de `/api` e `/uploads` para a API.
-- **Status**: fases 0 a 10 concluídas, com hardening, CI, E2E da API,
-  upload seguro, tenant público e retry de numeração Prisma `P2002` em OS/compras.
+- **Status**: ver [`docs/STATUS.md`](STATUS.md). Em resumo: núcleo operacional
+  completo + hardening (secrets, uploads, garagem), outbox transacional, auditoria
+  imutável, permissões de IA granulares, índices de busca `pg_trgm`, CI com E2E de
+  API e de frontend (Playwright).
 
 ### Ambiente (importante)
 - Node 24, pnpm 9.15.9 (instalado via npm global), Docker Desktop.

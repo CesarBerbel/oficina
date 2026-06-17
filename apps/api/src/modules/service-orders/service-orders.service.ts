@@ -37,7 +37,17 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OutboxService } from '../outbox/outbox.service';
 import { PurchasesService } from '../purchases/purchases.service';
-import { quoteInclude, toQuoteDto } from '../quotes/quote.mapper';
+import { toQuoteDto } from '../quotes/quote.mapper';
+import {
+  summaryInclude,
+  boardInclude,
+  eventInclude,
+  detailInclude,
+  type SummaryRow,
+  type BoardRow,
+  type EventRow,
+  type DetailRow,
+} from './service-orders.includes';
 import { ServiceOrderStateMachine } from './domain/service-order.state-machine';
 import { ServiceOrderDomainError } from './domain/service-order.errors';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -49,54 +59,6 @@ const dec = (v: Prisma.Decimal | number | null | undefined): number =>
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 const UNIQUE_CONSTRAINT_RETRY_ATTEMPTS = 5;
-
-const summaryInclude = {
-  customer: { select: { id: true, name: true, phone: true, whatsapp: true } },
-  vehicle: {
-    select: {
-      id: true,
-      plate: true,
-      manufacturer: true,
-      model: true,
-      modelYear: true,
-    },
-  },
-  technician: { select: { id: true, name: true } },
-} satisfies Prisma.ServiceOrderInclude;
-
-const boardInclude = {
-  ...summaryInclude,
-  items: { select: { id: true } },
-  quote: { select: { status: true } },
-} satisfies Prisma.ServiceOrderInclude;
-
-const eventInclude = {
-  createdBy: { select: { name: true } },
-} satisfies Prisma.ServiceOrderEventInclude;
-
-const detailInclude = {
-  ...summaryInclude,
-  items: { orderBy: { createdAt: 'asc' } },
-  history: {
-    orderBy: { createdAt: 'asc' },
-    include: { user: { select: { name: true } } },
-  },
-  events: {
-    orderBy: { createdAt: 'desc' },
-    include: eventInclude,
-  },
-  quote: { include: quoteInclude },
-  checkins: {
-    select: { id: true },
-    orderBy: { createdAt: 'desc' },
-    take: 1,
-  },
-} satisfies Prisma.ServiceOrderInclude;
-
-type SummaryRow = Prisma.ServiceOrderGetPayload<{ include: typeof summaryInclude }>;
-type BoardRow = Prisma.ServiceOrderGetPayload<{ include: typeof boardInclude }>;
-type EventRow = Prisma.ServiceOrderEventGetPayload<{ include: typeof eventInclude }>;
-type DetailRow = Prisma.ServiceOrderGetPayload<{ include: typeof detailInclude }>;
 
 /** Mapa status → evento de mensagem automática (despachado via outbox). */
 const STATUS_MESSAGE_EVENT: Partial<Record<ServiceOrderStatus, MessageEvent>> = {

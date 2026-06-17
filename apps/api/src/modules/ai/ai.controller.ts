@@ -20,13 +20,13 @@ export class AiController {
   constructor(private readonly ai: AiService) {}
 
   @Get()
-  @RequirePermission(Permission.AI_MANAGE)
+  @RequirePermission(Permission.AI_READ)
   get(@CurrentUser() actor: AuthenticatedUser) {
     return this.ai.get(actor.tenantId);
   }
 
   @Get('usage')
-  @RequirePermission(Permission.AI_MANAGE)
+  @RequirePermission(Permission.AI_READ)
   usage(@CurrentUser() actor: AuthenticatedUser) {
     return this.ai.usage(actor.tenantId);
   }
@@ -41,13 +41,14 @@ export class AiController {
   }
 }
 
-/** Geração de texto pela IA (assistente). Disponível a usuários autenticados. */
+/** Geração de texto pela IA (assistente). Requer a permissão AI_USE. */
 @Controller('ai')
 @Throttle({ default: { limit: 20, ttl: 60_000 } })
 export class AiAssistController {
   constructor(private readonly ai: AiService) {}
 
   @Post('assist')
+  @RequirePermission(Permission.AI_USE)
   assist(
     @CurrentUser() actor: AuthenticatedUser,
     @Body(new ZodValidationPipe(aiAssistSchema)) body: AiAssistInput,
@@ -56,6 +57,7 @@ export class AiAssistController {
   }
 
   @Post('article')
+  @RequirePermission(Permission.AI_USE)
   article(
     @CurrentUser() actor: AuthenticatedUser,
     @Body(new ZodValidationPipe(aiArticleSchema)) body: AiArticleInput,

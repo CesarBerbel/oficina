@@ -11,9 +11,9 @@ cliente), desenhada para evoluir como **SaaS multi-oficina**.
 - **Monorepo:** pnpm workspaces + Turborepo
 - **Deploy:** Docker + Docker Compose + Nginx
 
-> 📐 A arquitetura, o modelo de dados e o roadmap por fases estão em
-> [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md). **Status atual: fases 0 a 10
-> concluídas, com hardening, CI e E2E da API ativos.**
+> 📐 A arquitetura e o modelo de dados estão em
+> [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md). **O estado real atual (o que está
+> implementado, testes e CI) está em [`docs/STATUS.md`](docs/STATUS.md).**
 
 ---
 
