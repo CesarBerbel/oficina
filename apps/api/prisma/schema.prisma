@@ -280,6 +280,7 @@ model Tenant {
   crmSettings CrmSettings?
   operationalSettings OperationalSettings?
   outboxMessages OutboxMessage[]
+  financialLedger FinancialLedgerEntry[]
 
   @@map("tenants")
 }
@@ -848,6 +849,7 @@ model FinancialEntry {
   serviceOrder  ServiceOrder?       @relation(fields: [serviceOrderId], references: [id], onDelete: SetNull)
   purchaseOrder PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   payments      FinancialPayment[]
+  ledger        FinancialLedgerEntry[]
 
   @@unique([tenantId, serviceOrderId, type])
   @@unique([tenantId, purchaseOrderId, type])
@@ -874,6 +876,34 @@ model FinancialPayment {
   @@index([tenantId, paidAt])
   @@index([entryId])
   @@map("financial_payments")
+}
+
+/// Movimento de um lançamento financeiro. Append-only/imutável (ledger):
+/// `amount` é assinado pelo saldo devido (+ emite/aumenta, - baixa/estorna),
+/// de modo que a soma dos movimentos == saldo restante do lançamento.
+enum FinancialLedgerKind {
+  ISSUE
+  ADJUSTMENT
+  PAYMENT
+  CANCELLATION
+}
+
+model FinancialLedgerEntry {
+  id          String              @id @default(cuid())
+  tenantId    String
+  entryId     String
+  kind        FinancialLedgerKind
+  amount      Decimal             @db.Decimal(12, 2)
+  description String?
+  createdById String?
+  createdAt   DateTime            @default(now())
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entry  FinancialEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([entryId])
+  @@map("financial_ledger_entries")
 }
 
 /// Notificação interna para um usuário.

@@ -47,6 +47,12 @@ export class FinancialController {
     return this.financial.findOne(actor.tenantId, id);
   }
 
+  @Get('entries/:id/ledger')
+  @RequirePermission(Permission.FINANCE_READ)
+  ledger(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.financial.ledger(actor.tenantId, id);
+  }
+
   @Post('entries')
   @RequirePermission(Permission.FINANCE_WRITE)
   create(

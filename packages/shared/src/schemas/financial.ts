@@ -101,3 +101,14 @@ export interface FinancialSummaryDto {
   openReceivablesCount: number;
   openPayablesCount: number;
 }
+
+/** Movimento imutável do ledger financeiro. */
+export type FinancialLedgerKind = 'ISSUE' | 'ADJUSTMENT' | 'PAYMENT' | 'CANCELLATION';
+
+export interface FinancialLedgerEntryDto {
+  id: string;
+  kind: FinancialLedgerKind;
+  amount: number;
+  description: string | null;
+  createdAt: string;
+}
