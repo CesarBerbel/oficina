@@ -273,7 +273,7 @@ export function OsDetailView({
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm">
-          <Link href={`/clientes/${os.customerId}?returnTo=${encodeURIComponent(selfHref)}`} className="font-medium hover:underline">
+          <Link href={`/clientes/${os.customerId}?returnTo=${encodeURIComponent(selfHref)}`} className="block font-medium hover:underline">
             {os.customerName}
           </Link>
           {os.customerWhatsapp ? (
@@ -281,7 +281,7 @@ export function OsDetailView({
               href={whatsappLink(os.customerWhatsapp)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
+              className="mt-0.5 flex w-fit items-center gap-1 text-emerald-600 hover:underline"
             >
               <MessageCircle className="size-3.5" /> {maskPhone(os.customerWhatsapp)}
             </a>
