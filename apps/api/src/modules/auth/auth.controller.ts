@@ -83,6 +83,12 @@ export class AuthController {
   }
 
   @Public()
+  @Get('signup-status')
+  signupStatus() {
+    return { enabled: this.config.get('ALLOW_TENANT_SIGNUP') === true };
+  }
+
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   @HttpCode(201)

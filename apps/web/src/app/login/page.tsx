@@ -8,6 +8,7 @@ import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { loginSchema } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
+import { useSignupStatus } from '@/features/auth/use-signup-status';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ const FIELD_LABELS = {
 export default function LoginPage() {
   const router = useRouter();
   const { login, status } = useAuth();
+  const { data: signup } = useSignupStatus();
   const [tenantSlug, setTenantSlug] = useState(DEFAULT_TENANT_SLUG);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -139,12 +141,14 @@ export default function LoginPage() {
             Entrar
           </Button>
 
-          <p className="text-center text-sm text-muted-foreground">
-            Ainda não tem uma oficina?{' '}
-            <Link href="/cadastro" className="font-medium text-primary hover:underline">
-              Criar oficina
-            </Link>
-          </p>
+          {signup?.enabled && (
+            <p className="text-center text-sm text-muted-foreground">
+              Ainda não tem uma oficina?{' '}
+              <Link href="/cadastro" className="font-medium text-primary hover:underline">
+                Criar oficina
+              </Link>
+            </p>
+          )}
         </div>
       </form>
     </main>

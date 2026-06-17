@@ -8,6 +8,7 @@ import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { registerTenantSchema } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
+import { useSignupStatus } from '@/features/auth/use-signup-status';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { maskCnpj, maskPhone } from '@/lib/masks';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ function slugify(value: string): string {
 export default function CadastroPage() {
   const router = useRouter();
   const { register, status } = useAuth();
+  const { data: signup } = useSignupStatus();
   const [shopName, setShopName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
@@ -51,6 +53,11 @@ export default function CadastroPage() {
   useEffect(() => {
     if (status === 'authenticated') router.replace('/dashboard');
   }, [status, router]);
+
+  // Auto-cadastro desativado (ALLOW_TENANT_SIGNUP=false): volta ao login.
+  useEffect(() => {
+    if (signup && !signup.enabled) router.replace('/login');
+  }, [signup, router]);
 
   // Sugere o identificador a partir do nome enquanto o usuário não o editar.
   function onShopNameChange(value: string) {
