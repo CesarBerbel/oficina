@@ -123,8 +123,9 @@ export class CheckinsService {
     actor: AuthenticatedUser,
     input: CreateCheckinInput,
   ): Promise<CheckinDto> {
+    // Veículo é compartilhado no grupo (groupId); o check-in é por filial.
     const vehicle = await this.prisma.vehicle.findFirst({
-      where: { id: input.vehicleId, tenantId: actor.tenantId },
+      where: { id: input.vehicleId, tenantId: actor.groupId },
       select: { id: true, customerId: true, currentKm: true },
     });
     if (!vehicle) throw new BadRequestException('Veículo inválido');

@@ -456,8 +456,9 @@ export class ServiceOrdersService {
     actor: AuthenticatedUser,
     input: CreateServiceOrderInput,
   ): Promise<ServiceOrderDetailDto> {
+    // Veículo e cliente são compartilhados no grupo (groupId); a OS é por filial.
     const vehicle = await this.prisma.vehicle.findFirst({
-      where: { id: input.vehicleId, tenantId: actor.tenantId },
+      where: { id: input.vehicleId, tenantId: actor.groupId },
       select: { id: true, customerId: true },
     });
     if (!vehicle) throw new BadRequestException('Veículo inválido');

@@ -50,15 +50,16 @@ export class VehiclesService {
     private readonly audit: AuditService,
   ) {}
 
+  // Veículos são compartilhados no grupo (matriz + filiais): escopo por groupId.
   async list(
-    tenantId: string,
+    groupId: string,
     query: ListVehiclesQuery,
   ): Promise<Paginated<VehicleDto>> {
     const { page, pageSize, search, customerId, fuel, sortBy, sortOrder } =
       query;
 
     const where: Prisma.VehicleWhereInput = {
-      tenantId,
+      tenantId: groupId,
       ...(customerId ? { customerId } : {}),
       ...(fuel ? { fuel } : {}),
       ...(search
@@ -101,18 +102,18 @@ export class VehiclesService {
     };
   }
 
-  async findOne(tenantId: string, id: string): Promise<VehicleDto> {
+  async findOne(groupId: string, id: string): Promise<VehicleDto> {
     const vehicle = await this.prisma.vehicle.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId: groupId },
       ...withCustomer,
     });
     if (!vehicle) throw new NotFoundException('Veículo não encontrado');
     return toDto(vehicle);
   }
 
-  private async assertCustomer(tenantId: string, customerId: string) {
+  private async assertCustomer(groupId: string, customerId: string) {
     const customer = await this.prisma.customer.findFirst({
-      where: { id: customerId, tenantId },
+      where: { id: customerId, tenantId: groupId },
       select: { id: true },
     });
     if (!customer)
@@ -123,15 +124,15 @@ export class VehiclesService {
     actor: AuthenticatedUser,
     input: CreateVehicleInput,
   ): Promise<VehicleDto> {
-    await this.assertCustomer(actor.tenantId, input.customerId);
+    await this.assertCustomer(actor.groupId, input.customerId);
 
     const clash = await this.prisma.vehicle.findFirst({
-      where: { tenantId: actor.tenantId, plate: input.plate },
+      where: { tenantId: actor.groupId, plate: input.plate },
     });
     if (clash) throw new ConflictException('Placa já cadastrada');
 
     const created = await this.prisma.vehicle.create({
-      data: { tenantId: actor.tenantId, ...input },
+      data: { tenantId: actor.groupId, ...input },
       ...withCustomer,
     });
 
@@ -154,19 +155,19 @@ export class VehiclesService {
     input: UpdateVehicleInput,
   ): Promise<VehicleDto> {
     const current = await this.prisma.vehicle.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
     });
     if (!current) throw new NotFoundException('Veículo não encontrado');
 
     if (input.plate && input.plate !== current.plate) {
       const clash = await this.prisma.vehicle.findFirst({
-        where: { tenantId: actor.tenantId, plate: input.plate, NOT: { id } },
+        where: { tenantId: actor.groupId, plate: input.plate, NOT: { id } },
       });
       if (clash) throw new ConflictException('Placa já cadastrada');
     }
 
     if (input.customerId && input.customerId !== current.customerId) {
-      await this.assertCustomer(actor.tenantId, input.customerId);
+      await this.assertCustomer(actor.groupId, input.customerId);
     }
 
     const updated = await this.prisma.vehicle.update({
@@ -199,17 +200,14 @@ export class VehiclesService {
 
   async remove(actor: AuthenticatedUser, id: string): Promise<void> {
     const current = await this.prisma.vehicle.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
     });
     if (!current) throw new NotFoundException('Veículo não encontrado');
 
+    // Veículo é do grupo: bloqueia exclusão se houver vínculo em QUALQUER filial.
     const [serviceOrdersCount, checkinsCount] = await this.prisma.$transaction([
-      this.prisma.serviceOrder.count({
-        where: { tenantId: actor.tenantId, vehicleId: id },
-      }),
-      this.prisma.vehicleCheckin.count({
-        where: { tenantId: actor.tenantId, vehicleId: id },
-      }),
+      this.prisma.serviceOrder.count({ where: { vehicleId: id } }),
+      this.prisma.vehicleCheckin.count({ where: { vehicleId: id } }),
     ]);
 
     if (serviceOrdersCount > 0 || checkinsCount > 0) {

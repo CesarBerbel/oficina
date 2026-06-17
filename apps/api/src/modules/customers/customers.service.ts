@@ -104,14 +104,15 @@ export class CustomersService {
     private readonly audit: AuditService,
   ) {}
 
+  // Clientes são compartilhados no grupo (matriz + filiais): escopo por groupId.
   async list(
-    tenantId: string,
+    groupId: string,
     query: ListCustomersQuery,
   ): Promise<Paginated<CustomerDto>> {
     const { page, pageSize, search, type, sortBy, sortOrder } = query;
 
     const where: Prisma.CustomerWhereInput = {
-      tenantId,
+      tenantId: groupId,
       ...(type ? { type } : {}),
       ...(search
         ? {
@@ -157,9 +158,12 @@ export class CustomersService {
 
 
 
-  async find360(tenantId: string, id: string): Promise<Customer360Dto> {
+  // Cliente e veículos vêm do grupo (groupId); o histórico operacional (OS, leads,
+  // check-ins, mensagens, CRM) continua restrito à oficina do usuário (tenantId).
+  async find360(actor: AuthenticatedUser, id: string): Promise<Customer360Dto> {
+    const { groupId, tenantId } = actor;
     const customer = await this.prisma.customer.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId: groupId },
       ...withCount,
     });
     if (!customer) throw new NotFoundException('Cliente não encontrado');
@@ -167,7 +171,7 @@ export class CustomersService {
     const [vehicles, serviceOrders, leads, checkins, messages, crmSettingsRow] =
       await Promise.all([
         this.prisma.vehicle.findMany({
-          where: { tenantId, customerId: id },
+          where: { tenantId: groupId, customerId: id },
           include: { _count: { select: { serviceOrders: true } } },
           orderBy: [{ updatedAt: 'desc' }, { plate: 'asc' }],
         }),
@@ -530,9 +534,9 @@ export class CustomersService {
   }
 
 
-  async findOne(tenantId: string, id: string): Promise<CustomerDto> {
+  async findOne(groupId: string, id: string): Promise<CustomerDto> {
     const customer = await this.prisma.customer.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId: groupId },
       ...withCount,
     });
     if (!customer) throw new NotFoundException('Cliente não encontrado');
@@ -545,7 +549,7 @@ export class CustomersService {
   ): Promise<CustomerDto> {
     if (input.document) {
       const clash = await this.prisma.customer.findFirst({
-        where: { tenantId: actor.tenantId, document: input.document },
+        where: { tenantId: actor.groupId, document: input.document },
       });
       if (clash)
         throw new ConflictException('Já existe um cliente com este CPF/CNPJ');
@@ -554,7 +558,7 @@ export class CustomersService {
     const { birthDate, ...rest } = input;
     const created = await this.prisma.customer.create({
       data: {
-        tenantId: actor.tenantId,
+        tenantId: actor.groupId,
         ...rest,
         ...(birthDate ? { birthDate: new Date(birthDate) } : {}),
       },
@@ -580,14 +584,14 @@ export class CustomersService {
     input: UpdateCustomerInput,
   ): Promise<CustomerDto> {
     const current = await this.prisma.customer.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
     });
     if (!current) throw new NotFoundException('Cliente não encontrado');
 
     if (input.document && input.document !== current.document) {
       const clash = await this.prisma.customer.findFirst({
         where: {
-          tenantId: actor.tenantId,
+          tenantId: actor.groupId,
           document: input.document,
           NOT: { id },
         },
@@ -620,7 +624,7 @@ export class CustomersService {
 
   async remove(actor: AuthenticatedUser, id: string): Promise<void> {
     const current = await this.prisma.customer.findFirst({
-      where: { id, tenantId: actor.tenantId },
+      where: { id, tenantId: actor.groupId },
       include: { _count: { select: { vehicles: true } } },
     });
     if (!current) throw new NotFoundException('Cliente não encontrado');

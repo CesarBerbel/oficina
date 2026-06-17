@@ -367,7 +367,18 @@ export class LeadsService {
     };
   }
 
+  /** Resolve o grupo (matriz) de uma oficina a partir do seu tenantId. */
+  private async groupOf(tenantId: string): Promise<string> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { parentId: true },
+    });
+    return tenant?.parentId ?? tenantId;
+  }
+
   private async buildMatch(tenantId: string, lead: LeadRow): Promise<LeadMatchSummaryDto> {
+    // Clientes/veículos sugeridos vêm do grupo (compartilhados entre matriz/filiais).
+    const groupId = await this.groupOf(tenantId);
     const phone = digits(lead.phone);
     const email = lead.email?.toLowerCase() ?? undefined;
     const plate = normalizePlate(lead.plate);
@@ -375,7 +386,7 @@ export class LeadsService {
 
     const customers = await this.prisma.customer.findMany({
       where: {
-        tenantId,
+        tenantId: groupId,
         OR: [
           ...(phone ? [{ phone: phone }, { whatsapp: phone }] : []),
           ...(email ? [{ email }] : []),
@@ -394,7 +405,7 @@ export class LeadsService {
 
     const vehicle = plate
       ? await this.prisma.vehicle.findFirst({
-          where: { tenantId, plate },
+          where: { tenantId: groupId, plate },
           select: {
             id: true,
             plate: true,
@@ -1155,7 +1166,7 @@ export class LeadsService {
     input: LinkLeadCustomerInput,
   ): Promise<LeadDetailDto> {
     const customer = await this.prisma.customer.findFirst({
-      where: { id: input.customerId, tenantId: actor.tenantId },
+      where: { id: input.customerId, tenantId: actor.groupId },
       select: { id: true, name: true },
     });
     if (!customer) throw new BadRequestException('Cliente inválido');
@@ -1202,7 +1213,7 @@ export class LeadsService {
     input: LinkLeadVehicleInput,
   ): Promise<LeadDetailDto> {
     const vehicle = await this.prisma.vehicle.findFirst({
-      where: { id: input.vehicleId, tenantId: actor.tenantId },
+      where: { id: input.vehicleId, tenantId: actor.groupId },
       select: { id: true, plate: true, customerId: true, customer: { select: { name: true } } },
     });
     if (!vehicle) throw new BadRequestException('Veículo inválido');

@@ -20,6 +20,6 @@ export class GlobalSearchController {
     @CurrentUser() actor: AuthenticatedUser,
     @Query(new ZodValidationPipe(globalSearchQuerySchema)) query: GlobalSearchQuery,
   ) {
-    return this.globalSearch.search(actor.tenantId, query);
+    return this.globalSearch.search(actor, query);
   }
 }

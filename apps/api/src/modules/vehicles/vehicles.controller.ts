@@ -35,13 +35,13 @@ export class VehiclesController {
     @Query(new ZodValidationPipe(listVehiclesQuerySchema))
     query: ListVehiclesQuery,
   ) {
-    return this.vehicles.list(actor.tenantId, query);
+    return this.vehicles.list(actor.groupId, query);
   }
 
   @Get(':id')
   @RequirePermission(Permission.VEHICLES_READ)
   findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
-    return this.vehicles.findOne(actor.tenantId, id);
+    return this.vehicles.findOne(actor.groupId, id);
   }
 
   @Post()
