@@ -35,7 +35,10 @@ export const prisma = new PrismaClient();
 
 export async function resetDatabase(): Promise<void> {
   ensureE2eEnv();
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE "tenants" RESTART IDENTITY CASCADE');
+  // ops_heartbeat é global (sem FK a tenant), então não é limpo pelo CASCADE.
+  await prisma.$executeRawUnsafe(
+    'TRUNCATE TABLE "tenants", "ops_heartbeat" RESTART IDENTITY CASCADE',
+  );
 }
 
 /** Saldo/reserva de estoque de uma peça numa oficina (PartStock por filial). */

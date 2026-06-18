@@ -278,3 +278,27 @@ Em **produção**:
 - overrides de oficina por `?tenantSlug=` e headers `X-Public-*` são **ignorados**
   (controlado por `NODE_ENV=production` ou `PUBLIC_STRICT_HOST=true`). A rota
   explícita `GET /api/public/site/by-slug/:slug` continua disponível.
+
+## 13. Alertas ativos
+
+A tela **Métricas do sistema** mostra os alertas correntes. Além disso, um monitor
+em segundo plano avalia as métricas periodicamente e **avisa os admins** quando um
+alerta surge:
+
+- canais: notificação interna + **Web Push**; **e-mail** apenas nos alertas críticos;
+- **cooldown**: o mesmo alerta só é repetido após `ALERT_RENOTIFY_HOURS` (padrão 24h);
+  quando o alerta se resolve, a marca é limpa e ele volta a disparar se reaparecer.
+
+Variáveis (todas opcionais):
+
+```bash
+ALERT_MONITOR_ENABLED=true      # 'false' desliga o monitor
+ALERT_SCAN_INTERVAL_MS=300000   # intervalo entre varreduras (ms)
+ALERT_RENOTIFY_HOURS=24         # cooldown antes de renotificar
+BACKUP_MAX_AGE_HOURS=26         # backup mais antigo que isso vira alerta
+OUTBOX_STUCK_AGE_SEC=600        # pendência do outbox mais antiga que isso alerta
+```
+
+> Para receber Web Push é preciso ter as chaves VAPID configuradas (seção 11) e
+> o e-mail crítico exige SMTP real (`MAIL_DRIVER=smtp`); sem isso os avisos ficam
+> só na notificação interna.

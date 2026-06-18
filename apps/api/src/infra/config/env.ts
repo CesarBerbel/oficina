@@ -70,6 +70,18 @@ const baseEnvSchema = z.object({
   SMTP_PASS: z.string().optional().default(''),
   /** Remetente exibido. Cai para SMTP_USER quando vazio. */
   SMTP_FROM: z.string().optional().default(''),
+
+  // ── Alertas ativos (monitor de métricas → notifica admins) ─────────────────
+  /** Liga o monitor de alertas (in-app/push/e-mail). 'false' desliga. */
+  ALERT_MONITOR_ENABLED: z.enum(['true', 'false']).default('true'),
+  /** Intervalo entre varreduras do monitor de alertas (ms). */
+  ALERT_SCAN_INTERVAL_MS: z.coerce.number().int().min(10_000).default(300_000),
+  /** Cooldown antes de renotificar o mesmo alerta (horas). */
+  ALERT_RENOTIFY_HOURS: z.coerce.number().int().min(1).default(24),
+  /** Idade máxima do último backup antes de alertar (horas). */
+  BACKUP_MAX_AGE_HOURS: z.coerce.number().int().min(1).default(26),
+  /** Idade do pendente mais antigo do outbox antes de alertar (segundos). */
+  OUTBOX_STUCK_AGE_SEC: z.coerce.number().int().min(30).default(600),
 });
 
 /** Valores placeholder/de exemplo que jamais devem ir para produção. */

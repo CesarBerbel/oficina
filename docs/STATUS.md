@@ -84,6 +84,10 @@ Action composta `.github/actions/setup` (Node + pnpm + cache).
 - Segredos validados no boot (prod); auditoria imutável; outbox transacional.
 - `/auth/refresh` valida origem (CSRF) e **detecta reuse de refresh revogado**
   (invalida a família de sessões).
-- Resolução pública trava overrides `X-Public-*`/`tenantSlug` em produção; Nginx
-  sobrescreve `X-Forwarded-Host`; domínios exigem verificação em produção.
+- Resolução pública trava overrides `X-Public-*`/`tenantSlug` em produção (lead
+  público inclusive); Nginx sobrescreve `X-Forwarded-Host`; domínios exigem
+  verificação em produção.
 - IA com timeout (AbortController) e limites de uso por tenant/usuário.
+- **Métricas + alertas ativos**: `/api/metrics` reúne outbox, ledger, IA, SMTP,
+  backup (heartbeat) e saúde; um monitor periódico notifica os admins
+  (in-app + Web Push; e-mail nos críticos) com cooldown para não repetir.
