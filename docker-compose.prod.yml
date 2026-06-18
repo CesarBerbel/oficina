@@ -118,5 +118,9 @@ services:
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
 
 volumes:
+  # Nomes fixos (independentes do COMPOSE_PROJECT_NAME) para que backup/restore
+  # encontrem sempre os mesmos volumes.
   oficina_pgdata:
+    name: oficina_pgdata
   oficina_uploads:
+    name: oficina_uploads
