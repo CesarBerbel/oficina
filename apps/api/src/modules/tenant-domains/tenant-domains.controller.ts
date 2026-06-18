@@ -35,6 +35,12 @@ export class TenantDomainsController {
     return this.domains.verify(actor, id);
   }
 
+  @Get(':id/dns-check')
+  @RequirePermission(Permission.SETTINGS_MANAGE)
+  dnsCheck(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.domains.dnsCheck(actor, id);
+  }
+
   @Delete(':id')
   @RequirePermission(Permission.SETTINGS_MANAGE)
   @HttpCode(204)

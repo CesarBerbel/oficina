@@ -18,4 +18,21 @@ export class DnsVerifier {
       return [];
     }
   }
+
+  /** Resolve o apontamento do host: A/AAAA e, na ausência, CNAME. */
+  async addresses(host: string): Promise<string[]> {
+    const out: string[] = [];
+    for (const fn of [
+      () => dns.resolve4(host),
+      () => dns.resolve6(host),
+      () => dns.resolveCname(host),
+    ]) {
+      try {
+        out.push(...(await fn()));
+      } catch {
+        // ignora falha individual (ex.: sem AAAA) — agrega o que resolver.
+      }
+    }
+    return [...new Set(out)];
+  }
 }

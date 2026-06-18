@@ -37,3 +37,22 @@ export interface TenantDomainDto {
     value: string; // token
   };
 }
+
+/** Diagnóstico ao vivo do DNS de um domínio (consulta real no momento). */
+export interface TenantDomainDnsCheckDto {
+  domain: string;
+  verified: boolean;
+  /** Registro TXT de posse. */
+  txt: {
+    name: string;
+    expected: string;
+    found: string[];
+    ok: boolean;
+  };
+  /** Apontamento do domínio (A/AAAA/CNAME) para o servidor. */
+  address: {
+    name: string;
+    records: string[];
+    ok: boolean;
+  };
+}

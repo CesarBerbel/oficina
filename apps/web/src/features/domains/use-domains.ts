@@ -1,7 +1,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreateTenantDomainInput, TenantDomainDto } from '@oficina/shared';
+import type {
+  CreateTenantDomainInput,
+  TenantDomainDto,
+  TenantDomainDnsCheckDto,
+} from '@oficina/shared';
 import { api } from '@/lib/api';
 
 const KEY = ['tenant-domains'];
@@ -35,5 +39,11 @@ export function useVerifyDomain() {
   return useMutation({
     mutationFn: (id: string) => api.post<TenantDomainDto>(`/tenant-domains/${id}/verify`),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export function useDnsCheck() {
+  return useMutation({
+    mutationFn: (id: string) => api.get<TenantDomainDnsCheckDto>(`/tenant-domains/${id}/dns-check`),
   });
 }
