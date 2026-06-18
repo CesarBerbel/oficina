@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   aiFieldDefault,
@@ -47,6 +47,9 @@ export class AiService {
     instructions: string | null;
     fieldInstructions: Prisma.JsonValue | null;
     active: boolean;
+    dailyLimit: number | null;
+    monthlyLimit: number | null;
+    perUserDailyLimit: number | null;
   }): AiConfigDto {
     let maskedKey: string | null = null;
     if (c.apiKeyEnc) {
@@ -63,7 +66,15 @@ export class AiService {
       instructions: c.instructions,
       fieldInstructions: this.parseFieldInstructions(c.fieldInstructions),
       active: c.active,
+      dailyLimit: c.dailyLimit,
+      monthlyLimit: c.monthlyLimit,
+      perUserDailyLimit: c.perUserDailyLimit,
     };
+  }
+
+  /** null/0/undefined → null (ilimitado); senão o inteiro positivo. */
+  private normLimit(v: number | null | undefined): number | null {
+    return v && v > 0 ? Math.floor(v) : null;
   }
 
   async get(tenantId: string): Promise<AiConfigDto> {
@@ -92,6 +103,13 @@ export class AiService {
           : {}),
         ...(input.active !== undefined ? { active: input.active } : {}),
         ...(input.apiKey ? { apiKeyEnc: this.crypto.encrypt(input.apiKey) } : {}),
+        ...(input.dailyLimit !== undefined ? { dailyLimit: this.normLimit(input.dailyLimit) } : {}),
+        ...(input.monthlyLimit !== undefined
+          ? { monthlyLimit: this.normLimit(input.monthlyLimit) }
+          : {}),
+        ...(input.perUserDailyLimit !== undefined
+          ? { perUserDailyLimit: this.normLimit(input.perUserDailyLimit) }
+          : {}),
       },
     });
     await this.audit.record({
@@ -119,7 +137,52 @@ export class AiService {
       apiKey: this.crypto.decrypt(cfg.apiKeyEnc),
       instructions: cfg.instructions ?? '',
       fieldInstructions: this.parseFieldInstructions(cfg.fieldInstructions),
+      dailyLimit: cfg.dailyLimit,
+      monthlyLimit: cfg.monthlyLimit,
+      perUserDailyLimit: cfg.perUserDailyLimit,
     };
+  }
+
+  /** Aplica os limites de uso (tenant e por usuário) antes de chamar a IA. */
+  private async assertWithinLimits(
+    tenantId: string,
+    userId: string,
+    limits: {
+      dailyLimit: number | null;
+      monthlyLimit: number | null;
+      perUserDailyLimit: number | null;
+    },
+  ): Promise<void> {
+    const now = new Date();
+    const startOfDay = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const deny = (msg: string): never => {
+      throw new HttpException(msg, HttpStatus.TOO_MANY_REQUESTS);
+    };
+
+    if (limits.dailyLimit && limits.dailyLimit > 0) {
+      const used = await this.prisma.aiUsageLog.count({
+        where: { tenantId, createdAt: { gte: startOfDay } },
+      });
+      if (used >= limits.dailyLimit)
+        deny(`Limite diário de uso de IA da oficina atingido (${limits.dailyLimit}).`);
+    }
+    if (limits.monthlyLimit && limits.monthlyLimit > 0) {
+      const used = await this.prisma.aiUsageLog.count({
+        where: { tenantId, createdAt: { gte: startOfMonth } },
+      });
+      if (used >= limits.monthlyLimit)
+        deny(`Limite mensal de uso de IA da oficina atingido (${limits.monthlyLimit}).`);
+    }
+    if (limits.perUserDailyLimit && limits.perUserDailyLimit > 0) {
+      const used = await this.prisma.aiUsageLog.count({
+        where: { tenantId, userId, createdAt: { gte: startOfDay } },
+      });
+      if (used >= limits.perUserDailyLimit)
+        deny(`Seu limite diário de uso de IA atingido (${limits.perUserDailyLimit}).`);
+    }
   }
 
   /** Instrução específica do campo: override do tenant ou default do registro. */
@@ -134,6 +197,7 @@ export class AiService {
   /** Gera/melhora um trecho de texto (diagnóstico de OS, mensagem, etc.). */
   async assist(actor: AuthenticatedUser, input: AiAssistInput): Promise<AiAssistResult> {
     const client = await this.resolveClient(actor.tenantId);
+    await this.assertWithinLimits(actor.tenantId, actor.id, client);
     const system = [
       'Você é um assistente de uma oficina mecânica no Brasil.',
       'Escreva em português do Brasil, de forma clara, profissional e objetiva.',
@@ -181,6 +245,7 @@ export class AiService {
   /** Gera um artigo de blog completo a partir do assunto. */
   async article(actor: AuthenticatedUser, input: AiArticleInput): Promise<AiArticleResult> {
     const client = await this.resolveClient(actor.tenantId);
+    await this.assertWithinLimits(actor.tenantId, actor.id, client);
     const system = [
       'Você é um redator especialista em conteúdo para oficinas mecânicas no Brasil.',
       'Escreva em português do Brasil, tom acessível e confiável.',

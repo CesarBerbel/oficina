@@ -1104,6 +1104,10 @@ model AiConfig {
   // Instruções específicas por campo (mapa campo → instrução).
   fieldInstructions Json?
   active       Boolean    @default(false)
+  // Limites de uso (null = ilimitado). Contam chamadas à IA no período.
+  dailyLimit        Int?
+  monthlyLimit      Int?
+  perUserDailyLimit Int?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

@@ -220,3 +220,14 @@ jobs:
             NEXT_PUBLIC_API_URL=/api
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # ── E2E de backup/restore (Postgres efêmero, dump --clean --if-exists) ──
+  backup-restore:
+    name: E2E de backup/restore
+    needs: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Round-trip de backup/restore
+        run: sh scripts/test-backup-restore.sh

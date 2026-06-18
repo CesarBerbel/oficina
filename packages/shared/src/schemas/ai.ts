@@ -69,6 +69,10 @@ export const updateAiConfigSchema = z.object({
   /** Instruções específicas por campo (mapa campo → instrução). */
   fieldInstructions: z.record(z.string().trim().max(4000)).optional(),
   active: z.boolean().optional(),
+  /** Limites de uso (null/0 = ilimitado). Contam chamadas no período. */
+  dailyLimit: z.number().int().min(0).max(100_000).nullable().optional(),
+  monthlyLimit: z.number().int().min(0).max(1_000_000).nullable().optional(),
+  perUserDailyLimit: z.number().int().min(0).max(100_000).nullable().optional(),
 });
 export type UpdateAiConfigInput = z.infer<typeof updateAiConfigSchema>;
 
@@ -79,6 +83,9 @@ export interface AiConfigDto {
   instructions: string | null;
   fieldInstructions: Record<string, string>;
   active: boolean;
+  dailyLimit: number | null;
+  monthlyLimit: number | null;
+  perUserDailyLimit: number | null;
 }
 
 /** Assistente de texto: gera/melhora um trecho a partir de uma instrução. */

@@ -12,6 +12,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import { createLeadSchema, type CreateLeadInput } from '@oficina/shared';
 import { SiteService, type PublicTenantLookup } from '../site/site.service';
@@ -29,6 +30,7 @@ export class PublicSiteController {
     private readonly site: SiteService,
     private readonly blog: BlogService,
     private readonly leads: LeadsService,
+    private readonly config: ConfigService,
   ) {}
 
   private firstHeader(value: string | string[] | undefined): string | null {
@@ -37,10 +39,17 @@ export class PublicSiteController {
 
   private lookup(req: Request, tenantSlug?: string): PublicTenantLookup {
     const querySlug = typeof req.query.tenantSlug === 'string' ? req.query.tenantSlug : null;
+    // Overrides x-public-* são ferramentas de dev/teste para forçar a oficina.
+    // Em produção são ignorados (evita um atacante forjar a oficina servida);
+    // a resolução usa o host real (x-forwarded-host do proxy / Host).
+    const allowOverrides = this.config.get<string>('NODE_ENV') !== 'production';
     return {
-      tenantSlug: tenantSlug ?? querySlug ?? this.firstHeader(req.headers['x-public-tenant-slug']),
+      tenantSlug:
+        tenantSlug ??
+        querySlug ??
+        (allowOverrides ? this.firstHeader(req.headers['x-public-tenant-slug']) : null),
       host:
-        this.firstHeader(req.headers['x-public-host']) ??
+        (allowOverrides ? this.firstHeader(req.headers['x-public-host']) : null) ??
         this.firstHeader(req.headers['x-forwarded-host']) ??
         req.get('host') ??
         null,

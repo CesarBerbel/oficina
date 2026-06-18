@@ -35,6 +35,8 @@ const baseEnvSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().default(120),
   /** Tentativas de login por minuto (relaxado em CI/e2e). */
   AUTH_LOGIN_RATE_LIMIT: z.coerce.number().int().default(5),
+  /** Timeout (ms) das chamadas à IA. */
+  AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().default(30_000),
 
   // Apenas 'local' é implementado hoje. (S3/R2 fica para o futuro — não exponha
   // uma opção que não existe.)
