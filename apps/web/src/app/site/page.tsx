@@ -14,7 +14,7 @@ import {
   ExternalLink,
   PlayCircle,
 } from 'lucide-react';
-import { getPublicSite, getPublicBlog } from '@/lib/public-api';
+import { getPublicSite, getPublicBlog, getLoginContext } from '@/lib/public-api';
 import { getInstagramProfileUrl, getLatestInstagramPosts } from '@/lib/instagram';
 import { BLOG_FALLBACK_IMAGE } from '@/lib/blog';
 import { formatCurrency } from '@/lib/utils';
@@ -132,6 +132,41 @@ export default async function SiteHome() {
     getLatestInstagramPosts(6),
   ]);
   if (!data) {
+    // Host sem conta = apex da plataforma → landing institucional + CTA de cadastro.
+    // Host com conta mas site não publicado → aviso simples.
+    const ctx = await getLoginContext();
+    if (!ctx?.account) {
+      return (
+        <div className="container grid min-h-[60svh] place-items-center py-20 text-center">
+          <div className="max-w-xl">
+            <span className="inline-flex items-center gap-2 rounded-full border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground">
+              <Wrench className="size-3.5 text-primary" /> Plataforma para oficinas
+            </span>
+            <h1 className="mt-5 text-balance text-4xl font-bold tracking-tight sm:text-5xl">
+              Site e gestão completa para a sua oficina
+            </h1>
+            <p className="mt-4 text-pretty text-lg text-muted-foreground">
+              Crie a sua oficina online: site próprio, ordens de serviço, estoque, financeiro e CRM
+              — tudo num lugar só, com a sua marca.
+            </p>
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href="/comecar"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-7 py-3 text-base font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+              >
+                Criar minha oficina <ArrowRight className="size-4" />
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl border bg-background px-7 py-3 text-base font-semibold hover:bg-accent"
+              >
+                Já tenho conta
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="container grid place-items-center py-32 text-center">
         <p className="text-muted-foreground">Site não publicado.</p>

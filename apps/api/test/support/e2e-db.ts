@@ -35,10 +35,10 @@ export const prisma = new PrismaClient();
 
 export async function resetDatabase(): Promise<void> {
   ensureE2eEnv();
-  // accounts é pai de tenants; ops_heartbeat é global. Trunca os três (CASCADE
-  // limpa o resto via FK a partir de tenants).
+  // accounts é pai de tenants; account_requests e ops_heartbeat são globais (sem
+  // FK), então precisam ser truncados explicitamente.
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "accounts", "tenants", "ops_heartbeat" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "accounts", "tenants", "account_requests", "ops_heartbeat" RESTART IDENTITY CASCADE',
   );
 }
 

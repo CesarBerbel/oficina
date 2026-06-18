@@ -245,6 +245,31 @@ enum AccountStatus {
   SUSPENDED
 }
 
+/// Status de um pedido público de criação de conta (aprovado pelo platform admin).
+enum AccountRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Pedido público de criação de conta (vindo da landing). O platform admin
+/// aprova → provisiona a conta (Fase 1, PR 5).
+model AccountRequest {
+  id          String               @id @default(cuid())
+  name        String // nome da oficina
+  slug        String // subdomínio desejado
+  contactName String
+  email       String
+  phone       String?
+  message     String?
+  status      AccountRequestStatus @default(PENDING)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([status, createdAt])
+  @@map("account_requests")
+}
+
 /// Conta do cliente (SaaS): dona de uma ou mais oficinas (matriz + filiais).
 /// O `slug` é o subdomínio (ex.: "cliente" → cliente.saecbpa.com).
 model Account {
