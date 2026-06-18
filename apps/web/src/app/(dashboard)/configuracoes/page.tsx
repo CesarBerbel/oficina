@@ -12,6 +12,7 @@ import {
   Gauge,
   Tags,
   Repeat,
+  Network,
   ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -33,6 +34,13 @@ const ITEMS: Item[] = [
     href: '/site-config',
     icon: Globe,
     permission: 'site:manage',
+  },
+  {
+    title: 'Domínios próprios',
+    description: 'Domínios que apontam para o site desta oficina.',
+    href: '/configuracoes/dominios',
+    icon: Network,
+    permission: 'settings:manage',
   },
   {
     title: 'Categorias',

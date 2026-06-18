@@ -57,6 +57,29 @@ describe('Site público, leads e resolução de tenant (e2e)', () => {
     expect(response.body.settings.shopName).toBe('Oficina Modelo');
   });
 
+  it('resolve a oficina pelo domínio próprio (TenantDomain) com múltiplos sites publicados', async () => {
+    // Ambos os sites estão publicados (seed), então a resolução não pode cair no
+    // fallback single-tenant: só o domínio próprio deve decidir.
+    const admin = await loginAs(app);
+    await request(app.getHttpServer())
+      .post('/api/tenant-domains')
+      .set(authHeader(admin.token))
+      .send({ domain: 'oficina-modelo-e2e.com.br' })
+      .expect(201);
+
+    const byDomain = await request(app.getHttpServer())
+      .get('/api/public/site')
+      .set('X-Forwarded-Host', 'www.oficina-modelo-e2e.com.br')
+      .expect(200);
+    expect(byDomain.body.settings.shopName).toBe('Oficina Modelo');
+
+    // Host desconhecido continua ambíguo (404) — não vaza outra oficina.
+    await request(app.getHttpServer())
+      .get('/api/public/site')
+      .set('X-Forwarded-Host', 'dominio-inexistente-e2e.com')
+      .expect(404);
+  });
+
   it('cria lead público no tenant correto e permite gestão interna do status', async () => {
     await request(app.getHttpServer())
       .post(`/api/public/lead?tenantSlug=${TENANT_SLUG}`)

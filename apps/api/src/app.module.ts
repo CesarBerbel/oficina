@@ -32,6 +32,7 @@ import { MessagingModule } from './modules/messaging/messaging.module';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
+import { TenantDomainsModule } from './modules/tenant-domains/tenant-domains.module';
 import { SiteModule } from './modules/site/site.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { BlogModule } from './modules/blog/blog.module';
@@ -87,6 +88,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     OutboxModule,
     MetricsModule,
     TenantsModule,
+    TenantDomainsModule,
     DashboardModule,
     SiteModule,
     CategoriesModule,
