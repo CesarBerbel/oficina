@@ -58,7 +58,7 @@ if [ "$RESTORE_UPLOADS" = "true" ] && [ -n "$UPLOADS_BACKUP" ]; then
     -v "$RESOLVED_UPLOADS_VOLUME:/data" \
     -v "$(pwd)/$(dirname "$UPLOADS_BACKUP"):/backup:ro" \
     alpine:3.20 \
-    sh -c "rm -rf /data/* && cd /data && tar -xzf /backup/$(basename "$UPLOADS_BACKUP")"
+    sh -c "find /data -mindepth 1 -delete && cd /data && tar -xzf /backup/$(basename "$UPLOADS_BACKUP")"
   echo "Uploads restaurados a partir de: $UPLOADS_BACKUP"
 fi
 
