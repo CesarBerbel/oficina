@@ -17,6 +17,23 @@ Convenções (troque pelos seus valores):
 - painel administrativo: `app.seudominio.com`
 - IP da VPS: `203.0.113.10`
 
+### Valores de exemplo (deste deploy)
+
+Os comandos abaixo usam os placeholders acima. Para este deploy concreto, troque por:
+
+| Placeholder | Valor real |
+| --- | --- |
+| `seudominio.com` | `saecbpa.com` |
+| `app.seudominio.com` | `saecbpa.com` (o painel usa o **apex**; se preferir, use `app.saecbpa.com`) |
+| `*.seudominio.com` | `*.saecbpa.com` |
+| `203.0.113.10` | `2.24.91.216` |
+
+Ou seja: `WEB_ORIGIN=https://saecbpa.com`, `APP_URL=https://saecbpa.com`,
+`TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES=saecbpa.com`, DNS `A @/www/*` → `2.24.91.216`,
+`server_name saecbpa.com www.saecbpa.com *.saecbpa.com;` e o `/instalar` em
+`https://saecbpa.com/instalar`. Confira o IP com `dig +short saecbpa.com`
+(deve retornar `2.24.91.216`).
+
 ---
 
 ## 0. Pré-requisitos
