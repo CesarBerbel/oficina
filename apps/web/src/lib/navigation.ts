@@ -20,6 +20,7 @@ import {
   Newspaper,
   Settings,
   Building2,
+  Store,
   Activity,
   type LucideIcon,
 } from 'lucide-react';
@@ -155,6 +156,7 @@ export const NAV_SECTIONS: NavSection[] = [
         permission: Permission.AUDIT_READ,
       },
       { label: 'Oficinas', href: '/oficinas', icon: Building2, platformAdmin: true },
+      { label: 'Contas', href: '/contas', icon: Store, platformAdmin: true },
     ],
   },
 ];

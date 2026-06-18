@@ -80,6 +80,23 @@ export const createAccountRequestSchema = z.object({
 });
 export type CreateAccountRequestInput = z.infer<typeof createAccountRequestSchema>;
 
+/** Conta (cliente do SaaS) na visão do platform admin. */
+export interface AccountDto {
+  id: string;
+  name: string;
+  slug: string;
+  status: 'ACTIVE' | 'PENDING' | 'SUSPENDED';
+  /** Quantidade de oficinas (matriz + filiais) da conta. */
+  oficinasCount: number;
+  createdAt: string;
+}
+
+/** Ativar/suspender uma conta. */
+export const updateAccountStatusSchema = z.object({
+  status: z.enum(['ACTIVE', 'SUSPENDED']),
+});
+export type UpdateAccountStatusInput = z.infer<typeof updateAccountStatusSchema>;
+
 /** Pedido de conta na visão do platform admin (Fase 1, PR 5). */
 export interface AccountRequestDto {
   id: string;
