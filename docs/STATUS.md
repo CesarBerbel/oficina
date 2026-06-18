@@ -71,8 +71,19 @@ Action composta `.github/actions/setup` (Node + pnpm + cache).
 
 ## Lacunas conhecidas / próximos passos
 
-- **Serviços grandes**: `leads` (~1,5k linhas) e `service-orders` ainda concentram
-  muita lógica; extração incremental em andamento (mappers/regras separados).
+- **Serviços grandes**: `leads` e `service-orders` tiveram mappers/includes/helpers
+  extraídos; ainda há lógica de negócio a decompor incrementalmente.
 - **WhatsApp/SMS**: ainda sem provedor real plugado (e-mail já é real via SMTP).
-- **SaaS multi-domínio**: resolução de tenant por domínio próprio ainda não feita.
-- **Auto-merge/branch protection**: merges via PR exigem aprovação manual.
+- **SaaS multi-domínio**: `TenantDomain` resolve o site por domínio próprio (em
+  produção só **verificado**, com verificação **manual** pelo admin); falta a
+  verificação automática por DNS (TXT/CNAME).
+- **Limites de IA**: configuráveis via API; faltam os campos no formulário de `/ia`.
+
+## Segurança (resumo do que já existe)
+
+- Segredos validados no boot (prod); auditoria imutável; outbox transacional.
+- `/auth/refresh` valida origem (CSRF) e **detecta reuse de refresh revogado**
+  (invalida a família de sessões).
+- Resolução pública trava overrides `X-Public-*`/`tenantSlug` em produção; Nginx
+  sobrescreve `X-Forwarded-Host`; domínios exigem verificação em produção.
+- IA com timeout (AbortController) e limites de uso por tenant/usuário.
