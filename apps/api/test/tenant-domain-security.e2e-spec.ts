@@ -82,4 +82,71 @@ describe('TenantDomain: verificação exigida e anti-spoof (e2e)', () => {
       .expect(200);
     expect(bySlug.body.settings.shopName).toBe('Oficina Modelo');
   });
+
+  it('lead público ignora ?tenantSlug= em modo estrito; só resolve por host', async () => {
+    const lead = { name: 'Cliente E2E', phone: '11999998888', message: 'Quero um orçamento' };
+
+    // Override por query ignorado e sem host resolvível → 400.
+    await request(app.getHttpServer())
+      .post('/api/public/lead?tenantSlug=oficina-modelo')
+      .send(lead)
+      .expect(400);
+
+    // Com host de domínio verificado, registra o lead na oficina certa.
+    const modelo = await prisma.tenant.findUniqueOrThrow({ where: { slug: 'oficina-modelo' } });
+    await prisma.tenantDomain.create({
+      data: {
+        tenantId: modelo.id,
+        domain: 'lead-host-e2e.com.br',
+        verificationToken: 'tok-lead',
+        verifiedAt: new Date(),
+        isPrimary: true,
+      },
+    });
+    await request(app.getHttpServer())
+      .post('/api/public/lead')
+      .set('X-Forwarded-Host', 'lead-host-e2e.com.br')
+      .send(lead)
+      .expect(201);
+    const count = await prisma.lead.count({ where: { tenantId: modelo.id } });
+    expect(count).toBe(1);
+  });
+
+  it('SSR multi-domínio: cada X-Forwarded-Host resolve a oficina correta', async () => {
+    const modelo = await prisma.tenant.findUniqueOrThrow({ where: { slug: 'oficina-modelo' } });
+    const concorrente = await prisma.tenant.findUniqueOrThrow({
+      where: { slug: 'oficina-concorrente' },
+    });
+    await prisma.tenantDomain.createMany({
+      data: [
+        {
+          tenantId: modelo.id,
+          domain: 'modelo-e2e.com.br',
+          verificationToken: 'tk-a',
+          verifiedAt: new Date(),
+          isPrimary: true,
+        },
+        {
+          tenantId: concorrente.id,
+          domain: 'concorrente-e2e.com.br',
+          verificationToken: 'tk-b',
+          verifiedAt: new Date(),
+          isPrimary: true,
+        },
+      ],
+    });
+
+    // Simula a chamada do SSR (web→api) repassando o host real de cada domínio.
+    const a = await request(app.getHttpServer())
+      .get('/api/public/site')
+      .set('X-Forwarded-Host', 'modelo-e2e.com.br')
+      .expect(200);
+    expect(a.body.settings.shopName).toBe('Oficina Modelo');
+
+    const b = await request(app.getHttpServer())
+      .get('/api/public/site')
+      .set('X-Forwarded-Host', 'concorrente-e2e.com.br')
+      .expect(200);
+    expect(b.body.settings.shopName).toBe('Oficina Concorrente');
+  });
 });

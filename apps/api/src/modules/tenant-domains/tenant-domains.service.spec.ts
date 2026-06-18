@@ -7,7 +7,11 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 const actor = { id: 'u1', tenantId: 't1' } as AuthenticatedUser;
 
-function build(opts: { domainRow: Record<string, unknown> | null; txt: string[] }) {
+function build(opts: {
+  domainRow: Record<string, unknown> | null;
+  txt: string[];
+  addresses?: string[];
+}) {
   const update = jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
     ...(opts.domainRow as object),
     ...data,
@@ -19,7 +23,10 @@ function build(opts: { domainRow: Record<string, unknown> | null; txt: string[] 
     },
   } as unknown as PrismaService;
   const audit = { record: jest.fn().mockResolvedValue(undefined) } as unknown as AuditService;
-  const dns = { txtRecords: jest.fn().mockResolvedValue(opts.txt) } as unknown as DnsVerifier;
+  const dns = {
+    txtRecords: jest.fn().mockResolvedValue(opts.txt),
+    addresses: jest.fn().mockResolvedValue(opts.addresses ?? []),
+  } as unknown as DnsVerifier;
   return { service: new TenantDomainsService(prisma, audit, dns), update, dns };
 }
 
@@ -60,5 +67,32 @@ describe('TenantDomainsService.verify (DNS)', () => {
     const dto = await service.verify(actor, 'd1');
     expect(dto.verified).toBe(true);
     expect(dns.txtRecords).not.toHaveBeenCalled();
+  });
+});
+
+describe('TenantDomainsService.dnsCheck', () => {
+  it('reporta TXT e apontamento OK quando ambos resolvem', async () => {
+    const { service } = build({
+      domainRow: { ...baseRow },
+      txt: ['tok-abc123'],
+      addresses: ['203.0.113.10'],
+    });
+    const r = await service.dnsCheck(actor, 'd1');
+    expect(r.txt.name).toBe('_oficina-verify.oficina.com.br');
+    expect(r.txt.ok).toBe(true);
+    expect(r.address.ok).toBe(true);
+    expect(r.address.records).toEqual(['203.0.113.10']);
+  });
+
+  it('reporta falha quando o TXT não bate e não há apontamento', async () => {
+    const { service } = build({ domainRow: { ...baseRow }, txt: [], addresses: [] });
+    const r = await service.dnsCheck(actor, 'd1');
+    expect(r.txt.ok).toBe(false);
+    expect(r.address.ok).toBe(false);
+  });
+
+  it('lança NotFound quando o domínio não existe', async () => {
+    const { service } = build({ domainRow: null, txt: [], addresses: [] });
+    await expect(service.dnsCheck(actor, 'x')).rejects.toBeInstanceOf(NotFoundException);
   });
 });

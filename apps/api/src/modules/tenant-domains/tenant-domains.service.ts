@@ -10,6 +10,7 @@ import {
   TENANT_DOMAIN_VERIFY_PREFIX,
   type CreateTenantDomainInput,
   type TenantDomainDto,
+  type TenantDomainDnsCheckDto,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -119,6 +120,36 @@ export class TenantDomainsService {
       after: { domain: updated.domain },
     });
     return this.toDto(updated);
+  }
+
+  /** Diagnóstico ao vivo do DNS (TXT de posse + apontamento A/AAAA/CNAME). */
+  async dnsCheck(actor: AuthenticatedUser, id: string): Promise<TenantDomainDnsCheckDto> {
+    const existing = await this.prisma.tenantDomain.findFirst({
+      where: { id, tenantId: actor.tenantId },
+    });
+    if (!existing) throw new NotFoundException('Domínio não encontrado');
+
+    const txtName = `${TENANT_DOMAIN_VERIFY_PREFIX}.${existing.domain}`;
+    const [txtFound, addresses] = await Promise.all([
+      this.dns.txtRecords(txtName),
+      this.dns.addresses(existing.domain),
+    ]);
+
+    return {
+      domain: existing.domain,
+      verified: existing.verifiedAt != null,
+      txt: {
+        name: txtName,
+        expected: existing.verificationToken,
+        found: txtFound,
+        ok: txtFound.includes(existing.verificationToken),
+      },
+      address: {
+        name: existing.domain,
+        records: addresses,
+        ok: addresses.length > 0,
+      },
+    };
   }
 
   async remove(actor: AuthenticatedUser, id: string): Promise<void> {

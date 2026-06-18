@@ -2,8 +2,11 @@
 set -eu
 
 COMPOSE_FILE=${COMPOSE_FILE:-docker-compose.prod.yml}
-API_HEALTH_URL=${API_HEALTH_URL:-http://127.0.0.1/api/health/ready}
-WEB_URL=${WEB_URL:-http://127.0.0.1/}
+# O Nginx do compose base publica em 127.0.0.1:18081 (atrás de um proxy/HTTPS
+# externo). Se você expõe direto na 80/443, ajuste BASE_URL/API_HEALTH_URL/WEB_URL.
+BASE_URL=${BASE_URL:-http://127.0.0.1:18081}
+API_HEALTH_URL=${API_HEALTH_URL:-$BASE_URL/api/health/ready}
+WEB_URL=${WEB_URL:-$BASE_URL/}
 MIN_FREE_DISK_PERCENT=${MIN_FREE_DISK_PERCENT:-10}
 
 echo "== Containers =="

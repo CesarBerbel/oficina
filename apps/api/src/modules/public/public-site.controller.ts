@@ -8,7 +8,6 @@ import {
   NotFoundException,
   Param,
   Post,
-  Query,
   Req,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -102,10 +101,12 @@ export class PublicSiteController {
   @HttpCode(201)
   async lead(
     @Req() req: Request,
-    @Query('tenantSlug') tenantSlug: string | undefined,
     @Body(new ZodValidationPipe(createLeadSchema)) body: CreateLeadInput,
   ) {
-    const tenantId = await this.site.publishedTenantId(this.lookup(req, tenantSlug));
+    // Resolve pelo caminho padrão (host + override gated). NUNCA aceitar
+    // ?tenantSlug= como override explícito: em produção isso permitiria
+    // registrar lead em qualquer oficina. Em dev, o querySlug ainda vale.
+    const tenantId = await this.site.publishedTenantId(this.lookup(req));
     if (!tenantId) throw new BadRequestException('Site indisponível no momento');
     await this.leads.createFromPublic(tenantId, body);
     return { ok: true };

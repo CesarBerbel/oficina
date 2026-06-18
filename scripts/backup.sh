@@ -74,6 +74,15 @@ cat >"$MANIFEST_OUT" <<EOF
 EOF
 echo "Manifesto: $MANIFEST_OUT"
 
+# ── Heartbeat (para métricas/alertas) ────────────────────────────────────────
+# Grava o instante do último backup bem-sucedido. Best-effort: não falha o
+# backup se o banco/tabela não estiver disponível.
+docker compose -f "$COMPOSE_FILE" exec -T "$POSTGRES_SERVICE" \
+  psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c \
+  "INSERT INTO ops_heartbeat (key, at, note, \"updatedAt\") VALUES ('backup', now(), '${STAMP}', now()) ON CONFLICT (key) DO UPDATE SET at = EXCLUDED.at, note = EXCLUDED.note, \"updatedAt\" = now();" \
+  >/dev/null 2>&1 && echo "Heartbeat de backup atualizado." \
+  || echo "AVISO: nao foi possivel gravar o heartbeat de backup." >&2
+
 # ── Retenção (por tipo) ─────────────────────────────────────────────────────
 for prefix in oficina_db_ oficina_uploads_ oficina_manifest_; do
   find "$BACKUP_DIR" -name "${prefix}*" -type f | sort -r | awk "NR>${RETENTION}" | xargs -r rm -f

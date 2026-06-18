@@ -1,14 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { Trash2, Plus, Star, ShieldCheck } from 'lucide-react';
+import { Trash2, Plus, Star, ShieldCheck, Stethoscope, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
+import type { TenantDomainDnsCheckDto } from '@oficina/shared';
 import { CarLoader } from '@/components/car-loader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   useAddDomain,
+  useDnsCheck,
   useDomains,
   useRemoveDomain,
   useVerifyDomain,
@@ -19,7 +21,22 @@ export default function DominiosPage() {
   const add = useAddDomain();
   const remove = useRemoveDomain();
   const verify = useVerifyDomain();
+  const dnsCheck = useDnsCheck();
   const [domain, setDomain] = useState('');
+  const [checks, setChecks] = useState<Record<string, TenantDomainDnsCheckDto>>({});
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+
+  async function onDnsCheck(id: string) {
+    setCheckingId(id);
+    try {
+      const result = await dnsCheck.mutateAsync(id);
+      setChecks((prev) => ({ ...prev, [id]: result }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao consultar o DNS');
+    } finally {
+      setCheckingId(null);
+    }
+  }
 
   async function onVerify(id: string) {
     try {
@@ -95,6 +112,14 @@ export default function DominiosPage() {
                   </Badge>
                 </div>
                 <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onDnsCheck(d.id)}
+                    disabled={checkingId === d.id}
+                  >
+                    <Stethoscope className="size-4" /> Diagnosticar
+                  </Button>
                   {!d.verified && (
                     <Button
                       variant="outline"
@@ -116,6 +141,8 @@ export default function DominiosPage() {
                 </div>
               </div>
 
+              {checks[d.id] && <DnsDiagnostic check={checks[d.id]} />}
+
               {!d.verified && (
                 <div className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
                   Para verificar, crie este registro DNS e clique em “Verificar”:
@@ -133,6 +160,50 @@ export default function DominiosPage() {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function DnsRow({
+  ok,
+  label,
+  children,
+}: {
+  ok: boolean;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      {ok ? (
+        <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+      ) : (
+        <X className="mt-0.5 size-4 shrink-0 text-destructive" />
+      )}
+      <div>
+        <span className="font-medium text-foreground">{label}:</span>{' '}
+        <span className="font-mono text-[11px] break-all">{children}</span>
+      </div>
+    </div>
+  );
+}
+
+function DnsDiagnostic({ check }: { check: TenantDomainDnsCheckDto }) {
+  return (
+    <div className="space-y-1.5 rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
+      <p className="font-semibold text-foreground">Diagnóstico de DNS (consulta ao vivo)</p>
+      <DnsRow ok={check.txt.ok} label={`TXT ${check.txt.name}`}>
+        {check.txt.ok
+          ? 'token encontrado'
+          : check.txt.found.length > 0
+            ? `não bate (encontrado: ${check.txt.found.join(', ')})`
+            : 'registro ausente'}
+      </DnsRow>
+      <DnsRow ok={check.address.ok} label={`Apontamento ${check.address.name}`}>
+        {check.address.records.length > 0
+          ? check.address.records.join(', ')
+          : 'sem registro A/AAAA/CNAME'}
+      </DnsRow>
     </div>
   );
 }

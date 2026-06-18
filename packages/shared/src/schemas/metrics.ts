@@ -30,7 +30,49 @@ export interface LedgerMetricsDto {
   outstanding: number;
 }
 
+/** Uso da IA na janela atual (dia/mês UTC). */
+export interface AiMetricsDto {
+  usageToday: number;
+  usageMonth: number;
+  failuresToday: number;
+  lastError: string | null;
+}
+
+/** Estado do envio de e-mail. */
+export interface SmtpMetricsDto {
+  driver: string; // 'smtp' | 'log'
+  configured: boolean; // smtp: host/usuário presentes; log: sempre true
+}
+
+/** Último backup conhecido (heartbeat gravado pelo scripts/backup.sh). */
+export interface BackupMetricsDto {
+  lastAt: string | null;
+  ageHours: number | null;
+  maxAgeHours: number;
+  ok: boolean; // existe e mais novo que maxAgeHours
+}
+
+/** Saúde de infraestrutura. */
+export interface HealthMetricsDto {
+  dbOk: boolean;
+}
+
+export type MetricAlertLevel = 'warn' | 'critical';
+export type MetricAlertSource = 'outbox' | 'smtp' | 'backup' | 'ai' | 'health';
+
+export interface MetricAlert {
+  level: MetricAlertLevel;
+  source: MetricAlertSource;
+  message: string;
+}
+
 export interface SystemMetricsDto {
   outbox: OutboxMetricsDto;
   ledger: LedgerMetricsDto;
+  ai: AiMetricsDto;
+  smtp: SmtpMetricsDto;
+  backup: BackupMetricsDto;
+  health: HealthMetricsDto;
+  /** Condições que merecem atenção operacional (derivadas das métricas). */
+  alerts: MetricAlert[];
 }
