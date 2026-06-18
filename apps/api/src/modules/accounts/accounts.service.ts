@@ -1,7 +1,11 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import type { ProvisionAccountInput, ProvisionedAccountDto } from '@oficina/shared';
+import type {
+  CreateAccountRequestInput,
+  ProvisionAccountInput,
+  ProvisionedAccountDto,
+} from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
 import { AuditService } from '../audit/audit.service';
@@ -23,6 +27,38 @@ export class AccountsService {
   private baseDomain(): string | null {
     const v = (process.env.PLATFORM_BASE_DOMAIN ?? '').trim().toLowerCase();
     return v || null;
+  }
+
+  /**
+   * Pedido público de criação de conta (landing). Fica PENDING até o platform
+   * admin aprovar (Fase 1, PR 5). Recusa identificador já em uso/pendente.
+   */
+  async requestAccount(input: CreateAccountRequestInput): Promise<{ ok: true }> {
+    const slug = input.slug.trim().toLowerCase();
+    const [account, tenant, pending] = await Promise.all([
+      this.prisma.account.findUnique({ where: { slug }, select: { id: true } }),
+      this.prisma.tenant.findUnique({ where: { slug }, select: { id: true } }),
+      this.prisma.accountRequest.findFirst({
+        where: { slug, status: 'PENDING' },
+        select: { id: true },
+      }),
+    ]);
+    if (account || tenant || pending) {
+      throw new ConflictException(
+        'Este identificador já está em uso ou com pedido em andamento. Escolha outro.',
+      );
+    }
+    await this.prisma.accountRequest.create({
+      data: {
+        name: input.name,
+        slug,
+        contactName: input.contactName,
+        email: input.email,
+        phone: input.phone ?? null,
+        message: input.message ?? null,
+      },
+    });
+    return { ok: true };
   }
 
   /**

@@ -31,7 +31,8 @@ export const RESERVED_SUBDOMAINS = [
   'test',
 ] as const;
 
-const slugSchema = z
+/** Identificador (subdomínio) de uma conta: formato válido e não reservado. */
+export const accountSlugSchema = z
   .string()
   .trim()
   .toLowerCase()
@@ -48,7 +49,7 @@ export const provisionAccountSchema = z.object({
   /** Nome da conta/oficina principal. */
   name: z.string().trim().min(2, 'Informe o nome da oficina').max(160),
   /** Identificador único = subdomínio (ex.: "cliente" → cliente.seudominio.com). */
-  slug: slugSchema,
+  slug: accountSlugSchema,
   cnpj: z
     .string()
     .trim()
@@ -59,6 +60,38 @@ export const provisionAccountSchema = z.object({
   adminEmail: z.string().trim().toLowerCase().email('E-mail inválido'),
 });
 export type ProvisionAccountInput = z.infer<typeof provisionAccountSchema>;
+
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .or(z.literal('').transform(() => undefined));
+
+/** Pedido público de criação de conta (vindo da landing). */
+export const createAccountRequestSchema = z.object({
+  name: z.string().trim().min(2, 'Informe o nome da oficina').max(160),
+  slug: accountSlugSchema,
+  contactName: z.string().trim().min(2, 'Informe seu nome').max(120),
+  email: z.string().trim().toLowerCase().email('E-mail inválido'),
+  phone: optionalText(40),
+  message: optionalText(1000),
+});
+export type CreateAccountRequestInput = z.infer<typeof createAccountRequestSchema>;
+
+/** Pedido de conta na visão do platform admin (Fase 1, PR 5). */
+export interface AccountRequestDto {
+  id: string;
+  name: string;
+  slug: string;
+  contactName: string;
+  email: string;
+  phone: string | null;
+  message: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+}
 
 /** Resultado do provisionamento (a senha temporária aparece UMA vez). */
 export interface ProvisionedAccountDto {

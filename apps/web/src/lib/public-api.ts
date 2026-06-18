@@ -1,5 +1,10 @@
 import { headers } from 'next/headers';
-import type { BlogPostDto, PublicBlogSummaryDto, PublicSiteDto } from '@oficina/shared';
+import type {
+  BlogPostDto,
+  LoginContextDto,
+  PublicBlogSummaryDto,
+  PublicSiteDto,
+} from '@oficina/shared';
 
 // Em SSR (server components), prefere a URL interna (ex.: http://api:3333/api
 // dentro do Docker); cai para a pública/local quando não definida.
@@ -36,6 +41,8 @@ async function getJson<T>(path: string): Promise<T | null> {
 }
 
 export const getPublicSite = () => getJson<PublicSiteDto>('/public/site');
+/** Conta que este host representa (null no apex da plataforma). */
+export const getLoginContext = () => getJson<LoginContextDto>('/auth/context');
 export const getPublicBlog = () => getJson<PublicBlogSummaryDto[]>('/public/blog');
 export const getPublicPost = (slug: string) =>
   getJson<BlogPostDto>(`/public/blog/${encodeURIComponent(slug)}`);
