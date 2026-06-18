@@ -9,7 +9,7 @@ type Status = 'loading' | 'authenticated' | 'unauthenticated';
 interface AuthContextValue {
   user: AuthUser | null;
   status: Status;
-  login: (tenantSlug: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, tenantSlug?: string) => Promise<void>;
   install: (input: InstallSystemInput) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (permission: Permission | string) => boolean;
@@ -48,10 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (tenantSlug: string, email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, tenantSlug?: string) => {
     const data = await api.post<LoginResponse>(
       '/auth/login',
-      { tenantSlug, email, password },
+      // tenantSlug só vai no apex/dev; no subdomínio a conta vem do host.
+      { email, password, ...(tenantSlug ? { tenantSlug } : {}) },
       { skipAuthRetry: true },
     );
     setAccessToken(data.accessToken);
