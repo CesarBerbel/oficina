@@ -26,6 +26,18 @@ describe('Auth e sessão (e2e)', () => {
     expect(res.body).toMatchObject({ status: 'ok', db: 'up' });
   });
 
+  it('expõe liveness, readiness e versão', async () => {
+    const live = await request(app.getHttpServer()).get('/api/health/live').expect(200);
+    expect(live.body.status).toBe('ok');
+
+    const ready = await request(app.getHttpServer()).get('/api/health/ready').expect(200);
+    expect(ready.body).toMatchObject({ status: 'ready', db: 'up' });
+
+    const version = await request(app.getHttpServer()).get('/api/health/version').expect(200);
+    expect(version.body.version).toEqual(expect.any(String));
+    expect(version.body.name).toEqual(expect.any(String));
+  });
+
   it('bloqueia rota protegida sem bearer token', async () => {
     await request(app.getHttpServer()).get('/api/customers').expect(401);
   });

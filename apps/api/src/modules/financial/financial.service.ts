@@ -39,6 +39,13 @@ function resyncSettlement(
   if (currentStatus === 'CANCELED') {
     return { remainingAmount: money(0), status: 'CANCELED' };
   }
+  // Não permite re-sincronizar para um total menor do que já foi pago: isso
+  // criaria um "saldo negativo" / pagamento a maior sem rastro. Bloqueia.
+  if (Math.round((paidAmount - amount) * 100) > 0) {
+    throw new BadRequestException(
+      `Novo total (${amount.toFixed(2)}) é menor que o valor já pago (${paidAmount.toFixed(2)}). Estorne a baixa antes de reduzir o lançamento.`,
+    );
+  }
   const remaining = Math.max(0, Math.round((amount - paidAmount) * 100) / 100);
   const status: FinancialEntryStatus =
     remaining <= 0 ? 'PAID' : paidAmount > 0 ? 'PARTIAL' : 'OPEN';
