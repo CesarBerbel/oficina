@@ -19,7 +19,13 @@ const FIELD_LABELS = {
   apiKey: 'Chave de API',
   instructions: 'Instruções',
   active: 'Ativo',
+  dailyLimit: 'Limite diário (oficina)',
+  monthlyLimit: 'Limite mensal (oficina)',
+  perUserDailyLimit: 'Limite diário por usuário',
 };
+
+/** Campo numérico opcional: '' → null (ilimitado). */
+const toLimit = (s: string): number | null => (s.trim() === '' ? null : Number(s));
 
 const AI_FIELD_LABEL = Object.fromEntries(AI_FIELDS.map((f) => [f.key, f.label])) as Record<
   string,
@@ -35,6 +41,9 @@ export default function AiConfigPage() {
   const [instructions, setInstructions] = useState('');
   const [fieldInstructions, setFieldInstructions] = useState<Record<string, string>>({});
   const [active, setActive] = useState(false);
+  const [dailyLimit, setDailyLimit] = useState('');
+  const [monthlyLimit, setMonthlyLimit] = useState('');
+  const [perUserDailyLimit, setPerUserDailyLimit] = useState('');
 
   useEffect(() => {
     if (data) {
@@ -42,6 +51,9 @@ export default function AiConfigPage() {
       setInstructions(data.instructions ?? '');
       setFieldInstructions(data.fieldInstructions ?? {});
       setActive(data.active);
+      setDailyLimit(data.dailyLimit != null ? String(data.dailyLimit) : '');
+      setMonthlyLimit(data.monthlyLimit != null ? String(data.monthlyLimit) : '');
+      setPerUserDailyLimit(data.perUserDailyLimit != null ? String(data.perUserDailyLimit) : '');
     }
   }, [data]);
 
@@ -51,6 +63,9 @@ export default function AiConfigPage() {
       instructions,
       fieldInstructions,
       active,
+      dailyLimit: toLimit(dailyLimit),
+      monthlyLimit: toLimit(monthlyLimit),
+      perUserDailyLimit: toLimit(perUserDailyLimit),
       ...(apiKey ? { apiKey } : {}),
     };
     const parsed = updateAiConfigSchema.safeParse(payload);
@@ -165,6 +180,47 @@ export default function AiConfigPage() {
             />
           </div>
         ))}
+      </div>
+
+      <div className="space-y-4 rounded-xl border bg-card p-5">
+        <div>
+          <h2 className="text-sm font-semibold">Limites de uso</h2>
+          <p className="text-xs text-muted-foreground">
+            Número máximo de chamadas à IA por período. Em branco ou 0 = ilimitado.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label>Diário (oficina)</Label>
+            <Input
+              type="number"
+              min={0}
+              value={dailyLimit}
+              onChange={(e) => setDailyLimit(e.target.value)}
+              placeholder="ilimitado"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Mensal (oficina)</Label>
+            <Input
+              type="number"
+              min={0}
+              value={monthlyLimit}
+              onChange={(e) => setMonthlyLimit(e.target.value)}
+              placeholder="ilimitado"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Diário por usuário</Label>
+            <Input
+              type="number"
+              min={0}
+              value={perUserDailyLimit}
+              onChange={(e) => setPerUserDailyLimit(e.target.value)}
+              placeholder="ilimitado"
+            />
+          </div>
+        </div>
       </div>
 
       <Button onClick={save} disabled={update.isPending}>
