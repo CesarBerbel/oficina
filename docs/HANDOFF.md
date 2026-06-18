@@ -23,8 +23,9 @@ continue a partir do estado atual, mantendo a arquitetura e os padrões existent
 - **Frontend**: Next.js + TypeScript + Tailwind + shadcn/ui + TanStack Query.
 - **Multi-tenant matriz/filial**: todas as tabelas têm `tenantId`; catálogo e
   clientes compartilhados no grupo (`groupId`) e estoque por filial. Login por
-  oficina (slug + e-mail + senha) e **instalação web** da matriz. Falta resolução
-  por domínio próprio para virar SaaS multi-domínio.
+  oficina (slug + e-mail + senha) e **instalação web** da matriz. Site público
+  resolve por **domínio próprio** (`TenantDomain`, verificado por DNS/TXT em
+  produção) além de slug/host — SaaS multi-domínio funcional.
 - **Deploy**: Docker + Docker Compose + Nginx, com proxy de `/api` e `/uploads` para a API.
 - **Status**: ver [`docs/STATUS.md`](STATUS.md). Em resumo: núcleo operacional
   completo + hardening (secrets, uploads, garagem), outbox transacional, auditoria

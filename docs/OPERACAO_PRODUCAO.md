@@ -113,9 +113,13 @@ sh scripts/monitor-prod.sh
 
 O backup salva:
 
-- banco PostgreSQL em `backups/oficina_db_*.sql.gz`;
+- banco PostgreSQL em `backups/oficina_db_*.sql.gz` (dump com `--clean --if-exists`,
+  restaurável sobre banco existente);
 - uploads em `backups/oficina_uploads_*.tar.gz`, quando o volume existir;
-- manifesto em `backups/oficina_backup_*.txt`.
+- manifesto em `backups/oficina_manifest_*.json`.
+
+> O restore de uploads limpa o volume por completo (inclusive arquivos ocultos)
+> antes de extrair, evitando sobras de uma versão anterior.
 
 ```bash
 sh scripts/backup.sh
@@ -256,3 +260,21 @@ A Recepção também gera push operacional para:
 - cliente perto de chegar;
 - cliente atrasado com baixa pendente;
 - cliente que chegou e ainda não virou OS.
+
+## 12. Domínios próprios e resolução por host
+
+Cada oficina pode apontar um domínio próprio para o site público:
+
+1. **Configurações › Domínios**: cadastre o domínio. Ele entra como **não verificado**.
+2. Publique no DNS o registro **TXT** mostrado (`_oficina-verify.<domínio>` = token).
+3. Clique em **Verificar** — a API consulta o TXT e marca como verificado.
+4. Faça o DNS do domínio (A/AAAA/CNAME) apontar para o servidor.
+
+Em **produção**:
+
+- só **domínios verificados** resolvem o site (segurança);
+- a resolução usa o **host real**. O Nginx sobrescreve `X-Forwarded-Host` com o
+  host da requisição (anti-spoof) e o SSR do Next repassa esse host para a API;
+- overrides de oficina por `?tenantSlug=` e headers `X-Public-*` são **ignorados**
+  (controlado por `NODE_ENV=production` ou `PUBLIC_STRICT_HOST=true`). A rota
+  explícita `GET /api/public/site/by-slug/:slug` continua disponível.
