@@ -29,6 +29,12 @@ export class TenantDomainsController {
     return this.domains.create(actor, body);
   }
 
+  @Post(':id/verify')
+  @RequirePermission(Permission.SETTINGS_MANAGE)
+  verify(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.domains.verify(actor, id);
+  }
+
   @Delete(':id')
   @RequirePermission(Permission.SETTINGS_MANAGE)
   @HttpCode(204)

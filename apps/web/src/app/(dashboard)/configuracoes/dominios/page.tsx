@@ -1,19 +1,34 @@
 'use client';
 
 import { useState } from 'react';
-import { Trash2, Plus, Star } from 'lucide-react';
+import { Trash2, Plus, Star, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { CarLoader } from '@/components/car-loader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useAddDomain, useDomains, useRemoveDomain } from '@/features/domains/use-domains';
+import {
+  useAddDomain,
+  useDomains,
+  useRemoveDomain,
+  useVerifyDomain,
+} from '@/features/domains/use-domains';
 
 export default function DominiosPage() {
   const { data: domains, isLoading } = useDomains();
   const add = useAddDomain();
   const remove = useRemoveDomain();
+  const verify = useVerifyDomain();
   const [domain, setDomain] = useState('');
+
+  async function onVerify(id: string) {
+    try {
+      await verify.mutateAsync(id);
+      toast.success('Domínio verificado');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao verificar domínio');
+    }
+  }
 
   async function onAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -78,14 +93,26 @@ export default function DominiosPage() {
                   {d.verified ? 'verificado' : 'não verificado'}
                 </Badge>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onRemove(d.id, d.domain)}
-                disabled={remove.isPending}
-              >
-                <Trash2 className="size-4 text-destructive" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {!d.verified && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onVerify(d.id)}
+                    disabled={verify.isPending}
+                  >
+                    <ShieldCheck className="size-4" /> Verificar
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onRemove(d.id, d.domain)}
+                  disabled={remove.isPending}
+                >
+                  <Trash2 className="size-4 text-destructive" />
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
