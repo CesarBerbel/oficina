@@ -1,7 +1,9 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import { Prisma } from '@prisma/client';
+import { Prisma, type AccountRequestStatus, type AccountStatus } from '@prisma/client';
 import type {
+  AccountDto,
+  AccountRequestDto,
   CreateAccountRequestInput,
   ProvisionAccountInput,
   ProvisionedAccountDto,
@@ -57,6 +59,139 @@ export class AccountsService {
         phone: input.phone ?? null,
         message: input.message ?? null,
       },
+    });
+    return { ok: true };
+  }
+
+  // ── Gestão pela plataforma (super admin) ─────────────────────────────────────
+
+  private requestToDto(r: {
+    id: string;
+    name: string;
+    slug: string;
+    contactName: string;
+    email: string;
+    phone: string | null;
+    message: string | null;
+    status: AccountRequestStatus;
+    createdAt: Date;
+  }): AccountRequestDto {
+    return {
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      contactName: r.contactName,
+      email: r.email,
+      phone: r.phone,
+      message: r.message,
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+    };
+  }
+
+  /** Lista as contas (clientes do SaaS). */
+  async listAccounts(): Promise<AccountDto[]> {
+    const rows = await this.prisma.account.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        createdAt: true,
+        _count: { select: { tenants: true } },
+      },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      status: r.status,
+      oficinasCount: r._count.tenants,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  }
+
+  /** Ativa/suspende uma conta. */
+  async setAccountStatus(
+    actor: AuthenticatedUser,
+    id: string,
+    status: 'ACTIVE' | 'SUSPENDED',
+  ): Promise<AccountDto> {
+    const exists = await this.prisma.account.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) throw new NotFoundException('Conta não encontrada');
+    const updated = await this.prisma.account.update({
+      where: { id },
+      data: { status: status as AccountStatus },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        createdAt: true,
+        _count: { select: { tenants: true } },
+      },
+    });
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: status === 'SUSPENDED' ? 'SUSPEND_ACCOUNT' : 'ACTIVATE_ACCOUNT',
+      module: 'platform',
+      entity: 'Account',
+      entityId: id,
+    });
+    return {
+      id: updated.id,
+      name: updated.name,
+      slug: updated.slug,
+      status: updated.status,
+      oficinasCount: updated._count.tenants,
+      createdAt: updated.createdAt.toISOString(),
+    };
+  }
+
+  /** Lista pedidos de conta (opcionalmente por status). */
+  async listRequests(status?: AccountRequestStatus): Promise<AccountRequestDto[]> {
+    const rows = await this.prisma.accountRequest.findMany({
+      where: status ? { status } : {},
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    return rows.map((r) => this.requestToDto(r));
+  }
+
+  /** Aprova um pedido pendente → provisiona a conta e marca como APPROVED. */
+  async approveRequest(actor: AuthenticatedUser, id: string): Promise<ProvisionedAccountDto> {
+    const req = await this.prisma.accountRequest.findUnique({ where: { id } });
+    if (!req) throw new NotFoundException('Pedido não encontrado');
+    if (req.status !== 'PENDING') throw new ConflictException('Pedido já processado.');
+
+    // Se o provisionamento falhar (ex.: slug ficou indisponível), o pedido
+    // permanece PENDING e o erro é propagado.
+    const result = await this.provision(actor, {
+      name: req.name,
+      slug: req.slug,
+      adminName: req.contactName,
+      adminEmail: req.email,
+    });
+    await this.prisma.accountRequest.update({ where: { id }, data: { status: 'APPROVED' } });
+    return result;
+  }
+
+  /** Recusa um pedido pendente. */
+  async rejectRequest(actor: AuthenticatedUser, id: string): Promise<{ ok: true }> {
+    const res = await this.prisma.accountRequest.updateMany({
+      where: { id, status: 'PENDING' },
+      data: { status: 'REJECTED' },
+    });
+    if (res.count === 0) throw new NotFoundException('Pedido não encontrado ou já processado');
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'REJECT_ACCOUNT_REQUEST',
+      module: 'platform',
+      entity: 'AccountRequest',
+      entityId: id,
     });
     return { ok: true };
   }
