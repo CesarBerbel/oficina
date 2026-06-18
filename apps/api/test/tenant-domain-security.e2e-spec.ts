@@ -14,6 +14,7 @@ describe('TenantDomain: verificação exigida e anti-spoof (e2e)', () => {
 
   beforeAll(async () => {
     process.env.TENANT_DOMAIN_REQUIRE_VERIFIED = 'true';
+    process.env.PUBLIC_STRICT_HOST = 'true';
     app = await createE2eApp();
   });
 
@@ -23,6 +24,7 @@ describe('TenantDomain: verificação exigida e anti-spoof (e2e)', () => {
 
   afterAll(async () => {
     delete process.env.TENANT_DOMAIN_REQUIRE_VERIFIED;
+    delete process.env.PUBLIC_STRICT_HOST;
     await app?.close();
   });
 
@@ -60,5 +62,24 @@ describe('TenantDomain: verificação exigida e anti-spoof (e2e)', () => {
       .get('/api/public/site')
       .set('X-Forwarded-Host', 'host-forjado-e2e.com')
       .expect(404);
+  });
+
+  it('em modo estrito, ?tenantSlug= e x-public-* são ignorados; só by-slug funciona', async () => {
+    // Override por query é ignorado → ambíguo (2 sites publicados) → 404.
+    await request(app.getHttpServer())
+      .get('/api/public/site?tenantSlug=oficina-modelo')
+      .expect(404);
+
+    // Override por header x-public-tenant-slug também ignorado → 404.
+    await request(app.getHttpServer())
+      .get('/api/public/site')
+      .set('X-Public-Tenant-Slug', 'oficina-modelo')
+      .expect(404);
+
+    // A rota explícita por slug continua funcionando (uso intencional).
+    const bySlug = await request(app.getHttpServer())
+      .get('/api/public/site/by-slug/oficina-modelo')
+      .expect(200);
+    expect(bySlug.body.settings.shopName).toBe('Oficina Modelo');
   });
 });

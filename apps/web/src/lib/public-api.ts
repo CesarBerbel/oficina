@@ -8,11 +8,16 @@ const API_URL =
 
 async function publicHeaders(): Promise<HeadersInit> {
   const incoming = await headers();
+  // Repassa o host real recebido do proxy para a API (cadeia confiável
+  // nginx → web → api). A API resolve a oficina por esse X-Forwarded-Host —
+  // inclusive em produção, onde os overrides X-Public-* são ignorados.
   const host = incoming.get('x-forwarded-host') ?? incoming.get('host') ?? undefined;
   const tenantSlug = process.env.NEXT_PUBLIC_SITE_TENANT_SLUG;
 
   return {
-    ...(host ? { 'X-Public-Host': host } : {}),
+    ...(host ? { 'X-Forwarded-Host': host } : {}),
+    // Override por slug (deploy single-tenant). Honrado em dev; em produção a
+    // API ignora e usa o host — então o single-tenant cai no site publicado.
     ...(tenantSlug ? { 'X-Public-Tenant-Slug': tenantSlug } : {}),
   };
 }

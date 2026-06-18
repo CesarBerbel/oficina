@@ -19,6 +19,11 @@ const baseEnvSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  /** Ignora overrides de oficina (?tenantSlug=, x-public-*) — sempre ligado em prod. */
+  PUBLIC_STRICT_HOST: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_ACCESS_TTL: z.string().default('15m'),

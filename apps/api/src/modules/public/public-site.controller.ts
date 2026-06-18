@@ -12,7 +12,6 @@ import {
   Req,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import { createLeadSchema, type CreateLeadInput } from '@oficina/shared';
 import { SiteService, type PublicTenantLookup } from '../site/site.service';
@@ -30,7 +29,6 @@ export class PublicSiteController {
     private readonly site: SiteService,
     private readonly blog: BlogService,
     private readonly leads: LeadsService,
-    private readonly config: ConfigService,
   ) {}
 
   private firstHeader(value: string | string[] | undefined): string | null {
@@ -39,15 +37,18 @@ export class PublicSiteController {
 
   private lookup(req: Request, tenantSlug?: string): PublicTenantLookup {
     const querySlug = typeof req.query.tenantSlug === 'string' ? req.query.tenantSlug : null;
-    // Overrides x-public-* são ferramentas de dev/teste para forçar a oficina.
-    // Em produção são ignorados (evita um atacante forjar a oficina servida);
-    // a resolução usa o host real (x-forwarded-host do proxy / Host).
-    const allowOverrides = this.config.get<string>('NODE_ENV') !== 'production';
+    // Overrides de oficina (?tenantSlug= e x-public-*) são ferramentas de dev/teste.
+    // Em produção (ou com PUBLIC_STRICT_HOST=true) são ignorados — evita um atacante
+    // forçar a oficina servida; a resolução usa o host real (x-forwarded-host/Host).
+    // O `tenantSlug` explícito (rota /by-slug/:slug) continua valendo sempre.
+    const allowOverrides =
+      process.env.NODE_ENV !== 'production' && process.env.PUBLIC_STRICT_HOST !== 'true';
     return {
       tenantSlug:
         tenantSlug ??
-        querySlug ??
-        (allowOverrides ? this.firstHeader(req.headers['x-public-tenant-slug']) : null),
+        (allowOverrides
+          ? (querySlug ?? this.firstHeader(req.headers['x-public-tenant-slug']))
+          : null),
       host:
         (allowOverrides ? this.firstHeader(req.headers['x-public-host']) : null) ??
         this.firstHeader(req.headers['x-forwarded-host']) ??
