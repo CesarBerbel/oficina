@@ -129,17 +129,28 @@ HSTS, `AUTH_COOKIE_SECURE=true` automático). Precisa apenas dos certificados.
 > Com HTTPS, `AUTH_COOKIE_SECURE=true` (o override já define) — os cookies de
 > autenticação passam a exigir conexão segura.
 
-## 7. Backup
-Backup do banco (cron sugerido, diário):
+## 7. Backup e restore
+Backup (banco + uploads + manifesto), cron sugerido diário:
 ```bash
-./scripts/backup.sh    # pg_dump compactado em ./backups (retém os 14 últimos)
+sh scripts/backup.sh   # gera backups/oficina_db_*.sql.gz, oficina_uploads_*.tar.gz e oficina_manifest_*.json
 ```
-Restore:
+- O dump usa `--clean --if-exists`, então **restaura sobre um banco existente**.
+- Retenção padrão de 30 dias (`BACKUP_RETENTION`); uploads inclusos quando o volume existe.
+- Cron automático: `sh scripts/install-backup-cron.sh`.
+
+Restore (destrutivo — exige confirmação explícita):
 ```bash
-gunzip -c backups/oficina_AAAAMMDD_HHMMSS.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T postgres \
-  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+# Só o banco:
+CONFIRM_RESTORE=SIM sh scripts/restore.sh backups/oficina_db_AAAAMMDD_HHMMSS.sql.gz
+
+# Banco + uploads (limpa o volume, inclusive arquivos ocultos, antes de extrair):
+CONFIRM_RESTORE=SIM RESTORE_UPLOADS=true sh scripts/restore.sh \
+  backups/oficina_db_AAAAMMDD_HHMMSS.sql.gz \
+  backups/oficina_uploads_AAAAMMDD_HHMMSS.tar.gz
 ```
+Depois do restore, reinicie a stack: `docker compose -f docker-compose.prod.yml restart api web nginx`.
+
+Detalhes da rotina diária/cron em [`docs/OPERACAO_PRODUCAO.md`](OPERACAO_PRODUCAO.md).
 
 ## 8. Uploads
 Em produção os uploads vão para o volume Docker `oficina_uploads`, montado em `/app/apps/api/uploads` no container da API e exposto pelo Nginx em `/uploads`. Para escala/HA, implemente o adapter S3/R2 antes de rodar múltiplas réplicas da API.

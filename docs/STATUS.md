@@ -75,9 +75,9 @@ Action composta `.github/actions/setup` (Node + pnpm + cache).
   extraídos; ainda há lógica de negócio a decompor incrementalmente.
 - **WhatsApp/SMS**: ainda sem provedor real plugado (e-mail já é real via SMTP).
 - **SaaS multi-domínio**: `TenantDomain` resolve o site por domínio próprio (em
-  produção só **verificado**, com verificação **manual** pelo admin); falta a
-  verificação automática por DNS (TXT/CNAME).
-- **Limites de IA**: configuráveis via API; faltam os campos no formulário de `/ia`.
+  produção só **verificado**). A verificação é **automática por DNS**: o admin
+  publica um registro **TXT** em `_oficina-verify.<domínio>` e a API confere o
+  token (com diagnóstico de DNS na tela de domínios).
 
 ## Segurança (resumo do que já existe)
 
