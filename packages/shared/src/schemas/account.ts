@@ -7,6 +7,7 @@ export const RESERVED_SUBDOMAINS = [
   'api',
   'admin',
   'painel',
+  'plataforma',
   'mail',
   'smtp',
   'imap',
