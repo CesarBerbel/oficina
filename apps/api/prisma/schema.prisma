@@ -238,17 +238,43 @@ enum FuelLevel {
 }
 
 /// Oficina — raiz do multi-tenant. Toda entidade de negócio referencia um Tenant.
+/// Status de uma conta (cliente do SaaS).
+enum AccountStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+}
+
+/// Conta do cliente (SaaS): dona de uma ou mais oficinas (matriz + filiais).
+/// O `slug` é o subdomínio (ex.: "cliente" → cliente.saecbpa.com).
+model Account {
+  id        String        @id @default(cuid())
+  name      String
+  slug      String        @unique
+  status    AccountStatus @default(ACTIVE)
+  plan      String? // reservado p/ Fase 2 (planos/cobrança)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  tenants Tenant[]
+
+  @@map("accounts")
+}
+
 model Tenant {
   id        String   @id @default(cuid())
   name      String
   cnpj      String?
   slug      String   @unique
   active    Boolean  @default(true)
+  // Conta (cliente) dona desta oficina. Matriz e filiais compartilham a conta.
+  accountId String
   // Hierarquia matriz/filial: matriz tem parentId null; filiais apontam p/ a matriz.
   parentId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  account  Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   parent   Tenant?  @relation("TenantBranches", fields: [parentId], references: [id], onDelete: SetNull)
   branches Tenant[] @relation("TenantBranches")
 
@@ -283,6 +309,7 @@ model Tenant {
   financialLedger FinancialLedgerEntry[]
   domains TenantDomain[]
 
+  @@index([accountId])
   @@map("tenants")
 }
 

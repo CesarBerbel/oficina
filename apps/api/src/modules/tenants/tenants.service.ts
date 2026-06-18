@@ -73,11 +73,13 @@ export class TenantsService {
   ): Promise<PlatformTenantDto> {
     const me = await this.prisma.tenant.findUnique({
       where: { id: actor.tenantId },
-      select: { id: true, parentId: true },
+      select: { id: true, parentId: true, accountId: true },
     });
     // A filial sempre fica sob a matriz (raiz). Se o super usuário já estiver numa
     // filial, sobe para a matriz dela.
     const matrizId = me?.parentId ?? actor.tenantId;
+    // A filial herda a conta da matriz/grupo.
+    const accountId = me?.accountId ?? actor.accountId;
 
     const slug = input.slug.trim().toLowerCase();
     const passwordHash = await this.passwords.hash(input.password);
@@ -91,6 +93,7 @@ export class TenantsService {
             slug,
             cnpj: input.cnpj ?? null,
             parentId: matrizId,
+            accountId,
           },
         });
         await tx.user.create({

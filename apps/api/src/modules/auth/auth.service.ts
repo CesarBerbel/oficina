@@ -127,7 +127,7 @@ export class AuthService {
   ): Promise<IssuedSession> {
     const tenant = await this.prisma.tenant.findUnique({
       where: { slug: tenantSlug },
-      select: { id: true, active: true },
+      select: { id: true, active: true, account: { select: { status: true } } },
     });
 
     const user = tenant?.active
@@ -153,6 +153,10 @@ export class AuthService {
     }
     if (!user.active) {
       throw new ForbiddenException('Usuário inativo. Procure o administrador.');
+    }
+    // Conta suspensa/pendente bloqueia o login (super usuário da plataforma é exceção).
+    if (!user.superAdmin && tenant.account.status !== 'ACTIVE') {
+      throw new ForbiddenException('Conta indisponível. Procure o suporte.');
     }
 
     await this.prisma.user.update({
@@ -214,13 +218,18 @@ export class AuthService {
     };
     try {
       const result = await this.prisma.$transaction(async (tx) => {
-        // Matriz: parentId null.
+        // Conta (cliente do SaaS) dona da matriz. slug = subdomínio.
+        const account = await tx.account.create({
+          data: { name: input.shopName, slug, status: 'ACTIVE' },
+        });
+        // Matriz: parentId null, vinculada à conta.
         const tenant = await tx.tenant.create({
           data: {
             name: input.shopName,
             slug,
             cnpj: input.cnpj ?? null,
             parentId: null,
+            accountId: account.id,
           },
         });
         // Super usuário (acesso global a todas as oficinas).

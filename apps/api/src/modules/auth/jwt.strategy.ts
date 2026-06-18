@@ -36,7 +36,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: true,
         email: true,
         superAdmin: true,
-        tenant: { select: { parentId: true } },
+        tenant: {
+          select: { parentId: true, accountId: true, account: { select: { status: true } } },
+        },
       },
     });
 
@@ -44,11 +46,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Sessão inválida');
     }
 
+    // Conta suspensa/pendente não acessa (super usuário da plataforma é exceção).
+    if (!user.superAdmin && user.tenant.account.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Conta indisponível');
+    }
+
     // Grupo = matriz. Para a matriz, parentId é null → grupo é o próprio tenant.
     return {
       id: user.id,
       tenantId: user.tenantId,
       groupId: user.tenant.parentId ?? user.tenantId,
+      accountId: user.tenant.accountId,
       role: user.role,
       email: user.email,
       superAdmin: user.superAdmin,

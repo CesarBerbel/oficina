@@ -35,9 +35,10 @@ export const prisma = new PrismaClient();
 
 export async function resetDatabase(): Promise<void> {
   ensureE2eEnv();
-  // ops_heartbeat é global (sem FK a tenant), então não é limpo pelo CASCADE.
+  // accounts é pai de tenants; ops_heartbeat é global. Trunca os três (CASCADE
+  // limpa o resto via FK a partir de tenants).
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "tenants", "ops_heartbeat" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "accounts", "tenants", "ops_heartbeat" RESTART IDENTITY CASCADE',
   );
 }
 
@@ -62,11 +63,16 @@ export async function createBranchTenant(
   opts: { slug: string; name?: string; adminEmail?: string },
 ): Promise<{ id: string; slug: string; admin: SeedUser }> {
   const passwordHash = await argon2.hash(TEST_PASSWORD);
+  const parent = await prisma.tenant.findUniqueOrThrow({
+    where: { id: parentTenantId },
+    select: { accountId: true },
+  });
   const branch = await prisma.tenant.create({
     data: {
       name: opts.name ?? `Filial ${opts.slug}`,
       slug: opts.slug,
       parentId: parentTenantId,
+      accountId: parent.accountId,
     },
   });
   const admin = await createUser({
@@ -121,17 +127,25 @@ async function createPublishedSite(tenantId: string, shopName: string): Promise<
 export async function seedE2eData(): Promise<SeedData> {
   const passwordHash = await argon2.hash(TEST_PASSWORD);
 
+  const account = await prisma.account.create({
+    data: { name: 'Oficina Modelo', slug: TENANT_SLUG, status: 'ACTIVE' },
+  });
   const tenant = await prisma.tenant.create({
     data: {
       name: 'Oficina Modelo',
       slug: TENANT_SLUG,
+      accountId: account.id,
     },
   });
 
+  const otherAccount = await prisma.account.create({
+    data: { name: 'Oficina Concorrente', slug: OTHER_TENANT_SLUG, status: 'ACTIVE' },
+  });
   const otherTenant = await prisma.tenant.create({
     data: {
       name: 'Oficina Concorrente',
       slug: OTHER_TENANT_SLUG,
+      accountId: otherAccount.id,
     },
   });
 
