@@ -81,38 +81,54 @@ export default function DominiosPage() {
       ) : (
         <ul className="divide-y rounded-lg border">
           {domains.map((d) => (
-            <li key={d.id} className="flex items-center justify-between gap-3 p-3">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{d.domain}</span>
-                {d.isPrimary && (
-                  <Badge variant="secondary">
-                    <Star className="mr-1 size-3" /> principal
+            <li key={d.id} className="space-y-2 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{d.domain}</span>
+                  {d.isPrimary && (
+                    <Badge variant="secondary">
+                      <Star className="mr-1 size-3" /> principal
+                    </Badge>
+                  )}
+                  <Badge variant={d.verified ? 'default' : 'outline'}>
+                    {d.verified ? 'verificado' : 'não verificado'}
                   </Badge>
-                )}
-                <Badge variant={d.verified ? 'default' : 'outline'}>
-                  {d.verified ? 'verificado' : 'não verificado'}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-1">
-                {!d.verified && (
+                </div>
+                <div className="flex items-center gap-1">
+                  {!d.verified && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onVerify(d.id)}
+                      disabled={verify.isPending}
+                    >
+                      <ShieldCheck className="size-4" /> Verificar
+                    </Button>
+                  )}
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    onClick={() => onVerify(d.id)}
-                    disabled={verify.isPending}
+                    onClick={() => onRemove(d.id, d.domain)}
+                    disabled={remove.isPending}
                   >
-                    <ShieldCheck className="size-4" /> Verificar
+                    <Trash2 className="size-4 text-destructive" />
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onRemove(d.id, d.domain)}
-                  disabled={remove.isPending}
-                >
-                  <Trash2 className="size-4 text-destructive" />
-                </Button>
+                </div>
               </div>
+
+              {!d.verified && (
+                <div className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
+                  Para verificar, crie este registro DNS e clique em “Verificar”:
+                  <div className="mt-1 grid gap-1 font-mono text-[11px] sm:grid-cols-[auto_1fr]">
+                    <span className="text-foreground">Tipo:</span>
+                    <span>{d.verification.type}</span>
+                    <span className="text-foreground">Nome:</span>
+                    <span className="break-all">{d.verification.name}</span>
+                    <span className="text-foreground">Valor:</span>
+                    <span className="break-all">{d.verification.value}</span>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>

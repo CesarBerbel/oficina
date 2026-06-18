@@ -20,6 +20,9 @@ export const createTenantDomainSchema = z.object({
 });
 export type CreateTenantDomainInput = z.infer<typeof createTenantDomainSchema>;
 
+/** Prefixo do host TXT usado na verificação por DNS. */
+export const TENANT_DOMAIN_VERIFY_PREFIX = '_oficina-verify';
+
 export interface TenantDomainDto {
   id: string;
   domain: string;
@@ -27,4 +30,10 @@ export interface TenantDomainDto {
   verified: boolean;
   verifiedAt: string | null;
   createdAt: string;
+  /** Registro DNS a publicar para comprovar posse (TXT). */
+  verification: {
+    name: string; // ex.: _oficina-verify.minhaoficina.com.br
+    type: 'TXT';
+    value: string; // token
+  };
 }
