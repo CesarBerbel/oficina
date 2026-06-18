@@ -62,6 +62,27 @@ export class TenantDomainsService {
     }
   }
 
+  async verify(actor: AuthenticatedUser, id: string): Promise<TenantDomainDto> {
+    const existing = await this.prisma.tenantDomain.findFirst({
+      where: { id, tenantId: actor.tenantId },
+    });
+    if (!existing) throw new NotFoundException('Domínio não encontrado');
+    const updated = await this.prisma.tenantDomain.update({
+      where: { id },
+      data: { verifiedAt: existing.verifiedAt ?? new Date() },
+    });
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      module: 'tenant-domains',
+      action: 'verify',
+      entity: 'TenantDomain',
+      entityId: id,
+      after: { domain: updated.domain },
+    });
+    return this.toDto(updated);
+  }
+
   async remove(actor: AuthenticatedUser, id: string): Promise<void> {
     const existing = await this.prisma.tenantDomain.findFirst({
       where: { id, tenantId: actor.tenantId },

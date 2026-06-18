@@ -139,6 +139,27 @@ describe('Auth e sessão (e2e)', () => {
     await request(app.getHttpServer()).post('/api/auth/refresh').set('Cookie', cookie).expect(200);
   });
 
+  it('reuse de refresh token revogado invalida toda a família de sessões', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ tenantSlug: TENANT_SLUG, email: 'admin@oficina.local', password: TEST_PASSWORD })
+      .expect(200);
+    const cookie1 = getCookie(login.headers['set-cookie'], cookieName);
+
+    // Rotação normal: cookie1 → cookie2.
+    const rotated = await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .set('Cookie', cookie1)
+      .expect(200);
+    const cookie2 = getCookie(rotated.headers['set-cookie'], cookieName);
+
+    // Reuse do cookie1 (já revogado) → 401 e revoga a família inteira.
+    await request(app.getHttpServer()).post('/api/auth/refresh').set('Cookie', cookie1).expect(401);
+
+    // cookie2, que era válido, também deixa de funcionar (família invalidada).
+    await request(app.getHttpServer()).post('/api/auth/refresh').set('Cookie', cookie2).expect(401);
+  });
+
   it('mantém /api/auth/me consistente com o usuário autenticado', async () => {
     const session = await loginAs(app);
 

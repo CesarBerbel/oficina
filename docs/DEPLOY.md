@@ -25,12 +25,23 @@ Obrigatórias em produção:
 - `AUTH_COOKIE_SECURE=true` com HTTPS. Para teste HTTP local, use `AUTH_COOKIE_SECURE=false`.
 - **E-mail**: com `MAIL_DRIVER=smtp`, são obrigatórios `SMTP_HOST`, `SMTP_USER`,
   `SMTP_PASS` (o boot falha se faltarem). Sem SMTP, use `MAIL_DRIVER=log`.
-- (Opcional) `GARAGE_JWT_SECRET` (≥32 chars) — segredo dedicado dos tokens da
-  garagem do cliente; sem ele, usa `JWT_ACCESS_SECRET`.
-- (Opcional) `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` para push: `npx web-push generate-vapid-keys`
+- **`GARAGE_JWT_SECRET`** (≥32 chars, **obrigatório em produção**, distinto dos
+  JWT) — segredo dedicado dos tokens da garagem. Gere com `scripts/generate-secrets.sh`.
+- (Opcional) `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` + `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+  (build do web) para push: `npx web-push generate-vapid-keys`.
+- (Opcional) `RATE_LIMIT_TTL` / `RATE_LIMIT_MAX` / `AUTH_LOGIN_RATE_LIMIT`.
 
 > Validação no boot: em produção o app recusa subir com segredos fracos/iguais,
-> `ENCRYPTION_KEY` só-zeros, `AUTH_COOKIE_SECURE` desligado ou SMTP incompleto.
+> `ENCRYPTION_KEY` só-zeros, `AUTH_COOKIE_SECURE` desligado, SMTP incompleto ou
+> `GARAGE_JWT_SECRET` ausente/fraco.
+
+> **Domínios próprios.** Cadastre em Configurações › Domínios e **verifique** cada
+> um — em produção só domínios verificados resolvem o site (`TenantDomain`). O
+> Nginx sobrescreve `X-Forwarded-Host` com o host real (anti-spoof), então a
+> resolução por domínio depende do host que chega no proxy.
+
+> **Volumes** têm nomes fixos (`oficina_pgdata`, `oficina_uploads`) independentes
+> do `COMPOSE_PROJECT_NAME`, para os scripts de backup/restore encontrá-los.
 
 > A `NEXT_PUBLIC_API_URL` é **embutida no build** do front (build arg). O SSR usa
 > `API_INTERNAL_URL=http://api:3333/api` (definido no compose, rede interna).

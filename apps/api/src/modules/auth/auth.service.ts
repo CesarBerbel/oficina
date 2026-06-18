@@ -311,19 +311,39 @@ export class AuthService {
   async refresh(rawToken: string, meta: RequestMeta): Promise<IssuedSession> {
     if (!rawToken) throw new UnauthorizedException('Sessão expirada');
 
+    const invalid = new UnauthorizedException('Sessão inválida ou expirada');
     const stored = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: this.hashToken(rawToken) },
       include: { user: { include: { tenant: true } } },
     });
 
-    if (
-      !stored ||
-      stored.revokedAt ||
-      stored.expiresAt < new Date() ||
-      !stored.user.active ||
-      !stored.user.tenant.active
-    ) {
-      throw new UnauthorizedException('Sessão inválida ou expirada');
+    if (!stored) throw invalid;
+
+    // Reuse de um token JÁ revogado (rotacionado/deslogado): forte sinal de
+    // roubo. Revoga toda a família de refresh do usuário (logout global) e nega.
+    if (stored.revokedAt) {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: stored.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      this.logger.warn(
+        `Reuse de refresh token revogado (user ${stored.userId}); sessões invalidadas.`,
+      );
+      await this.audit.record({
+        tenantId: stored.user.tenantId,
+        userId: stored.userId,
+        module: 'auth',
+        action: 'refresh-reuse-detected',
+        entity: 'RefreshToken',
+        entityId: stored.id,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+      throw invalid;
+    }
+
+    if (stored.expiresAt < new Date() || !stored.user.active || !stored.user.tenant.active) {
+      throw invalid;
     }
 
     await this.prisma.refreshToken.update({

@@ -29,3 +29,11 @@ export function useRemoveDomain() {
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }
+
+export function useVerifyDomain() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<TenantDomainDto>(`/tenant-domains/${id}/verify`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
