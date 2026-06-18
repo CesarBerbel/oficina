@@ -25,6 +25,24 @@ export class TenantDomainsService {
     private readonly dns: DnsVerifier,
   ) {}
 
+  /**
+   * Domínios-base próprios (ex.: "meudominio.cloud") cujos subdomínios são
+   * auto-verificados — não precisam de TXT, pois o DNS já é controlado por nós.
+   * Outros domínios (de terceiros) seguem exigindo comprovação por TXT.
+   */
+  private autoVerifySuffixes(): string[] {
+    return (process.env.TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES ?? '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  /** true se o domínio é (ou é subdomínio de) um domínio-base próprio. */
+  private isAutoVerified(domain: string): boolean {
+    const d = domain.toLowerCase();
+    return this.autoVerifySuffixes().some((s) => d === s || d.endsWith(`.${s}`));
+  }
+
   private toDto(d: {
     id: string;
     domain: string;
@@ -40,6 +58,8 @@ export class TenantDomainsService {
       verified: d.verifiedAt != null,
       verifiedAt: d.verifiedAt ? d.verifiedAt.toISOString() : null,
       createdAt: d.createdAt.toISOString(),
+      // Subdomínio próprio: a UI esconde o passo do TXT.
+      autoVerified: this.isAutoVerified(d.domain),
       verification: {
         name: `${TENANT_DOMAIN_VERIFY_PREFIX}.${d.domain}`,
         type: 'TXT',
@@ -66,6 +86,8 @@ export class TenantDomainsService {
           domain: input.domain,
           isPrimary,
           verificationToken: randomBytes(16).toString('hex'),
+          // Subdomínio de domínio-base próprio já entra verificado.
+          verifiedAt: this.isAutoVerified(input.domain) ? new Date() : null,
         },
       });
       await this.audit.record({
@@ -98,12 +120,15 @@ export class TenantDomainsService {
 
     if (existing.verifiedAt) return this.toDto(existing);
 
-    const host = `${TENANT_DOMAIN_VERIFY_PREFIX}.${existing.domain}`;
-    const records = await this.dns.txtRecords(host);
-    if (!records.includes(existing.verificationToken)) {
-      throw new BadRequestException(
-        `Registro TXT não encontrado. Crie um TXT em "${host}" com o valor "${existing.verificationToken}" e tente novamente (a propagação do DNS pode levar alguns minutos).`,
-      );
+    // Subdomínio próprio: dispensa o TXT. Demais domínios comprovam por TXT.
+    if (!this.isAutoVerified(existing.domain)) {
+      const host = `${TENANT_DOMAIN_VERIFY_PREFIX}.${existing.domain}`;
+      const records = await this.dns.txtRecords(host);
+      if (!records.includes(existing.verificationToken)) {
+        throw new BadRequestException(
+          `Registro TXT não encontrado. Crie um TXT em "${host}" com o valor "${existing.verificationToken}" e tente novamente (a propagação do DNS pode levar alguns minutos).`,
+        );
+      }
     }
 
     const updated = await this.prisma.tenantDomain.update({

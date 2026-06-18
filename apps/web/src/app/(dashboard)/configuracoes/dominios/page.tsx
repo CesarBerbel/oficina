@@ -143,18 +143,24 @@ export default function DominiosPage() {
 
               {checks[d.id] && <DnsDiagnostic check={checks[d.id]} />}
 
-              {!d.verified && (
-                <div className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
-                  Para verificar, crie este registro DNS e clique em “Verificar”:
-                  <div className="mt-1 grid gap-1 font-mono text-[11px] sm:grid-cols-[auto_1fr]">
-                    <span className="text-foreground">Tipo:</span>
-                    <span>{d.verification.type}</span>
-                    <span className="text-foreground">Nome:</span>
-                    <span className="break-all">{d.verification.name}</span>
-                    <span className="text-foreground">Valor:</span>
-                    <span className="break-all">{d.verification.value}</span>
+              {d.autoVerified ? (
+                <p className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
+                  Subdomínio próprio — verificação automática (não precisa de registro TXT).
+                </p>
+              ) : (
+                !d.verified && (
+                  <div className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
+                    Para verificar, crie este registro DNS e clique em “Verificar”:
+                    <div className="mt-1 grid gap-1 font-mono text-[11px] sm:grid-cols-[auto_1fr]">
+                      <span className="text-foreground">Tipo:</span>
+                      <span>{d.verification.type}</span>
+                      <span className="text-foreground">Nome:</span>
+                      <span className="break-all">{d.verification.name}</span>
+                      <span className="text-foreground">Valor:</span>
+                      <span className="break-all">{d.verification.value}</span>
+                    </div>
                   </div>
-                </div>
+                )
               )}
             </li>
           ))}

@@ -24,6 +24,12 @@ const baseEnvSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  /**
+   * Domínios-base próprios (CSV) cujos subdomínios são auto-verificados, sem TXT.
+   * Ex.: "meudominio.cloud" → "joao.meudominio.cloud" entra já verificado, mas
+   * um domínio de terceiro (ex.: oficinadoze.com.br) ainda exige TXT.
+   */
+  TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES: z.string().optional().default(''),
 
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_ACCESS_TTL: z.string().default('15m'),

@@ -16,9 +16,17 @@ function build(opts: {
     ...(opts.domainRow as object),
     ...data,
   }));
+  const create = jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+    id: 'new',
+    isPrimary: true,
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+    ...data,
+  }));
   const prisma = {
     tenantDomain: {
       findFirst: jest.fn().mockResolvedValue(opts.domainRow),
+      count: jest.fn().mockResolvedValue(0),
+      create,
       update,
     },
   } as unknown as PrismaService;
@@ -27,7 +35,7 @@ function build(opts: {
     txtRecords: jest.fn().mockResolvedValue(opts.txt),
     addresses: jest.fn().mockResolvedValue(opts.addresses ?? []),
   } as unknown as DnsVerifier;
-  return { service: new TenantDomainsService(prisma, audit, dns), update, dns };
+  return { service: new TenantDomainsService(prisma, audit, dns), create, update, dns };
 }
 
 const baseRow = {
@@ -94,5 +102,54 @@ describe('TenantDomainsService.dnsCheck', () => {
   it('lança NotFound quando o domínio não existe', async () => {
     const { service } = build({ domainRow: null, txt: [], addresses: [] });
     await expect(service.dnsCheck(actor, 'x')).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('TenantDomainsService auto-verify por sufixo próprio', () => {
+  const PREV = process.env.TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES;
+  beforeEach(() => {
+    process.env.TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES = 'meudominio.cloud';
+  });
+  afterAll(() => {
+    if (PREV === undefined) delete process.env.TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES;
+    else process.env.TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES = PREV;
+  });
+
+  it('create de subdomínio próprio já entra verificado', async () => {
+    const { service, create } = build({ domainRow: null, txt: [] });
+    const dto = await service.create(actor, { domain: 'joao.meudominio.cloud' });
+    expect(dto.verified).toBe(true);
+    expect(dto.autoVerified).toBe(true);
+    const arg = create.mock.calls[0][0] as { data: { verifiedAt: Date | null } };
+    expect(arg.data.verifiedAt).toBeInstanceOf(Date);
+  });
+
+  it('create de domínio de terceiro NÃO entra verificado', async () => {
+    const { service, create } = build({ domainRow: null, txt: [] });
+    const dto = await service.create(actor, { domain: 'oficinadoze.com.br' });
+    expect(dto.verified).toBe(false);
+    expect(dto.autoVerified).toBe(false);
+    const arg = create.mock.calls[0][0] as { data: { verifiedAt: Date | null } };
+    expect(arg.data.verifiedAt).toBeNull();
+  });
+
+  it('verify de subdomínio próprio dispensa o TXT (não consulta DNS)', async () => {
+    const { service, dns, update } = build({
+      domainRow: { ...baseRow, domain: 'maria.meudominio.cloud' },
+      txt: [],
+    });
+    const dto = await service.verify(actor, 'd1');
+    expect(dto.verified).toBe(true);
+    expect(dns.txtRecords).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalled();
+  });
+
+  it('verify de domínio de terceiro ainda exige o TXT', async () => {
+    const { service, dns } = build({
+      domainRow: { ...baseRow, domain: 'oficinadoze.com.br' },
+      txt: [],
+    });
+    await expect(service.verify(actor, 'd1')).rejects.toBeInstanceOf(BadRequestException);
+    expect(dns.txtRecords).toHaveBeenCalled();
   });
 });
