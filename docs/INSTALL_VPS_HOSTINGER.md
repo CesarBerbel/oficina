@@ -321,9 +321,10 @@ server {
 }
 
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    # http2 como parâmetro do listen funciona no nginx 1.24 (Ubuntu 24.04) e no novo.
+    # (a diretiva separada "http2 on;" só existe a partir do nginx 1.25.1)
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name app.seudominio.com *.seudominio.com seudominio.com;
 
     ssl_certificate     /etc/letsencrypt/live/seudominio.com/fullchain.pem;
