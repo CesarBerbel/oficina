@@ -1420,3 +1420,13 @@ model VehicleCheckin {
   @@index([serviceOrderId])
   @@map("vehicle_checkins")
 }
+
+/// Heartbeat operacional global (ex.: último backup bem-sucedido) para métricas/alertas.
+model OpsHeartbeat {
+  key       String   @id
+  at        DateTime
+  note      String?
+  updatedAt DateTime @updatedAt
+
+  @@map("ops_heartbeat")
+}

@@ -28,7 +28,7 @@ export default function MetricasPage() {
 
   if (isLoading || !data) return <CarLoader />;
 
-  const { outbox, ledger } = data;
+  const { outbox, ledger, ai, smtp, backup, health, alerts } = data;
   const age =
     outbox.oldestPendingAgeSec == null
       ? '—'
@@ -41,9 +41,36 @@ export default function MetricasPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Métricas do sistema</h1>
         <p className="text-muted-foreground">
-          Saúde do outbox de mensagens e do ledger financeiro (atualiza a cada 30s).
+          Outbox, ledger, IA, e-mail, backup e saúde (atualiza a cada 30s).
         </p>
       </div>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">Alertas</h2>
+        {alerts.length === 0 ? (
+          <div className="rounded-lg border border-emerald-600/30 bg-emerald-600/10 p-3 text-sm text-emerald-700">
+            Tudo certo — nenhum alerta no momento.
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {alerts.map((a, i) => (
+              <li
+                key={i}
+                className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${
+                  a.level === 'critical'
+                    ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                    : 'border-amber-500/40 bg-amber-500/10 text-amber-700'
+                }`}
+              >
+                <Badge variant="outline" className="uppercase">
+                  {a.source}
+                </Badge>
+                <span>{a.message}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Outbox de mensagens</h2>
@@ -99,6 +126,42 @@ export default function MetricasPage() {
           <Stat label="Emitido" value={brl(ledger.totalIssued)} />
           <Stat label="Baixado" value={brl(ledger.totalPaid)} />
           <Stat label="Em aberto" value={brl(ledger.outstanding)} />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">IA</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Uso hoje" value={String(ai.usageToday)} />
+          <Stat label="Uso no mês" value={String(ai.usageMonth)} />
+          <Stat
+            label="Falhas hoje"
+            value={String(ai.failuresToday)}
+            tone={ai.failuresToday > 0 ? 'text-destructive' : ''}
+          />
+          <Stat label="Último erro" value={ai.lastError ? '⚠️' : '—'} />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">Infraestrutura</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat
+            label="Banco de dados"
+            value={health.dbOk ? 'OK' : 'falha'}
+            tone={health.dbOk ? 'text-emerald-600' : 'text-destructive'}
+          />
+          <Stat
+            label="E-mail (SMTP)"
+            value={smtp.driver === 'log' ? 'log' : smtp.configured ? 'configurado' : 'incompleto'}
+            tone={smtp.driver !== 'log' && !smtp.configured ? 'text-destructive' : ''}
+          />
+          <Stat
+            label="Último backup"
+            value={backup.ageHours == null ? 'nunca' : `${backup.ageHours}h`}
+            tone={backup.ok ? 'text-emerald-600' : 'text-destructive'}
+          />
+          <Stat label="Limite backup" value={`${backup.maxAgeHours}h`} />
         </div>
       </section>
     </div>
