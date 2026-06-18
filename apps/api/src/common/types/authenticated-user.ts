@@ -18,6 +18,8 @@ export interface AuthenticatedUser {
    * é o id da matriz. Escopo dos dados compartilhados (catálogo, clientes).
    */
   groupId: string;
+  /** Conta (cliente do SaaS) dona da oficina. Âncora do isolamento por conta. */
+  accountId: string;
   role: Role;
   email: string;
   superAdmin: boolean;

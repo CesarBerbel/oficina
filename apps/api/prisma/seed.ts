@@ -22,10 +22,16 @@ async function main(): Promise<void> {
 
   const slug = slugify(tenantSlug);
 
-  const tenant = await prisma.tenant.upsert({
+  const account = await prisma.account.upsert({
     where: { slug },
     update: {},
-    create: { name: tenantName, slug },
+    create: { name: tenantName, slug, status: 'ACTIVE' },
+  });
+
+  const tenant = await prisma.tenant.upsert({
+    where: { slug },
+    update: { accountId: account.id },
+    create: { name: tenantName, slug, accountId: account.id },
   });
 
   const passwordHash = await argon2.hash(adminPassword);
