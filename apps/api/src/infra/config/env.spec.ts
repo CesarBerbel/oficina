@@ -2,6 +2,7 @@ import { validateEnv } from './env';
 
 const STRONG_A = 'k7Qm2Zr9Tn4Wp8Lx1Vy6Bd3Hf5Jc0Ng2Sa7Ue9Oi'; // 41 chars, sem placeholders
 const STRONG_B = 'Zx9Wc2Vb5Nm8Lk1Jh4Gf7Ds0Aq3Po6Iu9Yt2Re5Wq'; // distinto de A
+const STRONG_C = 'Qw3Er7Ty1Ui5Op9As2Df6Gh0Jk4Lz8Xc1Vb5Nm7Mp'; // garage, distinto de A/B
 const HEX_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 function prodEnv(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -10,6 +11,7 @@ function prodEnv(overrides: Record<string, unknown> = {}): Record<string, unknow
     DATABASE_URL: 'postgresql://u:p@localhost:5432/db?schema=public',
     JWT_ACCESS_SECRET: STRONG_A,
     JWT_REFRESH_SECRET: STRONG_B,
+    GARAGE_JWT_SECRET: STRONG_C,
     ENCRYPTION_KEY: HEX_KEY,
     AUTH_COOKIE_SECURE: 'true',
     MAIL_DRIVER: 'log',
@@ -72,8 +74,18 @@ describe('validateEnv (regras de produção)', () => {
     ).not.toThrow();
   });
 
-  it('rejeita GARAGE_JWT_SECRET fraco quando definido em produção', () => {
+  it('exige GARAGE_JWT_SECRET em produção', () => {
+    expect(() => validateEnv(prodEnv({ GARAGE_JWT_SECRET: '' }))).toThrow(/GARAGE_JWT_SECRET/);
+  });
+
+  it('rejeita GARAGE_JWT_SECRET fraco em produção', () => {
     expect(() => validateEnv(prodEnv({ GARAGE_JWT_SECRET: 'curto' }))).toThrow(/GARAGE_JWT_SECRET/);
+  });
+
+  it('rejeita GARAGE_JWT_SECRET igual a um segredo JWT', () => {
+    expect(() => validateEnv(prodEnv({ GARAGE_JWT_SECRET: STRONG_A }))).toThrow(
+      /GARAGE_JWT_SECRET/,
+    );
   });
 
   it('rejeita STORAGE_DRIVER inexistente (s3)', () => {

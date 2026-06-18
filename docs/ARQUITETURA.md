@@ -40,7 +40,7 @@ Princípios de engenharia:
 | ORM / DB          | **Prisma + PostgreSQL 16**                | Migrations, type-safety, produtividade |
 | Auth              | **JWT access + refresh (cookie httpOnly)**| Stateless + rotação segura de refresh |
 | Validação backend | **Zod (via nestjs-zod)**                  | Mesmos schemas do front; DTOs tipados |
-| Uploads           | **Adapter Storage**: local (dev) / S3-R2  | Interface única, troca por env |
+| Uploads           | **Storage local** (disco/volume); S3/R2 planejado | `STORAGE_DRIVER=local` (único hoje) |
 | PDF               | **pdfkit**  | PDF profissional da OS com cabeçalho e rodapé configuráveis |
 | XML NF-e          | **fast-xml-parser**                       | Parser rápido, sem libs pesadas |
 | Mensageria/eventos| **EventEmitter (MVP) → BullMQ/Redis**     | Eventos de OS internos; fila p/ envios |
@@ -324,7 +324,8 @@ Padrões visuais:
 
 ## 9. Integrações e serviços transversais
 
-- **Storage adapter**: `StoragePort` → `LocalStorage` (dev) / `S3Storage` (R2/S3).
+- **Storage**: `StorageService` grava em disco local (volume em produção).
+  `STORAGE_DRIVER=local` é o único driver implementado; S3/R2 é planejado.
 - **PDF**: serviço `PdfService` usa pdfkit (layout profissional, alvo de 1 página).
   Logo: `logoPdfUrl` se houver, senão `logoUrl`. Cabeçalho usa o **endereço
   estruturado** da oficina (CEP, rua, número, complemento, bairro, cidade/UF) +

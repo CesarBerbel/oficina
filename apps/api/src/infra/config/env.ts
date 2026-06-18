@@ -5,6 +5,7 @@ import { z } from 'zod';
 const baseEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_NAME: z.string().default('Oficina'),
+  APP_VERSION: z.string().default('0.1.0'),
 
   DATABASE_URL: z.string().url(),
 
@@ -94,12 +95,19 @@ export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
         fail(key, 'Obrigatório quando MAIL_DRIVER=smtp em produção (ou use MAIL_DRIVER=log).');
     }
   }
-  // Se um segredo dedicado da garagem foi definido, exija que seja forte.
-  if (env.GARAGE_JWT_SECRET) {
+  // Segredo dedicado da garagem é obrigatório em produção (e precisa ser forte).
+  if (!env.GARAGE_JWT_SECRET?.trim()) {
+    fail('GARAGE_JWT_SECRET', 'Obrigatório em produção (segredo dedicado da garagem).');
+  } else {
     if (env.GARAGE_JWT_SECRET.length < 32)
       fail('GARAGE_JWT_SECRET', 'Em produção precisa de ao menos 32 caracteres.');
     if (WEAK_SECRET.test(env.GARAGE_JWT_SECRET))
       fail('GARAGE_JWT_SECRET', 'Segredo de exemplo/placeholder não é permitido em produção.');
+    if (
+      env.GARAGE_JWT_SECRET === env.JWT_ACCESS_SECRET ||
+      env.GARAGE_JWT_SECRET === env.JWT_REFRESH_SECRET
+    )
+      fail('GARAGE_JWT_SECRET', 'Deve ser diferente dos segredos JWT de acesso/refresh.');
   }
 });
 
