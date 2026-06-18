@@ -13,6 +13,7 @@ import {
   composeAddress,
   permissionsForRole,
   type InstallSystemInput,
+  type LoginContextDto,
   type LoginResponse,
 } from '@oficina/shared';
 import { Prisma, type Role } from '@prisma/client';
@@ -119,43 +120,103 @@ export class AuthService {
     return { token, expiresAt };
   }
 
+  /** Normaliza um host (remove porta, minúsculas, pega o 1º se vier lista). */
+  private normalizeHost(host: string | null | undefined): string | null {
+    if (!host) return null;
+    const h = host.split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
+    return h || null;
+  }
+
+  /** Verificação exigida (produção) para resolver a conta por domínio. */
+  private requireVerifiedDomain(): boolean {
+    return (
+      (this.config.get<string>('NODE_ENV') ?? process.env.NODE_ENV) === 'production' ||
+      process.env.TENANT_DOMAIN_REQUIRE_VERIFIED === 'true'
+    );
+  }
+
+  /** Resolve a conta dona de um host (subdomínio próprio ou domínio de terceiro). */
+  async resolveAccountByHost(
+    host: string | null,
+  ): Promise<{ id: string; name: string; slug: string; status: string } | null> {
+    const h = this.normalizeHost(host);
+    if (!h) return null;
+    const domain = await this.prisma.tenantDomain.findFirst({
+      where: { domain: h, ...(this.requireVerifiedDomain() ? { verifiedAt: { not: null } } : {}) },
+      select: {
+        tenant: {
+          select: { account: { select: { id: true, name: true, slug: true, status: true } } },
+        },
+      },
+    });
+    return domain?.tenant.account ?? null;
+  }
+
+  /** Contexto de login do host: qual conta o subdomínio representa (ou null). */
+  async loginContext(host: string | null): Promise<LoginContextDto> {
+    const account = await this.resolveAccountByHost(host);
+    return { account: account ? { name: account.name, slug: account.slug } : null };
+  }
+
+  /**
+   * Localiza o usuário do login: por conta (host) ou pelo slug da oficina.
+   * No modo por conta, busca o e-mail entre as oficinas daquela conta.
+   */
+  private async findLoginUser(
+    opts: { tenantSlug?: string | null; accountId?: string | null },
+    email: string,
+  ) {
+    const include = {
+      tenant: { select: { active: true, account: { select: { status: true } } } },
+    } as const;
+    if (opts.accountId) {
+      return this.prisma.user.findFirst({
+        where: { email, tenant: { accountId: opts.accountId } },
+        include,
+      });
+    }
+    if (opts.tenantSlug) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { slug: opts.tenantSlug },
+        select: { id: true },
+      });
+      if (!tenant) return null;
+      return this.prisma.user.findUnique({
+        where: { tenantId_email: { tenantId: tenant.id, email } },
+        include,
+      });
+    }
+    return null;
+  }
+
   async login(
-    tenantSlug: string,
+    opts: { tenantSlug?: string | null; accountId?: string | null },
     email: string,
     password: string,
     meta: RequestMeta,
   ): Promise<IssuedSession> {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
-      select: { id: true, active: true, account: { select: { status: true } } },
-    });
-
-    const user = tenant?.active
-      ? await this.prisma.user.findUnique({
-          where: { tenantId_email: { tenantId: tenant.id, email } },
-        })
-      : null;
-
+    const user = await this.findLoginUser(opts, email);
+    const tenantActive = user?.tenant.active ?? false;
     const ok = user ? await this.passwords.verify(user.passwordHash, password) : false;
 
     await this.prisma.loginAttempt.create({
       data: {
-        tenantId: tenant?.id ?? null,
+        tenantId: user?.tenantId ?? null,
         email,
-        success: ok && !!user?.active && tenant?.active === true,
+        success: ok && !!user?.active && tenantActive,
         ip: meta.ip ?? null,
         userAgent: meta.userAgent ?? null,
       },
     });
 
-    if (!tenant || !tenant.active || !user || !ok) {
+    if (!user || !tenantActive || !ok) {
       throw new UnauthorizedException('Credenciais inválidas');
     }
     if (!user.active) {
       throw new ForbiddenException('Usuário inativo. Procure o administrador.');
     }
     // Conta suspensa/pendente bloqueia o login (super usuário da plataforma é exceção).
-    if (!user.superAdmin && tenant.account.status !== 'ACTIVE') {
+    if (!user.superAdmin && user.tenant.account.status !== 'ACTIVE') {
       throw new ForbiddenException('Conta indisponível. Procure o suporte.');
     }
 

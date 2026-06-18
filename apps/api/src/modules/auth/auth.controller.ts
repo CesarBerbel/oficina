@@ -63,13 +63,22 @@ export class AuthController {
     };
   }
 
+  /** Host real da requisição (atrás do proxy: X-Forwarded-Host). */
+  private requestHost(req: Request): string | null {
+    const xfh = req.headers['x-forwarded-host'];
+    const raw = (Array.isArray(xfh) ? xfh[0] : xfh) ?? req.headers.host ?? null;
+    return raw ? raw.toString().split(',')[0].trim().toLowerCase() : null;
+  }
+
   /**
    * Defesa CSRF para fluxos baseados em cookie (refresh): se a requisição trouxer
-   * Origin/Referer, ele precisa bater com o WEB_ORIGIN. Requisições sem origem
-   * (server-to-server, testes) passam — o ataque CSRF sempre envia uma origem.
+   * Origin/Referer, ele precisa ser confiável. Aceita a WEB_ORIGIN configurada
+   * (cobre o dev, em que SPA e API têm origens diferentes) OU a mesma origem do
+   * host da requisição (cobre qualquer subdomínio/domínio próprio do SaaS, sem
+   * precisar listar cada um). Requisições sem origem (server-to-server, testes)
+   * passam — o ataque CSRF sempre envia uma origem.
    */
   private assertTrustedOrigin(req: Request): void {
-    const allowed = this.config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000';
     let origin = req.headers.origin ?? null;
     if (!origin && req.headers.referer) {
       try {
@@ -78,9 +87,18 @@ export class AuthController {
         origin = null;
       }
     }
-    if (origin && origin !== allowed) {
-      throw new ForbiddenException('Origem não autorizada');
+    if (!origin) return;
+
+    const allowed = this.config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000';
+    if (origin === allowed) return;
+
+    const reqHost = this.requestHost(req);
+    try {
+      if (reqHost && new URL(origin).host.toLowerCase() === reqHost) return;
+    } catch {
+      /* origem malformada → barra abaixo */
     }
+    throw new ForbiddenException('Origem não autorizada');
   }
 
   @Public()
@@ -96,14 +114,23 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<LoginResponse> {
+    // No subdomínio próprio a conta vem do host; no apex/dev, do slug informado.
+    const account = await this.auth.resolveAccountByHost(this.requestHost(req));
     const session = await this.auth.login(
-      body.tenantSlug,
+      { tenantSlug: body.tenantSlug ?? null, accountId: account?.id ?? null },
       body.email,
       body.password,
       this.meta(req),
     );
     this.setRefreshCookie(res, session);
     return { accessToken: session.accessToken, user: session.user };
+  }
+
+  /** Qual conta este host (subdomínio/domínio próprio) representa — null no apex. */
+  @Public()
+  @Get('context')
+  context(@Req() req: Request) {
+    return this.auth.loginContext(this.requestHost(req));
   }
 
   @Public()

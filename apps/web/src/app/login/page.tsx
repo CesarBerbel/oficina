@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import { Wrench } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import { loginSchema } from '@oficina/shared';
+import { loginSchema, type LoginContextDto } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
 import { useInstallStatus } from '@/features/auth/use-install-status';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +32,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  // Conta resolvida pelo host: undefined = carregando; null = apex/dev (pede slug).
+  const [account, setAccount] = useState<LoginContextDto['account'] | undefined>(undefined);
+
+  // Descobre se este host (subdomínio próprio) já representa uma conta.
+  useEffect(() => {
+    let active = true;
+    api
+      .get<LoginContextDto>('/auth/context')
+      .then((ctx) => active && setAccount(ctx.account))
+      .catch(() => active && setAccount(null));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (status === 'authenticated') router.replace('/dashboard');
@@ -41,9 +56,16 @@ export default function LoginPage() {
     if (installStatus && !installStatus.installed) router.replace('/instalar');
   }, [installStatus, router]);
 
+  // No apex/dev pede o slug; no subdomínio próprio a conta vem do host.
+  const needsSlug = account === null;
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = loginSchema.safeParse({ tenantSlug, email, password });
+    const parsed = loginSchema.safeParse({
+      email,
+      password,
+      ...(needsSlug ? { tenantSlug } : {}),
+    });
     if (!parsed.success) {
       setErrors(zodFieldErrors(parsed.error, FIELD_LABELS));
       return;
@@ -51,7 +73,7 @@ export default function LoginPage() {
     setErrors({});
     setSubmitting(true);
     try {
-      await login(parsed.data.tenantSlug, parsed.data.email, parsed.data.password);
+      await login(parsed.data.email, parsed.data.password, parsed.data.tenantSlug);
       toast.success('Bem-vindo de volta!');
       router.replace('/dashboard');
     } catch (err) {
@@ -68,28 +90,34 @@ export default function LoginPage() {
           <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Wrench className="size-6" />
           </span>
-          <h1 className="text-xl font-semibold">Entrar na Oficina</h1>
+          <h1 className="text-xl font-semibold">
+            {account ? `Entrar — ${account.name}` : 'Entrar na Oficina'}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Informe a oficina e suas credenciais de acesso
+            {needsSlug
+              ? 'Informe a oficina e suas credenciais de acesso'
+              : 'Informe suas credenciais de acesso'}
           </p>
         </div>
 
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="tenantSlug" required>
-              Oficina
-            </Label>
-            <Input
-              id="tenantSlug"
-              name="tenantSlug"
-              type="text"
-              autoComplete="organization"
-              value={tenantSlug}
-              onChange={(e) => setTenantSlug(e.target.value)}
-              placeholder="slug-da-oficina"
-            />
-            {errors.tenantSlug && <p className="text-xs text-destructive">{errors.tenantSlug}</p>}
-          </div>
+          {needsSlug && (
+            <div className="space-y-1.5">
+              <Label htmlFor="tenantSlug" required>
+                Oficina
+              </Label>
+              <Input
+                id="tenantSlug"
+                name="tenantSlug"
+                type="text"
+                autoComplete="organization"
+                value={tenantSlug}
+                onChange={(e) => setTenantSlug(e.target.value)}
+                placeholder="slug-da-oficina"
+              />
+              {errors.tenantSlug && <p className="text-xs text-destructive">{errors.tenantSlug}</p>}
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="email" required>

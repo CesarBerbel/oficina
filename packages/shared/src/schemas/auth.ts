@@ -3,18 +3,28 @@ import { USER_ROLES } from '../enums/role.js';
 import { paginationQuerySchema } from './common.js';
 
 export const loginSchema = z.object({
+  // Opcional: em subdomínio próprio (cliente.saecbpa.com) a conta vem do host.
+  // No apex/dev, é obrigatório informar a oficina.
   tenantSlug: z
     .string()
     .trim()
     .toLowerCase()
     .min(2, 'Informe a oficina')
     .max(80, 'Identificador da oficina muito longo')
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use apenas letras minúsculas, números e hífens'),
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use apenas letras minúsculas, números e hífens')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   email: z.string().trim().toLowerCase().email('E-mail inválido'),
   password: z.string().min(1, 'Informe a senha'),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+
+/** Contexto de login resolvido pelo host (qual conta o subdomínio representa). */
+export interface LoginContextDto {
+  /** Conta dona do host (subdomínio/domínio próprio), ou null no apex/dev. */
+  account: { name: string; slug: string } | null;
+}
 
 const optionalInstallText = (max: number) =>
   z
