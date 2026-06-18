@@ -3,9 +3,10 @@
 Stack: **PostgreSQL + API (NestJS) + Web (Next.js) + Nginx** via Docker Compose.
 O Nginx faz reverse proxy: `/api` e `/uploads` → API, restante → Web (mesma origem).
 
-> **Instalando do zero numa VPS (Hostinger), com subdomínio por oficina?** Veja o
-> runbook passo a passo: [`INSTALL_VPS_HOSTINGER.md`](INSTALL_VPS_HOSTINGER.md)
-> (cobre OpenLiteSpeed como reverse proxy e wildcard de subdomínios).
+> **Instalando do zero numa VPS Hostinger (Ubuntu puro), com subdomínio por
+> oficina?** Veja o runbook passo a passo:
+> [`INSTALL_VPS_HOSTINGER.md`](INSTALL_VPS_HOSTINGER.md) — Ubuntu + Nginx + certbot,
+> com curinga de subdomínios.
 
 ## 1. Pré-requisitos
 - Docker + Docker Compose no servidor.
