@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import {
   composeAddress,
@@ -23,6 +24,7 @@ export class SiteService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly config: ConfigService,
   ) {}
 
   private toDto(s: Prisma.SiteSettingsGetPayload<object>): SiteSettingsDto {
@@ -196,9 +198,15 @@ export class SiteService {
   ): Promise<string | null> {
     const domain = this.normalizeDomain(host);
     if (!domain) return null;
+    // Em produção (ou com a flag) só domínios verificados resolvem — evita que um
+    // host forjado/não comprovado aponte para a oficina.
+    const requireVerified =
+      (this.config.get<string>('NODE_ENV') ?? process.env.NODE_ENV) === 'production' ||
+      process.env.TENANT_DOMAIN_REQUIRE_VERIFIED === 'true';
     const match = await this.prisma.tenantDomain.findFirst({
       where: {
         domain,
+        ...(requireVerified ? { verifiedAt: { not: null } } : {}),
         tenant: { active: true, siteSettings: { published: true } },
       },
       select: { tenantId: true },

@@ -14,6 +14,11 @@ const baseEnvSchema = z.object({
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
   /** Base pública confiável para montar URLs absolutas (ex.: uploads). Vazio = relativo. */
   APP_URL: z.string().url().or(z.literal('')).default(''),
+  /** Exige TenantDomain verificado para resolver o site por domínio (sempre em prod). */
+  TENANT_DOMAIN_REQUIRE_VERIFIED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_ACCESS_TTL: z.string().default('15m'),
