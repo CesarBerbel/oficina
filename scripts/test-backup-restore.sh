@@ -27,18 +27,21 @@ docker run -d --name "$CTN" \
   -e POSTGRES_USER="$PGUSER" -e POSTGRES_PASSWORD="$PGPASS" -e POSTGRES_DB="$PGDB" \
   -p "$PORT:5432" "$PG_IMAGE" >/dev/null
 
-echo "== Aguardando o banco ficar pronto =="
+psql() { docker exec -i "$CTN" psql -U "$PGUSER" -d "$PGDB" "$@"; }
+
+echo "== Aguardando o banco aceitar conexões (db + usuário prontos) =="
+# pg_isready pode dizer "pronto" antes do init criar o DB/usuário; então
+# esperamos um SELECT real conectar no banco/usuário alvo.
 i=0
-until docker exec "$CTN" pg_isready -U "$PGUSER" -d "$PGDB" >/dev/null 2>&1; do
+until psql -c 'SELECT 1' >/dev/null 2>&1; do
   i=$((i + 1))
-  [ "$i" -gt 30 ] && {
+  if [ "$i" -gt 60 ]; then
     echo "ERRO: Postgres não ficou pronto." >&2
+    docker logs "$CTN" 2>&1 | tail -n 20 >&2 || true
     exit 1
-  }
+  fi
   sleep 1
 done
-
-psql() { docker exec -i "$CTN" psql -U "$PGUSER" -d "$PGDB" "$@"; }
 
 echo "== Criando dados =="
 psql -v ON_ERROR_STOP=1 -c "CREATE TABLE clientes (id int PRIMARY KEY, nome text);"
