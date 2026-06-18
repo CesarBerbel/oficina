@@ -30,6 +30,8 @@ export interface TenantDomainDto {
   verified: boolean;
   verifiedAt: string | null;
   createdAt: string;
+  /** Subdomínio de domínio-base próprio: verificação automática (dispensa TXT). */
+  autoVerified: boolean;
   /** Registro DNS a publicar para comprovar posse (TXT). */
   verification: {
     name: string; // ex.: _oficina-verify.minhaoficina.com.br

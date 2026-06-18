@@ -270,6 +270,22 @@ Cada oficina pode apontar um domínio próprio para o site público:
 3. Clique em **Verificar** — a API consulta o TXT e marca como verificado.
 4. Faça o DNS do domínio (A/AAAA/CNAME) apontar para o servidor.
 
+### Subdomínios do seu próprio domínio (sem TXT)
+
+Se você serve oficinas como **subdomínios de um domínio seu** (ex.:
+`joao.meudominio.cloud`), não faz sentido pedir TXT — você já controla o DNS.
+Liste os domínios-base em `TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES` (CSV) e os
+subdomínios deles entram **verificados automaticamente** ao serem cadastrados:
+
+```bash
+TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES=meudominio.cloud,outra.com
+```
+
+Assim você tem **os dois casos ao mesmo tempo**: subdomínios próprios sem TXT e
+domínios de terceiros (ex.: `oficinadoze.com.br`) ainda exigindo a comprovação
+por TXT. Dica: com um curinga DNS+TLS (`*.meudominio.cloud`), criar uma oficina
+nova vira só cadastrar o subdomínio na tela — sem mexer no servidor.
+
 Em **produção**:
 
 - só **domínios verificados** resolvem o site (segurança);
