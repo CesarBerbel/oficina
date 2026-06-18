@@ -8,7 +8,6 @@ import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import { loginSchema, type LoginContextDto } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
-import { useInstallStatus } from '@/features/auth/use-install-status';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,6 @@ const FIELD_LABELS = {
 export default function LoginPage() {
   const router = useRouter();
   const { login, status } = useAuth();
-  const { data: installStatus } = useInstallStatus();
   const [tenantSlug, setTenantSlug] = useState(DEFAULT_TENANT_SLUG);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,11 +48,6 @@ export default function LoginPage() {
   useEffect(() => {
     if (status === 'authenticated') router.replace('/dashboard');
   }, [status, router]);
-
-  // Sistema ainda não instalado: leva para a instalação da matriz.
-  useEffect(() => {
-    if (installStatus && !installStatus.installed) router.replace('/instalar');
-  }, [installStatus, router]);
 
   // No apex/dev pede o slug; no subdomínio próprio a conta vem do host.
   const needsSlug = account === null;

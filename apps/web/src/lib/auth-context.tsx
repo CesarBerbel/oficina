@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { AuthUser, LoginResponse, Permission, InstallSystemInput } from '@oficina/shared';
+import type { AuthUser, LoginResponse, Permission } from '@oficina/shared';
 import { api, setAccessToken, API_URL } from './api';
 
 type Status = 'loading' | 'authenticated' | 'unauthenticated';
@@ -10,7 +10,6 @@ interface AuthContextValue {
   user: AuthUser | null;
   status: Status;
   login: (email: string, password: string, tenantSlug?: string) => Promise<void>;
-  install: (input: InstallSystemInput) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (permission: Permission | string) => boolean;
 }
@@ -60,15 +59,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus('authenticated');
   }, []);
 
-  const install = useCallback(async (input: InstallSystemInput) => {
-    const data = await api.post<LoginResponse>('/auth/install', input, {
-      skipAuthRetry: true,
-    });
-    setAccessToken(data.accessToken);
-    setUser(data.user);
-    setStatus('authenticated');
-  }, []);
-
   const logout = useCallback(async () => {
     try {
       await api.post('/auth/logout');
@@ -86,8 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ user, status, login, install, logout, hasPermission }),
-    [user, status, login, install, logout, hasPermission],
+    () => ({ user, status, login, logout, hasPermission }),
+    [user, status, login, logout, hasPermission],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

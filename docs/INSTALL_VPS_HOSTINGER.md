@@ -354,39 +354,52 @@ Recarregue `https://app.seudominio.com` — o cadeado deve aparecer.
 
 ---
 
-## 9. Primeira execução — criar a matriz e o super admin
+## 9. Criar o super admin (comando no servidor)
 
-Abra no navegador:
+O banco começa **vazio** (sem oficina de exemplo). Não há instalador web — o super
+usuário da plataforma é criado por um comando no servidor:
 
+```bash
+docker compose -f docker-compose.prod.yml exec \
+  -e SUPERADMIN_EMAIL=voce@seudominio.com \
+  -e SUPERADMIN_PASSWORD='UmaSenhaForte#123' \
+  api /nodejs/bin/node dist/scripts/create-superadmin.js
 ```
-https://app.seudominio.com/instalar
-```
 
-Preencha os dados da **oficina matriz** e do **super usuário** (acessa todas as
-oficinas). A tela `/instalar` só funciona enquanto o banco ainda não tem nenhuma
-oficina. Depois, faça login normalmente.
+O comando cria o super admin numa conta interna **`plataforma`** (apenas o lar
+dele). Para entrar, acesse `https://app.seudominio.com/login`, informe a oficina
+**`plataforma`** + e-mail + senha. Rodar de novo apenas atualiza a senha.
+
+A partir daí, o site **já recebe pedidos** de novas oficinas em `/comecar`, que você
+aprova no painel **Contas** (`/contas`) — veja a seção 10.
 
 ---
 
-## 10. Criar uma oficina
+## 10. Criar uma oficina (fluxo SaaS)
 
-### Em `nomedaoficina.seudominio.com` (subdomínio seu)
+Cada cliente nasce de um **pedido** aprovado por você — não há cadastro manual de
+oficina pelo painel comum.
 
-1. Logado, crie a **oficina** (tenant) no sistema.
-2. **Configurações › Domínios** → cadastre `nomedaoficina.seudominio.com`.
-   - Como bate com `TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES`, entra **verificado na hora**
-     (sem TXT).
-3. **Com curinga (8‑B):** já funciona — abra `https://nomedaoficina.seudominio.com`.
-   **Sem curinga (8‑A):** crie o `A nomedaoficina` no DNS e rode
-   `sudo certbot --nginx -d nomedaoficina.seudominio.com`.
+1. **Cliente** acessa `https://seudominio.com/comecar`, escolhe o subdomínio (ex.:
+   `nomedaoficina`) e envia o pedido.
+2. **Você** (super admin) abre **Contas** (`/contas`), vê o pedido em *Pendentes* e
+   clica **Aprovar** → o sistema provisiona a conta + a oficina + o admin (com uma
+   **senha temporária** mostrada na hora) + o subdomínio `nomedaoficina.seudominio.com`
+   já verificado (bate com `TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES`).
+3. O cliente acessa `https://nomedaoficina.seudominio.com/login` — o host já
+   identifica a conta (não pede slug) — e entra com a senha temporária.
 
-### Com domínio próprio da oficina (de terceiro)
+> **Com curinga `*.seudominio.com` (8‑B):** o subdomínio funciona na hora.
+> **Sem curinga (8‑A):** crie o `A nomedaoficina` e rode
+> `sudo certbot --nginx -d nomedaoficina.seudominio.com` antes do passo 3.
+
+### Promover para o domínio próprio da oficina (de terceiro)
 
 1. A oficina aponta o domínio dela (`oficinadoze.com.br`) para a VPS (registro A).
-2. **Configurações › Domínios** → cadastre `oficinadoze.com.br` → **não verificado**.
-3. Publique o **TXT** `_oficina-verify.oficinadoze.com.br` = token e clique **Verificar**.
-4. Adicione o domínio ao `server_name` do vhost (ou crie um vhost próprio) e emita
-   o TLS: `sudo certbot --nginx -d oficinadoze.com.br`.
+2. Logada, em **Configurações › Domínios** → cadastra `oficinadoze.com.br` → **não verificado**.
+3. Publica o **TXT** `_oficina-verify.oficinadoze.com.br` = token e clica **Verificar**.
+4. Você adiciona o domínio ao `server_name` do vhost (ou cria um vhost próprio) e
+   emite o TLS: `sudo certbot --nginx -d oficinadoze.com.br`.
 
 ---
 

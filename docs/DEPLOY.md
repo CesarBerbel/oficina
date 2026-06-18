@@ -76,25 +76,26 @@ docker compose -f docker-compose.prod.yml exec api \
 ```
 Na prática, basta `up -d` (ou `restart api`): o entrypoint aplica as migrations no boot.
 
-## 4. Seed inicial (primeira vez)
-Cria a oficina e o usuário administrador. **Atenção:** a imagem final da API é
-prod-only (sem `ts-node`), então o seed **não roda dentro do container `api`**.
-Rode-o num container `node` descartável anexado à rede do compose, a partir do
-código-fonte (a rede padrão é `oficina_default`; o host do banco é `postgres`):
+## 4. Primeiro acesso — criar o super admin (sem seed/instalador)
+O banco começa **vazio** (não há oficina de exemplo nem instalador web). O super
+usuário da plataforma é criado por um comando dentro do próprio container `api`
+(a imagem distroless já traz o script compilado em `dist/`):
 
 ```bash
-docker run --rm --network oficina_default -v "$PWD:/repo" -w /repo \
-  -e DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB?schema=public" \
-  node:22-slim sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm prisma:generate && pnpm prisma:seed"
+docker compose -f docker-compose.prod.yml exec \
+  -e SUPERADMIN_EMAIL=voce@seudominio.com \
+  -e SUPERADMIN_PASSWORD='UmaSenhaForte#123' \
+  api /nodejs/bin/node dist/scripts/create-superadmin.js
 ```
 
-Login: `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` (definidos no `.env`).
-**Troque a senha do admin após o primeiro acesso.**
+Entre em `/login` informando a oficina **`plataforma`** + e-mail + senha. As oficinas
+dos clientes nascem de **pedidos** em `/comecar`, aprovados no painel **Contas**
+(`/contas`). Rodar o comando de novo apenas redefine a senha do super admin.
 
-> O seed principal já cria os **templates de mensagem** (WhatsApp + E-mail) de todos
-> os eventos, incluindo o de **aniversário** (`CUSTOMER_BIRTHDAY`, ativo e com
-> *autoSend*). Para (re)semear **apenas os templates** numa instalação existente
-> (ex.: adicionar templates novos sem mexer no resto), o script é idempotente:
+> Templates de mensagem (WhatsApp + E-mail) — incluindo o de **aniversário**
+> (`CUSTOMER_BIRTHDAY`, ativo e com *autoSend*) — são criados automaticamente quando
+> cada oficina é provisionada. Para (re)semear **apenas os templates** numa instalação
+> existente (ex.: adicionar templates novos sem mexer no resto), o script é idempotente:
 > ```bash
 > docker run --rm --network oficina_default -v "$PWD:/repo" -w /repo \
 >   -e DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB?schema=public" \
