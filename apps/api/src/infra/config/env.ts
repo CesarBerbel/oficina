@@ -30,6 +30,12 @@ const baseEnvSchema = z.object({
    * um domínio de terceiro (ex.: oficinadoze.com.br) ainda exige TXT.
    */
   TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES: z.string().optional().default(''),
+  /**
+   * Domínio-base da plataforma (ex.: saecbpa.com). Ao provisionar uma conta, o
+   * subdomínio `slug.<base>` é criado e verificado. Vazio = não cria subdomínio
+   * (a conta acessa por slug até cadastrar um domínio).
+   */
+  PLATFORM_BASE_DOMAIN: z.string().optional().default(''),
 
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_ACCESS_TTL: z.string().default('15m'),
