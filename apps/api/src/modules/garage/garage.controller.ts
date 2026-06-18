@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Headers, Param, Post, Req } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import {
@@ -23,10 +22,7 @@ import { Public } from '../../common/decorators/public.decorator';
 @Controller('public/garage')
 @Public()
 export class GarageController {
-  constructor(
-    private readonly garage: GarageService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly garage: GarageService) {}
 
   private firstHeader(value: string | string[] | undefined): string | null {
     return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
@@ -34,9 +30,10 @@ export class GarageController {
 
   private lookup(req: Request): PublicTenantLookup {
     const querySlug = typeof req.query.tenantSlug === 'string' ? req.query.tenantSlug : null;
-    // Em produção, ignora qualquer override de oficina (tenantSlug/x-public-*):
-    // a garagem resolve só pelo host real (x-forwarded-host do proxy / Host).
-    const allowOverrides = this.config.get<string>('NODE_ENV') !== 'production';
+    // Em produção (ou com PUBLIC_STRICT_HOST=true), ignora qualquer override de
+    // oficina (tenantSlug/x-public-*): resolve só pelo host real.
+    const allowOverrides =
+      process.env.NODE_ENV !== 'production' && process.env.PUBLIC_STRICT_HOST !== 'true';
     return {
       tenantSlug: allowOverrides
         ? (querySlug ?? this.firstHeader(req.headers['x-public-tenant-slug']))
