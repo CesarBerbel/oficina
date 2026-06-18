@@ -288,12 +288,14 @@ model Tenant {
 
 /// Domínio próprio de uma oficina (SaaS multi-domínio): resolve o tenant pelo host.
 model TenantDomain {
-  id         String    @id @default(cuid())
-  tenantId   String
-  domain     String    @unique
-  isPrimary  Boolean   @default(false)
-  verifiedAt DateTime?
-  createdAt  DateTime  @default(now())
+  id                String    @id @default(cuid())
+  tenantId          String
+  domain            String    @unique
+  isPrimary         Boolean   @default(false)
+  // Token a publicar no DNS (TXT em _oficina-verify.<domain>) para comprovar posse.
+  verificationToken String
+  verifiedAt        DateTime?
+  createdAt         DateTime  @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

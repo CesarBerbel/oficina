@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createE2eApp } from './support/e2e-app';
-import { resetAndSeed } from './support/e2e-db';
+import { prisma, resetAndSeed } from './support/e2e-db';
 import { authHeader, loginAs } from './support/e2e-http';
 
 /**
@@ -41,11 +41,12 @@ describe('TenantDomain: verificação exigida e anti-spoof (e2e)', () => {
       .set('X-Forwarded-Host', 'oficina-modelo-prod-e2e.com.br')
       .expect(404);
 
-    // Verifica e então resolve.
-    await request(app.getHttpServer())
-      .post(`/api/tenant-domains/${created.body.id}/verify`)
-      .set(authHeader(admin.token))
-      .expect(201);
+    // Marca como verificado (a verificação real é por DNS; aqui simulamos a
+    // posse comprovada) e então resolve.
+    await prisma.tenantDomain.update({
+      where: { id: created.body.id },
+      data: { verifiedAt: new Date() },
+    });
 
     const resolved = await request(app.getHttpServer())
       .get('/api/public/site')

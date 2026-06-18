@@ -1,8 +1,19 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import type { CreateTenantDomainInput, TenantDomainDto } from '@oficina/shared';
+import {
+  TENANT_DOMAIN_VERIFY_PREFIX,
+  type CreateTenantDomainInput,
+  type TenantDomainDto,
+} from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { DnsVerifier } from './dns-verifier.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 @Injectable()
@@ -10,12 +21,14 @@ export class TenantDomainsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly dns: DnsVerifier,
   ) {}
 
   private toDto(d: {
     id: string;
     domain: string;
     isPrimary: boolean;
+    verificationToken: string;
     verifiedAt: Date | null;
     createdAt: Date;
   }): TenantDomainDto {
@@ -26,6 +39,11 @@ export class TenantDomainsService {
       verified: d.verifiedAt != null,
       verifiedAt: d.verifiedAt ? d.verifiedAt.toISOString() : null,
       createdAt: d.createdAt.toISOString(),
+      verification: {
+        name: `${TENANT_DOMAIN_VERIFY_PREFIX}.${d.domain}`,
+        type: 'TXT',
+        value: d.verificationToken,
+      },
     };
   }
 
@@ -42,7 +60,12 @@ export class TenantDomainsService {
       (await this.prisma.tenantDomain.count({ where: { tenantId: actor.tenantId } })) === 0;
     try {
       const created = await this.prisma.tenantDomain.create({
-        data: { tenantId: actor.tenantId, domain: input.domain, isPrimary },
+        data: {
+          tenantId: actor.tenantId,
+          domain: input.domain,
+          isPrimary,
+          verificationToken: randomBytes(16).toString('hex'),
+        },
       });
       await this.audit.record({
         tenantId: actor.tenantId,
@@ -62,14 +85,29 @@ export class TenantDomainsService {
     }
   }
 
+  /**
+   * Verifica a posse do domínio consultando o registro TXT
+   * `_oficina-verify.<domain>` e comparando com o token gerado.
+   */
   async verify(actor: AuthenticatedUser, id: string): Promise<TenantDomainDto> {
     const existing = await this.prisma.tenantDomain.findFirst({
       where: { id, tenantId: actor.tenantId },
     });
     if (!existing) throw new NotFoundException('Domínio não encontrado');
+
+    if (existing.verifiedAt) return this.toDto(existing);
+
+    const host = `${TENANT_DOMAIN_VERIFY_PREFIX}.${existing.domain}`;
+    const records = await this.dns.txtRecords(host);
+    if (!records.includes(existing.verificationToken)) {
+      throw new BadRequestException(
+        `Registro TXT não encontrado. Crie um TXT em "${host}" com o valor "${existing.verificationToken}" e tente novamente (a propagação do DNS pode levar alguns minutos).`,
+      );
+    }
+
     const updated = await this.prisma.tenantDomain.update({
       where: { id },
-      data: { verifiedAt: existing.verifiedAt ?? new Date() },
+      data: { verifiedAt: new Date() },
     });
     await this.audit.record({
       tenantId: actor.tenantId,
