@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { CarLoader } from '@/components/car-loader';
 import { useAuth } from '@/lib/auth-context';
@@ -9,8 +9,12 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { AppTopbar } from '@/components/app-topbar';
 import { cn } from '@/lib/utils';
 
+// Áreas que o super admin (plataforma) pode acessar.
+const PLATFORM_PATHS = ['/plataforma', '/contas', '/oficinas'];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { status, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -20,6 +24,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace('/trocar-senha?obrigatoria=1');
     }
   }, [status, router, user?.forcePasswordChange]);
+
+  // Super admin só circula pela área de plataforma; fora dela, volta ao painel.
+  useEffect(() => {
+    if (status !== 'authenticated' || !user?.platformAdmin || user?.forcePasswordChange) return;
+    const onPlatform = PLATFORM_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+    if (!onPlatform) router.replace('/plataforma');
+  }, [status, user?.platformAdmin, user?.forcePasswordChange, pathname, router]);
 
   if (status !== 'authenticated' || user?.forcePasswordChange) {
     return (

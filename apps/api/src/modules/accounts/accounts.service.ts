@@ -5,6 +5,7 @@ import type {
   AccountDto,
   AccountRequestDto,
   CreateAccountRequestInput,
+  PlatformOverviewDto,
   ProvisionAccountInput,
   ProvisionedAccountDto,
 } from '@oficina/shared';
@@ -64,6 +65,29 @@ export class AccountsService {
   }
 
   // ── Gestão pela plataforma (super admin) ─────────────────────────────────────
+
+  /** Visão geral da plataforma (exclui a conta interna "plataforma"). */
+  async overview(): Promise<PlatformOverviewDto> {
+    const platformSlug = (process.env.PLATFORM_ACCOUNT_SLUG ?? 'plataforma').trim().toLowerCase();
+    const [byStatus, pendingRequests, oficinas] = await Promise.all([
+      this.prisma.account.groupBy({
+        by: ['status'],
+        where: { slug: { not: platformSlug } },
+        _count: { _all: true },
+      }),
+      this.prisma.accountRequest.count({ where: { status: 'PENDING' } }),
+      this.prisma.tenant.count({ where: { account: { slug: { not: platformSlug } } } }),
+    ]);
+    const c = (s: string): number => byStatus.find((g) => g.status === s)?._count._all ?? 0;
+    const active = c('ACTIVE');
+    const suspended = c('SUSPENDED');
+    const pending = c('PENDING');
+    return {
+      accounts: { total: active + suspended + pending, active, suspended, pending },
+      pendingRequests,
+      oficinas,
+    };
+  }
 
   private requestToDto(r: {
     id: string;

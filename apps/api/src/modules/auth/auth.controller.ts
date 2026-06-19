@@ -112,10 +112,15 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<LoginResponse> {
-    // No subdomínio próprio a conta vem do host; no apex/dev, do slug informado.
-    const account = await this.auth.resolveAccountByHost(this.requestHost(req));
+    // Apex da plataforma → login do super admin; subdomínio → conta da oficina;
+    // apex/dev sem base → pelo slug informado.
+    const target = await this.auth.resolveLoginTarget(this.requestHost(req));
     const session = await this.auth.login(
-      { tenantSlug: body.tenantSlug ?? null, accountId: account?.id ?? null },
+      {
+        tenantSlug: body.tenantSlug ?? null,
+        accountId: target.accountId,
+        platform: target.platform,
+      },
       body.email,
       body.password,
       this.meta(req),

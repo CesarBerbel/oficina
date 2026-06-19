@@ -81,6 +81,15 @@ export const createAccountRequestSchema = z.object({
 });
 export type CreateAccountRequestInput = z.infer<typeof createAccountRequestSchema>;
 
+/** Visão geral da plataforma (dashboard do super admin). */
+export interface PlatformOverviewDto {
+  accounts: { total: number; active: number; suspended: number; pending: number };
+  /** Pedidos de conta aguardando aprovação. */
+  pendingRequests: number;
+  /** Total de oficinas (tenants) das contas-cliente (exclui a conta da plataforma). */
+  oficinas: number;
+}
+
 /** Conta (cliente do SaaS) na visão do platform admin. */
 export interface AccountDto {
   id: string;

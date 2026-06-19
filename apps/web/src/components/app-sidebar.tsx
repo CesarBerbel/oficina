@@ -11,12 +11,14 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { hasPermission, user } = useAuth();
 
+  // Super admin (plataforma) vê SOMENTE os itens de plataforma; demais usuários
+  // veem apenas os itens de oficina (por permissão).
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter(
-      (item) =>
-        (!item.permission || hasPermission(item.permission)) &&
-        (!item.platformAdmin || user?.platformAdmin),
+    items: section.items.filter((item) =>
+      user?.platformAdmin
+        ? item.platformAdmin === true
+        : !item.platformAdmin && (!item.permission || hasPermission(item.permission)),
     ),
   })).filter((section) => section.items.length > 0);
 

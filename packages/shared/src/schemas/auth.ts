@@ -24,6 +24,8 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export interface LoginContextDto {
   /** Conta dona do host (subdomínio/domínio próprio), ou null no apex/dev. */
   account: { name: string; slug: string } | null;
+  /** true no apex da plataforma (login do super admin). */
+  platform: boolean;
 }
 
 const optionalInstallText = (max: number) =>

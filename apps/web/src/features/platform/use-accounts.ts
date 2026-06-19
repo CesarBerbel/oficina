@@ -1,11 +1,23 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AccountDto, AccountRequestDto, ProvisionedAccountDto } from '@oficina/shared';
+import type {
+  AccountDto,
+  AccountRequestDto,
+  PlatformOverviewDto,
+  ProvisionedAccountDto,
+} from '@oficina/shared';
 import { api } from '@/lib/api';
 
 const ACCOUNTS_KEY = ['platform-accounts'];
 const REQUESTS_KEY = ['platform-account-requests'];
+
+export function usePlatformOverview() {
+  return useQuery({
+    queryKey: ['platform-overview'],
+    queryFn: () => api.get<PlatformOverviewDto>('/platform/accounts/overview'),
+  });
+}
 
 export function usePlatformAccounts() {
   return useQuery({
