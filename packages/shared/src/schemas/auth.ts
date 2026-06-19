@@ -26,6 +26,11 @@ export interface LoginContextDto {
   account: { name: string; slug: string } | null;
   /** true no apex da plataforma (login do super admin). */
   platform: boolean;
+  /**
+   * Subdomínio livre da plataforma (sem oficina vinculada): slug sugerido para o
+   * cadastro de uma nova oficina. null quando não se aplica.
+   */
+  suggestedSlug: string | null;
 }
 
 const optionalInstallText = (max: number) =>

@@ -58,7 +58,10 @@ export class TenantsService {
   }
 
   async list(): Promise<PlatformTenantDto[]> {
+    // A conta interna "plataforma" (lar do super admin) não é uma oficina.
+    const platformSlug = (process.env.PLATFORM_ACCOUNT_SLUG ?? 'plataforma').trim().toLowerCase();
     const rows = await this.prisma.tenant.findMany({
+      where: { account: { slug: { not: platformSlug } } },
       // Matriz primeiro, depois filiais; mais antigas primeiro dentro de cada grupo.
       orderBy: [{ parentId: { sort: 'asc', nulls: 'first' } }, { createdAt: 'asc' }],
       select: SELECT,
