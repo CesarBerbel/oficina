@@ -115,7 +115,9 @@ export class AccountsService {
 
   /** Lista as contas (clientes do SaaS). */
   async listAccounts(): Promise<AccountDto[]> {
+    const platformSlug = (process.env.PLATFORM_ACCOUNT_SLUG ?? 'plataforma').trim().toLowerCase();
     const rows = await this.prisma.account.findMany({
+      where: { slug: { not: platformSlug } },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,

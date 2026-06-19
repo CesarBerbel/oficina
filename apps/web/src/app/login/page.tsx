@@ -42,6 +42,11 @@ export default function LoginPage() {
       .get<LoginContextDto>('/auth/context')
       .then((ctx) => {
         if (!active) return;
+        // Subdomínio inexistente → manda para o cadastro com o slug preenchido.
+        if (ctx.suggestedSlug) {
+          router.replace(`/comecar?slug=${encodeURIComponent(ctx.suggestedSlug)}`);
+          return;
+        }
         setAccount(ctx.account);
         setPlatform(ctx.platform);
       })
@@ -49,7 +54,7 @@ export default function LoginPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (status === 'authenticated') router.replace('/dashboard');

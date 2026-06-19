@@ -130,4 +130,19 @@ describe('Papel da plataforma (super admin) (e2e)', () => {
     expect(slugs).not.toContain('plataforma');
     expect(slugs).toContain('oficina-modelo');
   });
+
+  it('a lista de contas não inclui a conta interna plataforma', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .set('X-Forwarded-Host', BASE)
+      .send({ email: SUPER_EMAIL, password: TEST_PASSWORD })
+      .expect(200);
+    const list = await request(app.getHttpServer())
+      .get('/api/platform/accounts')
+      .set(authHeader(login.body.accessToken))
+      .expect(200);
+    const slugs = (list.body as Array<{ slug: string }>).map((a) => a.slug);
+    expect(slugs).not.toContain('plataforma');
+    expect(slugs).toContain('oficina-modelo');
+  });
 });
