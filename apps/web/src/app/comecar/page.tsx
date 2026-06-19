@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Wrench, ShieldCheck, Globe, Rocket, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -44,6 +44,12 @@ export default function ComecarPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+
+  // Pré-preenche o subdomínio quando veio de um host livre (?slug=...).
+  useEffect(() => {
+    const s = new URLSearchParams(window.location.search).get('slug');
+    if (s) setSlug(s.toLowerCase());
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import {
   Wrench,
   ArrowRight,
@@ -135,6 +136,10 @@ export default async function SiteHome() {
     // Host sem conta = apex da plataforma → landing institucional + CTA de cadastro.
     // Host com conta mas site não publicado → aviso simples.
     const ctx = await getLoginContext();
+    // Subdomínio livre (sem oficina) → cadastro de oficina já com o slug preenchido.
+    if (ctx?.suggestedSlug) {
+      redirect(`/comecar?slug=${encodeURIComponent(ctx.suggestedSlug)}`);
+    }
     if (!ctx?.account) {
       return (
         <div className="container grid min-h-[60svh] place-items-center py-20 text-center">

@@ -8,7 +8,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'node:crypto';
-import { permissionsForRole, type LoginContextDto, type LoginResponse } from '@oficina/shared';
+import {
+  permissionsForRole,
+  RESERVED_SUBDOMAINS,
+  type LoginContextDto,
+  type LoginResponse,
+} from '@oficina/shared';
 import { type Role } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
@@ -174,14 +179,38 @@ export class AuthService {
     return { accountId: account?.id ?? null, platform: false };
   }
 
+  /**
+   * Subdomínio livre da plataforma (ex.: novaoficina.saecbpa.com sem oficina):
+   * devolve o slug sugerido para o cadastro; null se não se aplica.
+   */
+  private suggestedSlugFor(host: string | null): string | null {
+    const h = this.normalizeHost(host);
+    const base = (process.env.PLATFORM_BASE_DOMAIN ?? '').trim().toLowerCase();
+    if (!h || !base || !h.endsWith(`.${base}`)) return null;
+    const label = h.slice(0, -(base.length + 1));
+    const ok =
+      !!label &&
+      label !== 'www' &&
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(label) &&
+      !(RESERVED_SUBDOMAINS as readonly string[]).includes(label);
+    return ok ? label : null;
+  }
+
   /** Contexto de login do host (para a tela de login decidir o que mostrar). */
   async loginContext(host: string | null): Promise<LoginContextDto> {
-    if (this.isPlatformHost(host)) return { account: null, platform: true };
+    if (this.isPlatformHost(host)) {
+      return { account: null, platform: true, suggestedSlug: null };
+    }
     const account = await this.resolveAccountByHost(host);
-    return {
-      account: account ? { name: account.name, slug: account.slug } : null,
-      platform: false,
-    };
+    if (account) {
+      return {
+        account: { name: account.name, slug: account.slug },
+        platform: false,
+        suggestedSlug: null,
+      };
+    }
+    // Sem conta: subdomínio livre da base → sugere o slug para o cadastro.
+    return { account: null, platform: false, suggestedSlug: this.suggestedSlugFor(host) };
   }
 
   /**

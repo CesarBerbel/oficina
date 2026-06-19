@@ -67,7 +67,7 @@ describe('Papel da plataforma (super admin) (e2e)', () => {
       .get('/api/auth/context')
       .set('X-Forwarded-Host', BASE)
       .expect(200);
-    expect(ctx.body).toEqual({ account: null, platform: true });
+    expect(ctx.body).toEqual({ account: null, platform: true, suggestedSlug: null });
   });
 
   it('super admin entra pelo apex (sem slug) e vê o overview da plataforma', async () => {
@@ -106,5 +106,28 @@ describe('Papel da plataforma (super admin) (e2e)', () => {
       .set('X-Forwarded-Host', BASE)
       .send({ email: 'atendente@oficina.local', password: TEST_PASSWORD })
       .expect(401);
+  });
+
+  it('subdomínio livre (sem oficina) sugere o slug para cadastro', async () => {
+    const ctx = await request(app.getHttpServer())
+      .get('/api/auth/context')
+      .set('X-Forwarded-Host', 'novaoficina.saecbpa.test')
+      .expect(200);
+    expect(ctx.body).toEqual({ account: null, platform: false, suggestedSlug: 'novaoficina' });
+  });
+
+  it('a lista de oficinas da plataforma não inclui a conta interna', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .set('X-Forwarded-Host', BASE)
+      .send({ email: SUPER_EMAIL, password: TEST_PASSWORD })
+      .expect(200);
+    const list = await request(app.getHttpServer())
+      .get('/api/platform/tenants')
+      .set(authHeader(login.body.accessToken))
+      .expect(200);
+    const slugs = (list.body as Array<{ slug: string }>).map((t) => t.slug);
+    expect(slugs).not.toContain('plataforma');
+    expect(slugs).toContain('oficina-modelo');
   });
 });
