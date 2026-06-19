@@ -29,6 +29,7 @@ const PROTECTED_PREFIXES = [
   '/oficinas',
   '/operacional',
   '/os',
+  '/planos',
   '/plataforma',
   '/relatorios',
   '/servicos',
