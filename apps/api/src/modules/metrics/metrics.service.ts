@@ -4,10 +4,13 @@ import type {
   AiMetricsDto,
   BackupMetricsDto,
   HealthMetricsDto,
+  FinanceOpsMetricsDto,
   LedgerMetricsDto,
   MetricAlert,
   OutboxMetricsDto,
+  SessionMetricsDto,
   SmtpMetricsDto,
+  StockOpsMetricsDto,
   SystemMetricsDto,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -81,13 +84,14 @@ export class MetricsService {
     const movements = grouped.reduce((acc, g) => acc + g._count._all, 0);
     const issued = sum('ISSUE') + sum('ADJUSTMENT');
     const paid = sum('PAYMENT'); // negativo
+    const paymentReversals = sum('PAYMENT_REVERSAL'); // positivo
     const canceled = sum('CANCELLATION'); // negativo
     return {
       movements,
       totalIssued: issued,
       totalPaid: Math.abs(paid),
       totalCanceled: Math.abs(canceled),
-      outstanding: Math.round((issued + paid + canceled) * 100) / 100,
+      outstanding: Math.round((issued + paid + paymentReversals + canceled) * 100) / 100,
     };
   }
 
@@ -110,6 +114,71 @@ export class MetricsService {
       }),
     ]);
     return { usageToday, usageMonth, failuresToday, lastError: lastFailure?.error ?? null };
+  }
+
+  async sessions(tenantId: string): Promise<SessionMetricsDto> {
+    const now = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.refreshToken.findMany({
+      where: { revokedAt: null, expiresAt: { gt: now }, user: { tenantId } },
+      select: { userId: true, expiresAt: true },
+      take: 5000,
+    });
+    return {
+      active: rows.length,
+      expiring24h: rows.filter((r) => r.expiresAt <= in24h).length,
+      usersOnline: new Set(rows.map((r) => r.userId)).size,
+    };
+  }
+
+  async stock(tenantId: string): Promise<StockOpsMetricsDto> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { parentId: true },
+    });
+    const groupId = tenant?.parentId ?? tenantId;
+    const [activeReservations, activeRows, lowStockRows] = await Promise.all([
+      this.prisma.stockReservation.count({ where: { tenantId, status: 'ACTIVE' } }),
+      this.prisma.stockReservation.findMany({
+        where: { tenantId, status: 'ACTIVE' },
+        select: { partId: true },
+        take: 5000,
+      }),
+      this.prisma.$queryRaw<{ id: string }[]>`
+        SELECT p."id"
+        FROM "parts" p
+        JOIN "part_stock" ps ON ps."partId" = p."id" AND ps."tenantId" = ${tenantId}
+        WHERE p."tenantId" = ${groupId}
+          AND p."active" = true
+          AND (ps."currentStock" - ps."reservedStock") <= p."minStock"
+      `,
+    ]);
+    return {
+      activeReservations,
+      reservedParts: new Set(activeRows.map((r) => r.partId)).size,
+      lowStockParts: lowStockRows.length,
+      reorderSuggestions: lowStockRows.length,
+    };
+  }
+
+  async finance(tenantId: string): Promise<FinanceOpsMetricsDto> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [entries, reversedPayments] = await Promise.all([
+      this.prisma.financialEntry.findMany({
+        where: { tenantId, status: { in: ['OPEN', 'PARTIAL'] } },
+        select: { type: true, dueDate: true },
+      }),
+      this.prisma.financialPayment.count({ where: { tenantId, reversedAt: { not: null } } }),
+    ]);
+    return {
+      openReceivables: entries.filter((e) => e.type === 'RECEIVABLE').length,
+      openPayables: entries.filter((e) => e.type === 'PAYABLE').length,
+      overdueReceivables: entries.filter((e) => e.type === 'RECEIVABLE' && e.dueDate < today)
+        .length,
+      overduePayables: entries.filter((e) => e.type === 'PAYABLE' && e.dueDate < today).length,
+      reversedPayments,
+    };
   }
 
   smtp(): SmtpMetricsDto {
@@ -177,6 +246,27 @@ export class MetricsService {
           : 'Nenhum backup registrado ainda.',
       });
     }
+    if (m.sessions.active > 200) {
+      alerts.push({
+        level: 'warn',
+        source: 'sessions',
+        message: `${m.sessions.active} sessões ativas neste tenant. Revise acessos se não esperado.`,
+      });
+    }
+    if (m.stock.lowStockParts > 0) {
+      alerts.push({
+        level: 'warn',
+        source: 'stock',
+        message: `${m.stock.lowStockParts} peça(s) abaixo do ponto de reposição.`,
+      });
+    }
+    if (m.finance.overdueReceivables > 0 || m.finance.overduePayables > 0) {
+      alerts.push({
+        level: 'warn',
+        source: 'finance',
+        message: `${m.finance.overdueReceivables} recebível(is) e ${m.finance.overduePayables} pagável(is) vencidos.`,
+      });
+    }
     if (m.ai.failuresToday > 0) {
       alerts.push({
         level: 'warn',
@@ -188,15 +278,18 @@ export class MetricsService {
   }
 
   async system(tenantId: string): Promise<SystemMetricsDto> {
-    const [outbox, ledger, ai, backup, health] = await Promise.all([
+    const [outbox, ledger, ai, backup, health, sessions, stock, finance] = await Promise.all([
       this.outbox(tenantId),
       this.ledger(tenantId),
       this.ai(tenantId),
       this.backup(),
       this.health(),
+      this.sessions(tenantId),
+      this.stock(tenantId),
+      this.finance(tenantId),
     ]);
     const smtp = this.smtp();
-    const base = { outbox, ledger, ai, smtp, backup, health };
+    const base = { outbox, ledger, ai, smtp, backup, health, sessions, stock, finance };
     return { ...base, alerts: this.buildAlerts(base) };
   }
 }

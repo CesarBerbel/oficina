@@ -43,6 +43,11 @@ export const payFinancialEntrySchema = z.object({
 });
 export type PayFinancialEntryInput = z.infer<typeof payFinancialEntrySchema>;
 
+export const reverseFinancialPaymentSchema = z.object({
+  reason: z.string().trim().min(3, 'Informe o motivo do estorno').max(500),
+});
+export type ReverseFinancialPaymentInput = z.infer<typeof reverseFinancialPaymentSchema>;
+
 export const syncServiceOrderFinancialSchema = z.object({
   serviceOrderId: z.string().trim().min(1),
   dueDate: z.string().datetime().optional(),
@@ -61,6 +66,8 @@ export interface FinancialPaymentDto {
   method: FinancialPaymentMethod;
   paidAt: string;
   notes: string | null;
+  reversedAt?: string | null;
+  reversalReason?: string | null;
 }
 
 export interface FinancialEntryDto {
@@ -103,7 +110,12 @@ export interface FinancialSummaryDto {
 }
 
 /** Movimento imutável do ledger financeiro. */
-export type FinancialLedgerKind = 'ISSUE' | 'ADJUSTMENT' | 'PAYMENT' | 'CANCELLATION';
+export type FinancialLedgerKind =
+  | 'ISSUE'
+  | 'ADJUSTMENT'
+  | 'PAYMENT'
+  | 'PAYMENT_REVERSAL'
+  | 'CANCELLATION';
 
 export interface FinancialLedgerEntryDto {
   id: string;
@@ -111,4 +123,52 @@ export interface FinancialLedgerEntryDto {
   amount: number;
   description: string | null;
   createdAt: string;
+}
+
+export interface AccountingAccountDto {
+  id: string;
+  code: string;
+  name: string;
+  type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
+  active: boolean;
+}
+
+export interface AccountingJournalLineDto {
+  id: string;
+  debit: AccountingAccountDto;
+  credit: AccountingAccountDto;
+  amount: number;
+  memo: string | null;
+}
+
+export interface AccountingJournalDto {
+  id: string;
+  financialEntryId: string | null;
+  kind: FinancialLedgerKind;
+  status: 'POSTED' | 'VOIDED';
+  description: string | null;
+  createdAt: string;
+  lines: AccountingJournalLineDto[];
+}
+
+export interface AccountingTrialBalanceRowDto {
+  account: AccountingAccountDto;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export interface AccountingTrialBalanceDto {
+  from: string | null;
+  to: string | null;
+  rows: AccountingTrialBalanceRowDto[];
+  totals: { debit: number; credit: number; balance: number };
+}
+
+export interface AccountingIncomeStatementDto {
+  from: string | null;
+  to: string | null;
+  revenue: number;
+  expenses: number;
+  netIncome: number;
 }

@@ -28,7 +28,7 @@ export default function MetricasPage() {
 
   if (isLoading || !data) return <CarLoader />;
 
-  const { outbox, ledger, ai, smtp, backup, health, alerts } = data;
+  const { outbox, ledger, ai, smtp, backup, health, sessions, stock, finance, alerts } = data;
   const age =
     outbox.oldestPendingAgeSec == null
       ? '—'
@@ -70,6 +70,34 @@ export default function MetricasPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">Operação</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Sessões ativas" value={String(sessions.active)} />
+          <Stat label="Usuários conectados" value={String(sessions.usersOnline)} />
+          <Stat label="Reservas ativas" value={String(stock.activeReservations)} />
+          <Stat
+            label="Peças em reposição"
+            value={String(stock.reorderSuggestions)}
+            tone={stock.reorderSuggestions > 0 ? 'text-amber-600' : ''}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat
+            label="Recebíveis vencidos"
+            value={String(finance.overdueReceivables)}
+            tone={finance.overdueReceivables > 0 ? 'text-destructive' : ''}
+          />
+          <Stat
+            label="Pagáveis vencidos"
+            value={String(finance.overduePayables)}
+            tone={finance.overduePayables > 0 ? 'text-destructive' : ''}
+          />
+          <Stat label="Recebíveis abertos" value={String(finance.openReceivables)} />
+          <Stat label="Baixas estornadas" value={String(finance.reversedPayments)} />
+        </div>
       </section>
 
       <section className="space-y-3">

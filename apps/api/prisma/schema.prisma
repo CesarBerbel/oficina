@@ -997,11 +997,15 @@ model FinancialPayment {
   method    FinancialPaymentMethod
   paidAt    DateTime               @default(now())
   notes     String?
+  reversedAt DateTime?
+  reversedById String?
+  reversalReason String?
   createdAt DateTime               @default(now())
 
   entry FinancialEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, paidAt])
+  @@index([tenantId, reversedAt])
   @@index([entryId])
   @@map("financial_payments")
 }
@@ -1013,6 +1017,7 @@ enum FinancialLedgerKind {
   ISSUE
   ADJUSTMENT
   PAYMENT
+  PAYMENT_REVERSAL
   CANCELLATION
 }
 

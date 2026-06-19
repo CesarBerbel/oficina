@@ -5,8 +5,11 @@ import type {
   ListPartsQuery,
   Paginated,
   PartDto,
+  ReorderSuggestionDto,
   StockMovementDto,
   StockMovementInput,
+  StockReservationDto,
+  StockReservationSummaryDto,
   UpdatePartInput,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -128,6 +131,175 @@ export class InventoryService {
         totalPages: Math.max(1, Math.ceil(total / pageSize)),
       },
     };
+  }
+
+  private reservationStatus(
+    status?: string,
+  ): 'ACTIVE' | 'RELEASED' | 'CONSUMED' | 'CANCELED' | undefined {
+    if (!status) return undefined;
+    return ['ACTIVE', 'RELEASED', 'CONSUMED', 'CANCELED'].includes(status)
+      ? (status as 'ACTIVE' | 'RELEASED' | 'CONSUMED' | 'CANCELED')
+      : undefined;
+  }
+
+  async reservations(
+    actor: AuthenticatedUser,
+    filters: { status?: string; partId?: string },
+  ): Promise<StockReservationDto[]> {
+    if (filters.partId) {
+      const part = await this.prisma.part.findFirst({
+        where: { id: filters.partId, tenantId: actor.groupId },
+        select: { id: true },
+      });
+      if (!part) throw new NotFoundException('Peça não encontrada');
+    }
+    const status = this.reservationStatus(filters.status);
+    const rows = await this.prisma.stockReservation.findMany({
+      where: {
+        tenantId: actor.tenantId,
+        ...(status ? { status } : {}),
+        ...(filters.partId ? { partId: filters.partId } : {}),
+        part: { tenantId: actor.groupId },
+      },
+      include: {
+        part: { select: { id: true, name: true, sku: true } },
+        serviceOrder: {
+          select: { id: true, number: true, customer: { select: { name: true } } },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      tenantId: r.tenantId,
+      serviceOrderId: r.serviceOrderId,
+      serviceOrderNumber: r.serviceOrder.number,
+      customerName: r.serviceOrder.customer?.name ?? null,
+      partId: r.partId,
+      partName: r.part.name,
+      partSku: r.part.sku,
+      quantity: dec(r.quantity),
+      status: r.status,
+      reason: r.reason,
+      createdAt: r.createdAt.toISOString(),
+      releasedAt: r.releasedAt?.toISOString() ?? null,
+      consumedAt: r.consumedAt?.toISOString() ?? null,
+      canceledAt: r.canceledAt?.toISOString() ?? null,
+    }));
+  }
+
+  async reservationSummary(actor: AuthenticatedUser): Promise<StockReservationSummaryDto> {
+    const [active, consumed, released] = await Promise.all([
+      this.prisma.stockReservation.findMany({
+        where: { tenantId: actor.tenantId, status: 'ACTIVE', part: { tenantId: actor.groupId } },
+        select: { partId: true, quantity: true },
+      }),
+      this.prisma.stockReservation.count({
+        where: { tenantId: actor.tenantId, status: 'CONSUMED', part: { tenantId: actor.groupId } },
+      }),
+      this.prisma.stockReservation.count({
+        where: { tenantId: actor.tenantId, status: 'RELEASED', part: { tenantId: actor.groupId } },
+      }),
+    ]);
+    return {
+      activeReservations: active.length,
+      activeQuantity: round3(active.reduce((sum, r) => sum + dec(r.quantity), 0)),
+      reservedParts: new Set(active.map((r) => r.partId)).size,
+      consumedReservations: consumed,
+      releasedReservations: released,
+    };
+  }
+
+  async reorderSuggestions(actor: AuthenticatedUser): Promise<ReorderSuggestionDto[]> {
+    const rows = await this.prisma.part.findMany({
+      where: { tenantId: actor.groupId, active: true },
+      include: partInclude(actor.tenantId),
+      orderBy: { name: 'asc' },
+      take: 500,
+    });
+    return rows
+      .map((p) => {
+        const dto = toDto(p);
+        const suggestedQuantity = Math.max(0, round3(dto.minStock - dto.availableStock));
+        return { dto, suggestedQuantity, supplierName: p.supplierRef?.name ?? null };
+      })
+      .filter((row) => row.suggestedQuantity > 0)
+      .map((row) => ({
+        partId: row.dto.id,
+        name: row.dto.name,
+        sku: row.dto.sku,
+        brand: row.dto.brand,
+        unit: row.dto.unit,
+        supplierName: row.supplierName,
+        currentStock: row.dto.currentStock,
+        reservedStock: row.dto.reservedStock,
+        availableStock: row.dto.availableStock,
+        minStock: row.dto.minStock,
+        suggestedQuantity: row.suggestedQuantity,
+        estimatedCost: Math.round(row.suggestedQuantity * row.dto.costPrice * 100) / 100,
+      }));
+  }
+
+  async releaseReservation(
+    actor: AuthenticatedUser,
+    reservationId: string,
+  ): Promise<StockReservationDto> {
+    const released = await this.prisma.$transaction(async (tx) => {
+      const reservation = await tx.stockReservation.findFirst({
+        where: {
+          id: reservationId,
+          tenantId: actor.tenantId,
+          status: 'ACTIVE',
+          part: { tenantId: actor.groupId },
+        },
+        include: {
+          part: { select: { id: true, name: true, sku: true } },
+          serviceOrder: {
+            select: { id: true, number: true, customer: { select: { name: true } } },
+          },
+        },
+      });
+      if (!reservation) throw new NotFoundException('Reserva ativa não encontrada');
+      const qty = dec(reservation.quantity);
+      await tx.stockReservation.update({
+        where: { id: reservation.id },
+        data: { status: 'RELEASED', releasedAt: new Date(), reason: 'Liberação manual de estoque' },
+      });
+      await tx.$executeRaw`
+        UPDATE "part_stock"
+        SET "reservedStock" = GREATEST(0, "reservedStock" - ${qty}), "updatedAt" = NOW()
+        WHERE "tenantId" = ${actor.tenantId} AND "partId" = ${reservation.partId}
+      `;
+      const remaining = await tx.stockReservation.count({
+        where: {
+          tenantId: actor.tenantId,
+          serviceOrderId: reservation.serviceOrderId,
+          status: 'ACTIVE',
+        },
+      });
+      if (remaining === 0) {
+        await tx.serviceOrder.update({
+          where: { id: reservation.serviceOrderId },
+          data: { partsReserved: false },
+        });
+      }
+      return reservation;
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'RELEASE_RESERVATION',
+      module: 'inventory',
+      entity: 'StockReservation',
+      entityId: reservationId,
+      after: { partId: released.partId, quantity: dec(released.quantity) },
+    });
+
+    return (await this.reservations(actor, { partId: released.partId })).find(
+      (r) => r.id === reservationId,
+    )!;
   }
 
   async findOne(actor: AuthenticatedUser, id: string): Promise<PartDto> {

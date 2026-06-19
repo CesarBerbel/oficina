@@ -57,8 +57,37 @@ export interface HealthMetricsDto {
   dbOk: boolean;
 }
 
+export interface SessionMetricsDto {
+  active: number;
+  expiring24h: number;
+  usersOnline: number;
+}
+
+export interface StockOpsMetricsDto {
+  activeReservations: number;
+  reservedParts: number;
+  lowStockParts: number;
+  reorderSuggestions: number;
+}
+
+export interface FinanceOpsMetricsDto {
+  openReceivables: number;
+  openPayables: number;
+  overdueReceivables: number;
+  overduePayables: number;
+  reversedPayments: number;
+}
+
 export type MetricAlertLevel = 'warn' | 'critical';
-export type MetricAlertSource = 'outbox' | 'smtp' | 'backup' | 'ai' | 'health';
+export type MetricAlertSource =
+  | 'outbox'
+  | 'smtp'
+  | 'backup'
+  | 'ai'
+  | 'health'
+  | 'sessions'
+  | 'stock'
+  | 'finance';
 
 export interface MetricAlert {
   level: MetricAlertLevel;
@@ -73,6 +102,9 @@ export interface SystemMetricsDto {
   smtp: SmtpMetricsDto;
   backup: BackupMetricsDto;
   health: HealthMetricsDto;
+  sessions: SessionMetricsDto;
+  stock: StockOpsMetricsDto;
+  finance: FinanceOpsMetricsDto;
   /** Condições que merecem atenção operacional (derivadas das métricas). */
   alerts: MetricAlert[];
 }

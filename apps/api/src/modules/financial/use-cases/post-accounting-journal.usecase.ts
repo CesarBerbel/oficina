@@ -50,7 +50,7 @@ export class PostAccountingJournalUseCase {
 
   private linesFor(
     entryType: FinancialEntryType,
-    kind: 'ISSUE' | 'ADJUSTMENT' | 'PAYMENT' | 'CANCELLATION',
+    kind: 'ISSUE' | 'ADJUSTMENT' | 'PAYMENT' | 'PAYMENT_REVERSAL' | 'CANCELLATION',
     signedAmount: number,
   ): AccountingLineInput[] {
     const amount = Math.round(Math.abs(signedAmount) * 100) / 100;
@@ -71,6 +71,13 @@ export class PostAccountingJournalUseCase {
     if (kind === 'CANCELLATION') return [issueLine(true)];
     if (kind === 'ADJUSTMENT') return [issueLine(signedAmount < 0)];
 
+    if (kind === 'PAYMENT_REVERSAL') {
+      if (entryType === FinancialEntryType.RECEIVABLE) {
+        return [{ debit: 'ACCOUNTS_RECEIVABLE', credit: 'CASH', amount }];
+      }
+      return [{ debit: 'CASH', credit: 'ACCOUNTS_PAYABLE', amount }];
+    }
+
     if (entryType === FinancialEntryType.RECEIVABLE) {
       return [{ debit: 'CASH', credit: 'ACCOUNTS_RECEIVABLE', amount }];
     }
@@ -82,7 +89,7 @@ export class PostAccountingJournalUseCase {
     data: {
       tenantId: string;
       entryId: string;
-      kind: 'ISSUE' | 'ADJUSTMENT' | 'PAYMENT' | 'CANCELLATION';
+      kind: 'ISSUE' | 'ADJUSTMENT' | 'PAYMENT' | 'PAYMENT_REVERSAL' | 'CANCELLATION';
       amount: number;
       description?: string | null;
       createdById?: string | null;

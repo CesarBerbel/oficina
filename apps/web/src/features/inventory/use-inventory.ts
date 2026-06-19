@@ -60,3 +60,42 @@ export function useStockMove(id: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['parts'] }),
   });
 }
+
+export function useStockReservations(params: { status?: string; partId?: string } = {}) {
+  return useQuery({
+    queryKey: ['stock-reservations', params],
+    queryFn: () =>
+      api.get<import('@oficina/shared').StockReservationDto[]>(`/parts/reservations${qs(params)}`),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useStockReservationSummary() {
+  return useQuery({
+    queryKey: ['stock-reservations-summary'],
+    queryFn: () =>
+      api.get<import('@oficina/shared').StockReservationSummaryDto>('/parts/reservations/summary'),
+  });
+}
+
+export function useReorderSuggestions() {
+  return useQuery({
+    queryKey: ['reorder-suggestions'],
+    queryFn: () =>
+      api.get<import('@oficina/shared').ReorderSuggestionDto[]>('/parts/reorder-suggestions'),
+  });
+}
+
+export function useReleaseStockReservation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<import('@oficina/shared').StockReservationDto>(`/parts/reservations/${id}/release`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['parts'] });
+      void qc.invalidateQueries({ queryKey: ['stock-reservations'] });
+      void qc.invalidateQueries({ queryKey: ['stock-reservations-summary'] });
+      void qc.invalidateQueries({ queryKey: ['reorder-suggestions'] });
+    },
+  });
+}

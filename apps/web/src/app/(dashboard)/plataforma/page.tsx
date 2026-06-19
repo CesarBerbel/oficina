@@ -10,10 +10,17 @@ import {
   ShieldAlert,
   Store,
   UserRound,
+  LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { usePlatformOverview, usePlatformSessions } from '@/features/platform/use-accounts';
+import {
+  useLogoutPlatformUserSessions,
+  usePlatformOverview,
+  usePlatformSessions,
+  useRevokePlatformSession,
+} from '@/features/platform/use-accounts';
 import { CarLoader } from '@/components/car-loader';
+import { Button } from '@/components/ui/button';
 
 function Stat({
   label,
@@ -57,6 +64,8 @@ export default function PlataformaPage() {
   const { user } = useAuth();
   const { data, isLoading } = usePlatformOverview();
   const { data: sessions = [], isLoading: isLoadingSessions } = usePlatformSessions();
+  const revokeSession = useRevokePlatformSession();
+  const logoutUser = useLogoutPlatformUserSessions();
 
   if (!user?.platformAdmin) {
     return (
@@ -153,6 +162,7 @@ export default function PlataformaPage() {
                 <th className="px-4 py-3 font-medium">Dispositivo</th>
                 <th className="px-4 py-3 font-medium">Criada/rotacionada</th>
                 <th className="px-4 py-3 font-medium">Expira</th>
+                <th className="px-4 py-3 text-right font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -189,11 +199,32 @@ export default function PlataformaPage() {
                   <td className="px-4 py-3 align-top text-muted-foreground">
                     {formatDateTime(session.expiresAt)}
                   </td>
+                  <td className="px-4 py-3 align-top">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={revokeSession.isPending}
+                        onClick={() => revokeSession.mutate(session.id)}
+                      >
+                        Revogar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={logoutUser.isPending}
+                        onClick={() => logoutUser.mutate(session.userId)}
+                        title="Encerrar todas as sessões deste usuário"
+                      >
+                        <LogOut className="size-4" /> Todas
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {!isLoadingSessions && sessions.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                     Nenhuma sessão ativa encontrada.
                   </td>
                 </tr>

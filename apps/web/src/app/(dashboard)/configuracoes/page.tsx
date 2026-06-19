@@ -7,6 +7,7 @@ import {
   Users,
   Sparkles,
   ShieldCheck,
+  MonitorSmartphone,
   BarChart3,
   Bell,
   Gauge,
@@ -76,6 +77,12 @@ const ITEMS: Item[] = [
     href: '/usuarios',
     icon: Users,
     permission: 'users:read',
+  },
+  {
+    title: 'Segurança e sessões',
+    description: 'Dispositivos conectados, revogação de sessão e logout global.',
+    href: '/configuracoes/sessoes',
+    icon: MonitorSmartphone,
   },
   {
     title: 'Assistente de IA',

@@ -70,3 +70,19 @@ export function usePlatformSessions() {
     refetchInterval: 60_000,
   });
 }
+
+export function useRevokePlatformSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/platform/sessions/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['platform-sessions'] }),
+  });
+}
+
+export function useLogoutPlatformUserSessions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => api.post(`/platform/sessions/users/${userId}/logout-all`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['platform-sessions'] }),
+  });
+}

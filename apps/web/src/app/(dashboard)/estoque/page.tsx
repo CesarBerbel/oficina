@@ -1,11 +1,26 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, MoreHorizontal, Pencil, ArrowLeftRight, AlertTriangle } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Pencil,
+  ArrowLeftRight,
+  AlertTriangle,
+  PackageCheck,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { CarLoader } from '@/components/car-loader';
 import { PART_TYPE_LABELS, PART_TYPES, type PartDto, type PartType } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
-import { useParts } from '@/features/inventory/use-inventory';
+import {
+  useParts,
+  useReleaseStockReservation,
+  useReorderSuggestions,
+  useStockReservationSummary,
+  useStockReservations,
+} from '@/features/inventory/use-inventory';
 import { PartFormDialog } from '@/features/inventory/part-form-dialog';
 import { StockMovementDialog } from '@/features/inventory/stock-movement-dialog';
 import { formatCurrency } from '@/lib/utils';
@@ -52,6 +67,10 @@ export default function InventoryPage() {
 
   const parts = data?.data ?? [];
   const meta = data?.meta;
+  const { data: reservationSummary } = useStockReservationSummary();
+  const { data: reservations = [] } = useStockReservations({ status: 'ACTIVE' });
+  const { data: suggestions = [] } = useReorderSuggestions();
+  const releaseReservation = useReleaseStockReservation();
 
   return (
     <div className="space-y-5">
@@ -71,6 +90,99 @@ export default function InventoryPage() {
           </Button>
         )}
       </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Reservas ativas</p>
+          <p className="mt-1 text-2xl font-bold">{reservationSummary?.activeReservations ?? 0}</p>
+          <p className="text-xs text-muted-foreground">
+            {reservationSummary?.reservedParts ?? 0} peça(s) comprometida(s)
+          </p>
+        </div>
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Quantidade reservada</p>
+          <p className="mt-1 text-2xl font-bold">{reservationSummary?.activeQuantity ?? 0}</p>
+          <p className="text-xs text-muted-foreground">soma das reservas formais ativas</p>
+        </div>
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Sugestões de compra</p>
+          <p className="mt-1 text-2xl font-bold">{suggestions.length}</p>
+          <p className="text-xs text-muted-foreground">peças abaixo do ponto de reposição</p>
+        </div>
+      </div>
+
+      {(reservations.length > 0 || suggestions.length > 0) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <section className="rounded-xl border bg-card">
+            <div className="border-b p-4">
+              <h2 className="flex items-center gap-2 font-semibold">
+                <PackageCheck className="size-5 text-primary" /> Reservas ativas
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Peças formalmente comprometidas com ordens de serviço.
+              </p>
+            </div>
+            <div className="max-h-80 overflow-auto divide-y">
+              {reservations.slice(0, 12).map((r) => (
+                <div key={r.id} className="flex items-start justify-between gap-3 p-4 text-sm">
+                  <div>
+                    <p className="font-medium">{r.partName}</p>
+                    <p className="text-muted-foreground">
+                      OS #{r.serviceOrderNumber} · {r.customerName ?? 'sem cliente'} · {r.quantity}
+                    </p>
+                  </div>
+                  {canMove && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={releaseReservation.isPending}
+                      onClick={async () => {
+                        await releaseReservation.mutateAsync(r.id);
+                        toast.success('Reserva liberada');
+                      }}
+                    >
+                      Liberar
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {reservations.length === 0 && (
+                <p className="p-4 text-sm text-muted-foreground">Nenhuma reserva ativa.</p>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-xl border bg-card">
+            <div className="border-b p-4">
+              <h2 className="flex items-center gap-2 font-semibold">
+                <AlertTriangle className="size-5 text-amber-600" /> Reposição sugerida
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Calculado por disponível = saldo físico - reserva ativa.
+              </p>
+            </div>
+            <div className="max-h-80 overflow-auto divide-y">
+              {suggestions.slice(0, 12).map((s) => (
+                <div key={s.partId} className="p-4 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-medium">{s.name}</p>
+                    <Badge variant="warning">
+                      comprar {s.suggestedQuantity} {s.unit}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-muted-foreground">
+                    livre {s.availableStock} · mínimo {s.minStock} · custo estimado{' '}
+                    {formatCurrency(s.estimatedCost)}
+                  </p>
+                </div>
+              ))}
+              {suggestions.length === 0 && (
+                <p className="p-4 text-sm text-muted-foreground">Nenhuma sugestão de reposição.</p>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">

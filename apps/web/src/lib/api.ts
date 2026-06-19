@@ -4,7 +4,7 @@
  * Em caso de 401, tenta um refresh transparente uma vez e repete a requisição.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
 
 let accessToken: string | null = null;
 
@@ -177,5 +177,3 @@ export const api = {
   delete: <T>(path: string, options?: RequestOptions) =>
     rawRequest<T>(path, { ...options, method: 'DELETE' }),
 };
-
-export { API_URL };

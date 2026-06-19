@@ -13,6 +13,7 @@ import {
   RESERVED_SUBDOMAINS,
   type LoginContextDto,
   type LoginResponse,
+  type UserSessionDto,
 } from '@oficina/shared';
 import { type Role } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -371,6 +372,67 @@ export class AuthService {
       where: { tokenHash: this.hashToken(rawToken), revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  async listSessions(userId: string, rawToken?: string): Promise<UserSessionDto[]> {
+    const currentHash = rawToken ? this.hashToken(rawToken) : null;
+    const rows = await this.prisma.refreshToken.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        tokenHash: true,
+        userAgent: true,
+        ip: true,
+        createdAt: true,
+        expiresAt: true,
+      },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      ip: row.ip,
+      userAgent: row.userAgent,
+      current: currentHash === row.tokenHash,
+      createdAt: row.createdAt.toISOString(),
+      expiresAt: row.expiresAt.toISOString(),
+    }));
+  }
+
+  async revokeOwnSession(userId: string, sessionId: string, rawToken?: string): Promise<boolean> {
+    const currentHash = rawToken ? this.hashToken(rawToken) : null;
+    const session = await this.prisma.refreshToken.findFirst({
+      where: { id: sessionId, userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true, tokenHash: true },
+    });
+    if (!session) return false;
+    await this.prisma.refreshToken.update({
+      where: { id: session.id },
+      data: { revokedAt: new Date() },
+    });
+    return currentHash === session.tokenHash;
+  }
+
+  async logoutAll(userId: string, meta?: RequestMeta): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { tenantId: true },
+    });
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (user) {
+      await this.audit.record({
+        tenantId: user.tenantId,
+        userId,
+        action: 'LOGOUT_ALL',
+        module: 'auth',
+        entity: 'User',
+        entityId: userId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent,
+      });
+    }
   }
 
   async me(userId: string) {

@@ -134,3 +134,46 @@ export interface StockMovementDto {
   userName: string | null;
   createdAt: string;
 }
+
+export type StockReservationStatus = 'ACTIVE' | 'RELEASED' | 'CONSUMED' | 'CANCELED';
+
+export interface StockReservationDto {
+  id: string;
+  tenantId: string;
+  serviceOrderId: string;
+  serviceOrderNumber: number;
+  customerName: string | null;
+  partId: string;
+  partName: string;
+  partSku: string | null;
+  quantity: number;
+  status: StockReservationStatus;
+  reason: string | null;
+  createdAt: string;
+  releasedAt: string | null;
+  consumedAt: string | null;
+  canceledAt: string | null;
+}
+
+export interface StockReservationSummaryDto {
+  activeReservations: number;
+  activeQuantity: number;
+  reservedParts: number;
+  consumedReservations: number;
+  releasedReservations: number;
+}
+
+export interface ReorderSuggestionDto {
+  partId: string;
+  name: string;
+  sku: string | null;
+  brand: string | null;
+  unit: string;
+  supplierName: string | null;
+  currentStock: number;
+  reservedStock: number;
+  availableStock: number;
+  minStock: number;
+  suggestedQuantity: number;
+  estimatedCost: number;
+}

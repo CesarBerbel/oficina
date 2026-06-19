@@ -20,6 +20,34 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 export class InventoryController {
   constructor(private readonly inventory: InventoryService) {}
 
+  @Get('reservations')
+  @RequirePermission(Permission.INVENTORY_READ)
+  reservations(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Query('status') status?: string,
+    @Query('partId') partId?: string,
+  ) {
+    return this.inventory.reservations(actor, { status, partId });
+  }
+
+  @Get('reservations/summary')
+  @RequirePermission(Permission.INVENTORY_READ)
+  reservationSummary(@CurrentUser() actor: AuthenticatedUser) {
+    return this.inventory.reservationSummary(actor);
+  }
+
+  @Get('reorder-suggestions')
+  @RequirePermission(Permission.INVENTORY_READ)
+  reorderSuggestions(@CurrentUser() actor: AuthenticatedUser) {
+    return this.inventory.reorderSuggestions(actor);
+  }
+
+  @Post('reservations/:id/release')
+  @RequirePermission(Permission.STOCK_MOVE)
+  releaseReservation(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.inventory.releaseReservation(actor, id);
+  }
+
   @Get()
   @RequirePermission(Permission.INVENTORY_READ)
   list(
@@ -33,6 +61,12 @@ export class InventoryController {
   @RequirePermission(Permission.INVENTORY_READ)
   findOne(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
     return this.inventory.findOne(actor, id);
+  }
+
+  @Get(':id/reservations')
+  @RequirePermission(Permission.INVENTORY_READ)
+  partReservations(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.inventory.reservations(actor, { partId: id });
   }
 
   @Get(':id/movements')
