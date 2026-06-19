@@ -80,17 +80,23 @@ export class AuthService {
     };
   }
 
-  private issueAccessToken(user: {
-    id: string;
-    tenantId: string;
-    role: Role;
-    email: string;
-  }): string {
+  private issueAccessToken(
+    user: {
+      id: string;
+      tenantId: string;
+      role: Role;
+      email: string;
+    },
+    sessionId: string,
+    sessionVersion: number,
+  ): string {
     const payload: JwtPayload = {
       sub: user.id,
       tenantId: user.tenantId,
       role: user.role,
       email: user.email,
+      sid: sessionId,
+      sv: sessionVersion,
     };
     return this.jwt.sign(payload, {
       secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),
@@ -101,20 +107,23 @@ export class AuthService {
   private async createRefreshToken(
     userId: string,
     meta: RequestMeta,
-  ): Promise<{ token: string; expiresAt: Date }> {
+    sessionVersion: number,
+  ): Promise<{ id: string; token: string; expiresAt: Date }> {
     const token = randomBytes(48).toString('hex');
     const ttl = this.config.get<string>('JWT_REFRESH_TTL') ?? '7d';
     const expiresAt = new Date(Date.now() + durationToMs(ttl));
-    await this.prisma.refreshToken.create({
+    const created = await this.prisma.refreshToken.create({
       data: {
         userId,
         tokenHash: this.hashToken(token),
         userAgent: meta.userAgent ?? null,
         ip: meta.ip ?? null,
+        sessionVersion,
         expiresAt,
       },
+      select: { id: true },
     });
-    return { token, expiresAt };
+    return { id: created.id, token, expiresAt };
   }
 
   /** Normaliza um host (remove porta, minúsculas, pega o 1º se vier lista). */
@@ -139,7 +148,12 @@ export class AuthService {
     const h = this.normalizeHost(host);
     if (!h) return null;
     const domain = await this.prisma.tenantDomain.findFirst({
-      where: { domain: h, ...(this.requireVerifiedDomain() ? { verifiedAt: { not: null } } : {}) },
+      where: {
+        domain: h,
+        ...(this.requireVerifiedDomain()
+          ? { verifiedAt: { not: null }, status: 'VERIFIED' as const }
+          : {}),
+      },
       select: {
         tenant: {
           select: { account: { select: { id: true, name: true, slug: true, status: true } } },
@@ -290,8 +304,8 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    const accessToken = this.issueAccessToken(user);
-    const refresh = await this.createRefreshToken(user.id, meta);
+    const refresh = await this.createRefreshToken(user.id, meta, user.sessionVersion);
+    const accessToken = this.issueAccessToken(user, refresh.id, user.sessionVersion);
 
     await this.audit.record({
       tenantId: user.tenantId,
@@ -326,10 +340,16 @@ export class AuthService {
     // Reuse de um token JÁ revogado (rotacionado/deslogado): forte sinal de
     // roubo. Revoga toda a família de refresh do usuário (logout global) e nega.
     if (stored.revokedAt) {
-      await this.prisma.refreshToken.updateMany({
-        where: { userId: stored.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
+      await this.prisma.$transaction([
+        this.prisma.refreshToken.updateMany({
+          where: { userId: stored.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        }),
+        this.prisma.user.update({
+          where: { id: stored.userId },
+          data: { sessionVersion: { increment: 1 } },
+        }),
+      ]);
       this.logger.warn(
         `Reuse de refresh token revogado (user ${stored.userId}); sessões invalidadas.`,
       );
@@ -346,7 +366,12 @@ export class AuthService {
       throw invalid;
     }
 
-    if (stored.expiresAt < new Date() || !stored.user.active || !stored.user.tenant.active) {
+    if (
+      stored.expiresAt < new Date() ||
+      !stored.user.active ||
+      !stored.user.tenant.active ||
+      stored.sessionVersion !== stored.user.sessionVersion
+    ) {
       throw invalid;
     }
 
@@ -355,8 +380,8 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    const accessToken = this.issueAccessToken(stored.user);
-    const refresh = await this.createRefreshToken(stored.user.id, meta);
+    const refresh = await this.createRefreshToken(stored.user.id, meta, stored.user.sessionVersion);
+    const accessToken = this.issueAccessToken(stored.user, refresh.id, stored.user.sessionVersion);
 
     return {
       accessToken,
@@ -417,10 +442,16 @@ export class AuthService {
       where: { id: userId },
       select: { tenantId: true },
     });
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { sessionVersion: { increment: 1 } },
+      }),
+    ]);
     if (user) {
       await this.audit.record({
         tenantId: user.tenantId,
@@ -535,6 +566,7 @@ export class AuthService {
         data: {
           passwordHash: await this.passwords.hash(password),
           forcePasswordChange: false,
+          sessionVersion: { increment: 1 },
         },
       }),
       this.prisma.passwordResetToken.update({
@@ -581,6 +613,7 @@ export class AuthService {
         data: {
           passwordHash: await this.passwords.hash(password),
           forcePasswordChange: false,
+          sessionVersion: { increment: 1 },
         },
       }),
       this.prisma.refreshToken.updateMany({

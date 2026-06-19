@@ -268,11 +268,118 @@ enum AccountStatus {
   SUSPENDED
 }
 
+/// Estado operacional/verificação de um domínio customizado.
+enum TenantDomainStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+/// Periodicidade comercial do plano SaaS.
+enum PlanBillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+/// Status da assinatura da conta SaaS.
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+/// Features controladas por plano/quota.
+enum PlanFeatureKey {
+  USERS
+  BRANCHES
+  SERVICE_ORDERS_MONTH
+  UPLOADS_MONTH
+  STORAGE_MB
+  AI_MONTH
+  MESSAGES_MONTH
+  CUSTOM_DOMAINS
+}
+
 /// Status de um pedido público de criação de conta (aprovado pelo platform admin).
 enum AccountRequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+/// Plano comercial do SaaS. Limites ficam em PlanFeatureLimit.
+model Plan {
+  id              String              @id @default(cuid())
+  code            String              @unique
+  name            String
+  description     String?
+  active          Boolean             @default(true)
+  priceCents      Int                 @default(0)
+  currency        String              @default("BRL")
+  billingInterval PlanBillingInterval @default(MONTHLY)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  limits        PlanFeatureLimit[]
+  accounts      Account[]
+  subscriptions AccountSubscription[]
+
+  @@map("plans")
+}
+
+/// Limite por feature de um plano. `limit=null` significa ilimitado; `enabled=false` bloqueia a feature.
+model PlanFeatureLimit {
+  id        String         @id @default(cuid())
+  planId    String
+  feature   PlanFeatureKey
+  enabled   Boolean        @default(true)
+  limit     Int?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, feature])
+  @@index([feature])
+  @@map("plan_feature_limits")
+}
+
+/// Assinatura atual/histórica da conta SaaS. A conta também aponta para o plano ativo em `planId`.
+model AccountSubscription {
+  id                 String             @id @default(cuid())
+  accountId          String
+  planId             String
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  trialEndsAt         DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, status])
+  @@index([planId])
+  @@map("account_subscriptions")
+}
+
+/// Contador atômico por conta/feature/período para quotas mensais.
+model AccountUsageCounter {
+  id        String         @id @default(cuid())
+  accountId String
+  feature   PlanFeatureKey
+  period    String         // ex.: 2026-06, ou "all" para uso cumulativo
+  used      Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, feature, period])
+  @@index([feature, period])
+  @@map("account_usage_counters")
 }
 
 /// Pedido público de criação de conta (vindo da landing). O platform admin
@@ -300,12 +407,17 @@ model Account {
   name      String
   slug      String        @unique
   status    AccountStatus @default(ACTIVE)
-  plan      String? // reservado p/ Fase 2 (planos/cobrança)
+  plan      String? // legado: código textual do plano, mantido para compatibilidade
+  planId    String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  tenants Tenant[]
+  tenants       Tenant[]
+  planRef       Plan?                 @relation(fields: [planId], references: [id], onDelete: SetNull)
+  subscriptions AccountSubscription[]
+  usageCounters AccountUsageCounter[]
 
+  @@index([planId])
   @@map("accounts")
 }
 
@@ -359,25 +471,54 @@ model Tenant {
   accountingAccounts AccountingAccount[]
   accountingJournals AccountingJournalEntry[]
   domains TenantDomain[]
+  uploadAssets UploadAsset[]
 
   @@index([accountId])
   @@map("tenants")
 }
 
+
+/// Arquivo enviado pelo módulo de uploads. A URL pública só pode ser reutilizada
+/// por recursos do mesmo tenant, evitando anexar fotos externas ou de outra oficina.
+model UploadAsset {
+  id          String   @id @default(cuid())
+  tenantId    String
+  createdById String?
+  filename    String   @unique
+  path        String   @unique
+  url         String   @unique
+  mime        String
+  extension   String
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("UploadAssetCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([createdById])
+  @@map("upload_assets")
+}
+
 /// Domínio próprio de uma oficina (SaaS multi-domínio): resolve o tenant pelo host.
 model TenantDomain {
-  id                String    @id @default(cuid())
+  id                String             @id @default(cuid())
   tenantId          String
-  domain            String    @unique
-  isPrimary         Boolean   @default(false)
+  domain            String             @unique
+  isPrimary         Boolean            @default(false)
+  status            TenantDomainStatus @default(PENDING)
   // Token a publicar no DNS (TXT em _oficina-verify.<domain>) para comprovar posse.
   verificationToken String
   verifiedAt        DateTime?
-  createdAt         DateTime  @default(now())
+  lastCheckedAt     DateTime?
+  lastCheckError    String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+  @@index([status])
   @@map("tenant_domains")
 }
 
@@ -426,6 +567,8 @@ model User {
   // Super usuário: acesso global a todas as oficinas (gestão da plataforma).
   superAdmin   Boolean  @default(false)
   forcePasswordChange Boolean @default(false)
+  /// Versão de sessão usada para invalidar access tokens imediatamente em logout global/redefinição de senha.
+  sessionVersion Int     @default(0)
   lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -441,6 +584,7 @@ model User {
   pushSubscriptions PushSubscription[]
   checkins          VehicleCheckin[]            @relation("CheckinCreator")
   serviceOrderEvents ServiceOrderEvent[]        @relation("ServiceOrderEventCreator")
+  uploadAssets      UploadAsset[]                @relation("UploadAssetCreator")
   receptionScheduleBlocks ReceptionScheduleBlock[] @relation("ReceptionScheduleBlockTechnician")
 
   @@unique([tenantId, email])
@@ -455,6 +599,8 @@ model RefreshToken {
   tokenHash String   @unique
   userAgent String?
   ip        String?
+  /// Snapshot da versão de sessão do usuário no momento da emissão.
+  sessionVersion Int  @default(0)
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime @default(now())
@@ -462,6 +608,8 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, sessionVersion])
+  @@index([expiresAt])
   @@map("refresh_tokens")
 }
 

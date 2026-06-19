@@ -125,6 +125,7 @@ export class AccountsService {
         slug: true,
         status: true,
         createdAt: true,
+        planRef: { select: { id: true, code: true, name: true } },
         _count: { select: { tenants: true } },
       },
     });
@@ -133,6 +134,9 @@ export class AccountsService {
       name: r.name,
       slug: r.slug,
       status: r.status,
+      plan: r.planRef
+        ? { id: r.planRef.id, code: r.planRef.code, name: r.planRef.name }
+        : { id: null, code: null, name: null },
       oficinasCount: r._count.tenants,
       createdAt: r.createdAt.toISOString(),
     }));
@@ -155,6 +159,7 @@ export class AccountsService {
         slug: true,
         status: true,
         createdAt: true,
+        planRef: { select: { id: true, code: true, name: true } },
         _count: { select: { tenants: true } },
       },
     });
@@ -171,6 +176,9 @@ export class AccountsService {
       name: updated.name,
       slug: updated.slug,
       status: updated.status,
+      plan: updated.planRef
+        ? { id: updated.planRef.id, code: updated.planRef.code, name: updated.planRef.name }
+        : { id: null, code: null, name: null },
       oficinasCount: updated._count.tenants,
       createdAt: updated.createdAt.toISOString(),
     };
@@ -249,9 +257,29 @@ export class AccountsService {
     let result: { accountId: string; tenantId: string };
     try {
       result = await this.prisma.$transaction(async (tx) => {
-        const account = await tx.account.create({
-          data: { name: input.name, slug, status: 'ACTIVE' },
+        const defaultPlan = await tx.plan.findFirst({
+          where: { code: 'starter', active: true },
+          select: { id: true, code: true },
         });
+        const account = await tx.account.create({
+          data: {
+            name: input.name,
+            slug,
+            status: 'ACTIVE',
+            plan: defaultPlan?.code ?? null,
+            planId: defaultPlan?.id ?? null,
+          },
+        });
+        if (defaultPlan) {
+          await tx.accountSubscription.create({
+            data: {
+              accountId: account.id,
+              planId: defaultPlan.id,
+              status: 'ACTIVE',
+              currentPeriodStart: new Date(),
+            },
+          });
+        }
         const tenant = await tx.tenant.create({
           data: {
             name: input.name,
@@ -285,6 +313,7 @@ export class AccountsService {
               domain,
               verificationToken: randomBytes(16).toString('hex'),
               verifiedAt: new Date(),
+              status: 'VERIFIED',
               isPrimary: true,
             },
           });

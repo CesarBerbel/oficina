@@ -13,6 +13,7 @@ import {
   useDnsCheck,
   useDomains,
   useRemoveDomain,
+  useSetPrimaryDomain,
   useVerifyDomain,
 } from '@/features/domains/use-domains';
 
@@ -21,6 +22,7 @@ export default function DominiosPage() {
   const add = useAddDomain();
   const remove = useRemoveDomain();
   const verify = useVerifyDomain();
+  const setPrimary = useSetPrimaryDomain();
   const dnsCheck = useDnsCheck();
   const [domain, setDomain] = useState('');
   const [checks, setChecks] = useState<Record<string, TenantDomainDnsCheckDto>>({});
@@ -56,6 +58,15 @@ export default function DominiosPage() {
       toast.success('Domínio adicionado');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Falha ao adicionar domínio');
+    }
+  }
+
+  async function onSetPrimary(id: string) {
+    try {
+      await setPrimary.mutateAsync(id);
+      toast.success('Domínio principal atualizado');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao definir domínio principal');
     }
   }
 
@@ -107,8 +118,12 @@ export default function DominiosPage() {
                       <Star className="mr-1 size-3" /> principal
                     </Badge>
                   )}
-                  <Badge variant={d.verified ? 'default' : 'outline'}>
-                    {d.verified ? 'verificado' : 'não verificado'}
+                  <Badge
+                    variant={
+                      d.verified ? 'default' : d.status === 'FAILED' ? 'destructive' : 'outline'
+                    }
+                  >
+                    {d.verified ? 'verificado' : d.status === 'FAILED' ? 'falhou' : 'pendente'}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-1">
@@ -120,6 +135,16 @@ export default function DominiosPage() {
                   >
                     <Stethoscope className="size-4" /> Diagnosticar
                   </Button>
+                  {d.verified && !d.isPrimary && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onSetPrimary(d.id)}
+                      disabled={setPrimary.isPending}
+                    >
+                      <Star className="size-4" /> Principal
+                    </Button>
+                  )}
                   {!d.verified && (
                     <Button
                       variant="outline"
@@ -140,6 +165,12 @@ export default function DominiosPage() {
                   </Button>
                 </div>
               </div>
+
+              {d.lastCheckError && (
+                <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700">
+                  Última verificação: {d.lastCheckError}
+                </p>
+              )}
 
               {checks[d.id] && <DnsDiagnostic check={checks[d.id]} />}
 

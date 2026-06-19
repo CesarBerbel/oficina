@@ -10,6 +10,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Permission } from '@oficina/shared';
 import { StorageService } from '../../infra/storage/storage.service';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { QuotasService } from '../saas/quotas.service';
+import { UploadAssetsService } from './upload-assets.service';
 
 type DetectedImage = { mime: string; extension: '.png' | '.jpg' | '.webp' | '.gif' };
 
@@ -56,12 +60,17 @@ export class UploadsController {
   constructor(
     private readonly storage: StorageService,
     private readonly config: ConfigService,
+    private readonly quotas: QuotasService,
+    private readonly assets: UploadAssetsService,
   ) {}
 
   @Post()
   @RequirePermission(Permission.UPLOADS_WRITE)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
-  async upload(@UploadedFile() file: Express.Multer.File | undefined): Promise<{ url: string }> {
+  async upload(
+    @CurrentUser() actor: AuthenticatedUser,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ): Promise<{ id: string; url: string }> {
     if (!file) throw new BadRequestException('Nenhum arquivo enviado');
 
     const detected = detectImage(file.buffer);
@@ -69,11 +78,26 @@ export class UploadsController {
       throw new BadRequestException('Formato inválido. Envie PNG, JPG, WEBP ou GIF.');
     }
 
+    await this.quotas.consumeForTenant(actor.tenantId, 'UPLOADS_MONTH', 1);
+
     const filename = await this.storage.save(file.buffer, detected.extension);
     const path = this.storage.publicPath(filename);
     // Base confiável via APP_URL (configurada); sem ela, retorna URL relativa.
     // Nunca usa o Host do request (evita host-header injection na URL salva).
-    const base = (this.config.get<string>('APP_URL') ?? '').replace(/\/+$/, '');
-    return { url: `${base}${path}` };
+    const base = (this.config.get<string>('APP_URL') || process.env.APP_URL || '').replace(
+      /\/+$/,
+      '',
+    );
+    const url = `${base}${path}`;
+    const asset = await this.assets.register({
+      actor,
+      filename,
+      path,
+      url,
+      mime: detected.mime,
+      extension: detected.extension,
+      sizeBytes: file.size,
+    });
+    return { id: asset.id, url: asset.url };
   }
 }

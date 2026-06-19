@@ -96,6 +96,8 @@ export interface AccountDto {
   name: string;
   slug: string;
   status: 'ACTIVE' | 'PENDING' | 'SUSPENDED';
+  /** Plano comercial atual, se atribuído. */
+  plan: { id: string | null; code: string | null; name: string | null };
   /** Quantidade de oficinas (matriz + filiais) da conta. */
   oficinasCount: number;
   createdAt: string;

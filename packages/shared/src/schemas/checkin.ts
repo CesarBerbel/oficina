@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ChecklistStatus, DamageSeverity, FuelLevel } from '../enums/checkin.js';
-import { paginationQuerySchema } from './common.js';
+import { paginationQuerySchema, uploadedPhotoUrlSchema } from './common.js';
 
 const optionalString = (max: number) =>
   z
@@ -35,7 +35,7 @@ export const createCheckinSchema = z.object({
   fuelLevel: z.nativeEnum(FuelLevel).optional(),
   damages: z.array(damageSchema).max(50).default([]),
   checklist: z.array(checklistItemSchema).max(60).default([]),
-  photos: z.array(z.string().url()).max(30).default([]),
+  photos: z.array(uploadedPhotoUrlSchema).max(30).default([]),
   signatureUrl: z.string().url().optional(),
   signedBy: optionalString(120),
   notes: optionalString(2000),

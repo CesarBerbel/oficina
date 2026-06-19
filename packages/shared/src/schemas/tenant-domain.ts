@@ -27,8 +27,11 @@ export interface TenantDomainDto {
   id: string;
   domain: string;
   isPrimary: boolean;
+  status: 'PENDING' | 'VERIFIED' | 'FAILED';
   verified: boolean;
   verifiedAt: string | null;
+  lastCheckedAt: string | null;
+  lastCheckError: string | null;
   createdAt: string;
   /** Subdomínio de domínio-base próprio: verificação automática (dispensa TXT). */
   autoVerified: boolean;
@@ -58,3 +61,6 @@ export interface TenantDomainDnsCheckDto {
     ok: boolean;
   };
 }
+
+export const setPrimaryTenantDomainSchema = z.object({ isPrimary: z.boolean().default(true) });
+export type SetPrimaryTenantDomainInput = z.infer<typeof setPrimaryTenantDomainSchema>;

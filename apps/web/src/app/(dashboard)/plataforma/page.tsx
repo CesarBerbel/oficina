@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth-context';
 import {
   useLogoutPlatformUserSessions,
   usePlatformOverview,
+  usePlatformPlans,
   usePlatformSessions,
   useRevokePlatformSession,
 } from '@/features/platform/use-accounts';
@@ -64,6 +65,7 @@ export default function PlataformaPage() {
   const { user } = useAuth();
   const { data, isLoading } = usePlatformOverview();
   const { data: sessions = [], isLoading: isLoadingSessions } = usePlatformSessions();
+  const { data: plans = [] } = usePlatformPlans();
   const revokeSession = useRevokePlatformSession();
   const logoutUser = useLogoutPlatformUserSessions();
 
@@ -122,6 +124,52 @@ export default function PlataformaPage() {
         <Stat label="Total de contas" value={data.accounts.total} icon={Store} />
         <Stat label="Sessões ativas" value={sessions.length} icon={MonitorSmartphone} />
       </div>
+
+      <section className="rounded-xl border bg-card p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Planos SaaS</h2>
+            <p className="text-sm text-muted-foreground">
+              Planos ativos e quotas por feature. A atribuição por conta fica em /contas.
+            </p>
+          </div>
+          <Link href="/contas" className="text-sm font-medium text-primary hover:underline">
+            Atribuir planos
+          </Link>
+        </div>
+        {plans.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum plano cadastrado.</p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {plans.map((plan) => (
+              <div key={plan.id} className="rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{plan.name}</p>
+                    <p className="text-xs text-muted-foreground">{plan.code}</p>
+                  </div>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                    {plan.active ? 'ativo' : 'inativo'}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm font-medium">
+                  {(plan.priceCents / 100).toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: plan.currency,
+                  })}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {' '}
+                    / {plan.billingInterval === 'YEARLY' ? 'ano' : 'mês'}
+                  </span>
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {plan.limits.length} limite(s) configurado(s)
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {data.pendingRequests > 0 && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">

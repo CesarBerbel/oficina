@@ -27,6 +27,7 @@ describe('TLS check on-demand (e2e)', () => {
         domain: 'verificado.com.br',
         verificationToken: randomBytes(8).toString('hex'),
         verifiedAt: new Date(),
+        status: 'VERIFIED',
         isPrimary: true,
       },
     });

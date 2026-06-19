@@ -13,9 +13,12 @@ import {
   useApproveRequest,
   useRejectRequest,
   useSetAccountStatus,
+  usePlatformPlans,
+  useAssignAccountPlan,
 } from '@/features/platform/use-accounts';
 import { CarLoader } from '@/components/car-loader';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import {
@@ -40,6 +43,8 @@ export default function ContasPage() {
   const approve = useApproveRequest();
   const reject = useRejectRequest();
   const setStatus = useSetAccountStatus();
+  const plans = usePlatformPlans();
+  const assignPlan = useAssignAccountPlan();
   const confirm = useConfirm();
   const [provisioned, setProvisioned] = useState<ProvisionedAccountDto | null>(null);
 
@@ -87,6 +92,16 @@ export default function ContasPage() {
     }
   }
 
+  async function onAssignPlan(accountId: string, planId: string) {
+    if (!planId) return;
+    try {
+      await assignPlan.mutateAsync({ accountId, input: { planId, status: 'ACTIVE' } });
+      toast.success('Plano atualizado');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Falha ao atualizar plano');
+    }
+  }
+
   async function onToggle(a: AccountDto) {
     const suspend = a.status !== 'SUSPENDED';
     const ok = await confirm({
@@ -108,6 +123,7 @@ export default function ContasPage() {
 
   const pending = requests.data ?? [];
   const accs = accounts.data ?? [];
+  const planOptions = plans.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -233,6 +249,7 @@ export default function ContasPage() {
                   <TableHead>Conta</TableHead>
                   <TableHead>Subdomínio</TableHead>
                   <TableHead className="text-right">Oficinas</TableHead>
+                  <TableHead>Plano</TableHead>
                   <TableHead>Criada</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -246,6 +263,23 @@ export default function ContasPage() {
                       <TableCell className="font-medium">{a.name}</TableCell>
                       <TableCell className="text-muted-foreground">{a.slug}</TableCell>
                       <TableCell className="text-right tabular-nums">{a.oficinasCount}</TableCell>
+                      <TableCell className="min-w-[180px]">
+                        <Select
+                          value={a.plan.id ?? ''}
+                          disabled={assignPlan.isPending || plans.isLoading}
+                          onChange={(e) => onAssignPlan(a.id, e.target.value)}
+                        >
+                          <option value="">Sem plano</option>
+                          {planOptions.map((plan) => (
+                            <option key={plan.id} value={plan.id}>
+                              {plan.name}
+                            </option>
+                          ))}
+                        </Select>
+                        {a.plan.code && (
+                          <p className="mt-1 text-xs text-muted-foreground">{a.plan.code}</p>
+                        )}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDate(a.createdAt)}
                       </TableCell>

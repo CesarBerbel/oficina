@@ -47,3 +47,12 @@ export function useDnsCheck() {
     mutationFn: (id: string) => api.get<TenantDomainDnsCheckDto>(`/tenant-domains/${id}/dns-check`),
   });
 }
+
+export function useSetPrimaryDomain() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<TenantDomainDto>(`/tenant-domains/${id}/primary`, { isPrimary: true }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}

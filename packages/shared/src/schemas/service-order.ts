@@ -4,7 +4,7 @@ import {
   ServiceOrderStatus,
   type ServiceOrderTransitionDto,
 } from '../enums/service-order-status.js';
-import { paginationQuerySchema } from './common.js';
+import { paginationQuerySchema, uploadedPhotoUrlSchema } from './common.js';
 import type { QuoteDto } from './quote.js';
 
 const optionalString = (max: number) =>
@@ -86,7 +86,7 @@ export const createServiceOrderTechnicalUpdateSchema = z.object({
   description: optionalString(2000),
   public: z.coerce.boolean().default(false),
   checklist: z.array(serviceOrderTechnicalChecklistItemSchema).max(60).default([]),
-  photos: z.array(z.string().url()).max(30).default([]),
+  photos: z.array(uploadedPhotoUrlSchema).max(30).default([]),
 });
 export type CreateServiceOrderTechnicalUpdateInput = z.infer<
   typeof createServiceOrderTechnicalUpdateSchema

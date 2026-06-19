@@ -7,11 +7,16 @@ import type {
   PlatformOverviewDto,
   PlatformSessionDto,
   ProvisionedAccountDto,
+  PlanDto,
+  UpsertPlanInput,
+  AssignAccountPlanInput,
+  AccountQuotaSummaryDto,
 } from '@oficina/shared';
 import { api } from '@/lib/api';
 
 const ACCOUNTS_KEY = ['platform-accounts'];
 const REQUESTS_KEY = ['platform-account-requests'];
+const PLANS_KEY = ['platform-plans'];
 
 export function usePlatformOverview() {
   return useQuery({
@@ -84,5 +89,40 @@ export function useLogoutPlatformUserSessions() {
   return useMutation({
     mutationFn: (userId: string) => api.post(`/platform/sessions/users/${userId}/logout-all`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['platform-sessions'] }),
+  });
+}
+
+export function usePlatformPlans() {
+  return useQuery({
+    queryKey: PLANS_KEY,
+    queryFn: () => api.get<PlanDto[]>('/platform/plans'),
+  });
+}
+
+export function useUpsertPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpsertPlanInput) => api.post<PlanDto>('/platform/plans', input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: PLANS_KEY }),
+  });
+}
+
+export function useAssignAccountPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, input }: { accountId: string; input: AssignAccountPlanInput }) =>
+      api.post(`/platform/plans/accounts/${accountId}`, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ACCOUNTS_KEY });
+      qc.invalidateQueries({ queryKey: ['platform-overview'] });
+    },
+  });
+}
+
+export function useAccountUsage(accountId: string | null) {
+  return useQuery({
+    queryKey: ['platform-account-usage', accountId],
+    enabled: !!accountId,
+    queryFn: () => api.get<AccountQuotaSummaryDto>(`/platform/plans/accounts/${accountId}/usage`),
   });
 }

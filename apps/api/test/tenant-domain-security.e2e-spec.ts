@@ -47,7 +47,7 @@ describe('TenantDomain: verificação exigida e anti-spoof (e2e)', () => {
     // posse comprovada) e então resolve.
     await prisma.tenantDomain.update({
       where: { id: created.body.id },
-      data: { verifiedAt: new Date() },
+      data: { verifiedAt: new Date(), status: 'VERIFIED' },
     });
 
     const resolved = await request(app.getHttpServer())
@@ -100,6 +100,7 @@ describe('TenantDomain: verificação exigida e anti-spoof (e2e)', () => {
         domain: 'lead-host-e2e.com.br',
         verificationToken: 'tok-lead',
         verifiedAt: new Date(),
+        status: 'VERIFIED',
         isPrimary: true,
       },
     });
@@ -124,6 +125,7 @@ describe('TenantDomain: verificação exigida e anti-spoof (e2e)', () => {
           domain: 'modelo-e2e.com.br',
           verificationToken: 'tk-a',
           verifiedAt: new Date(),
+          status: 'VERIFIED',
           isPrimary: true,
         },
         {
@@ -131,6 +133,7 @@ describe('TenantDomain: verificação exigida e anti-spoof (e2e)', () => {
           domain: 'concorrente-e2e.com.br',
           verificationToken: 'tk-b',
           verifiedAt: new Date(),
+          status: 'VERIFIED',
           isPrimary: true,
         },
       ],

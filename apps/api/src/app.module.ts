@@ -35,6 +35,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { AccountsModule } from './modules/accounts/accounts.module';
 import { PlatformSessionsModule } from './modules/platform-sessions/platform-sessions.module';
 import { TenantDomainsModule } from './modules/tenant-domains/tenant-domains.module';
+import { SaasModule } from './modules/saas/saas.module';
 import { SiteModule } from './modules/site/site.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { BlogModule } from './modules/blog/blog.module';
@@ -93,6 +94,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     AccountsModule,
     PlatformSessionsModule,
     TenantDomainsModule,
+    SaasModule,
     DashboardModule,
     SiteModule,
     CategoriesModule,

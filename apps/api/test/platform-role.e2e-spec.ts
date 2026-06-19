@@ -52,6 +52,7 @@ describe('Papel da plataforma (super admin) (e2e)', () => {
         domain: OFICINA_HOST,
         verificationToken: 'tk',
         verifiedAt: new Date(),
+        status: 'VERIFIED',
         isPrimary: true,
       },
     });

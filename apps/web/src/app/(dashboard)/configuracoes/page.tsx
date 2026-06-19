@@ -14,6 +14,7 @@ import {
   Tags,
   Repeat,
   Network,
+  CreditCard,
   ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -77,6 +78,14 @@ const ITEMS: Item[] = [
     href: '/usuarios',
     icon: Users,
     permission: 'users:read',
+  },
+
+  {
+    title: 'Plano e quotas',
+    description: 'Uso do plano atual, limites e consumo mensal.',
+    href: '/configuracoes/plano',
+    icon: CreditCard,
+    permission: 'dashboard:read',
   },
   {
     title: 'Segurança e sessões',

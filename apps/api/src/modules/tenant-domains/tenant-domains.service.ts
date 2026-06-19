@@ -14,6 +14,7 @@ import {
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { QuotasService } from '../saas/quotas.service';
 import { DnsVerifier } from './dns-verifier.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
@@ -23,6 +24,7 @@ export class TenantDomainsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly dns: DnsVerifier,
+    private readonly quotas: QuotasService,
   ) {}
 
   /**
@@ -43,20 +45,42 @@ export class TenantDomainsService {
     return this.autoVerifySuffixes().some((s) => d === s || d.endsWith(`.${s}`));
   }
 
+  private normalizeHost(value: string | null | undefined): string | null {
+    const raw = (value ?? '').trim().toLowerCase();
+    if (!raw) return null;
+    const withoutProtocol = raw.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    const withoutPort = withoutProtocol.replace(/:\d+$/, '').replace(/\.$/, '');
+    return withoutPort || null;
+  }
+
+  private staticOrigins(): Set<string> {
+    const values = [process.env.WEB_ORIGIN, process.env.WEB_ORIGINS, process.env.APP_URL]
+      .flatMap((v) => (v ?? '').split(','))
+      .map((v) => v.trim().replace(/\/+$/, ''))
+      .filter(Boolean);
+    return new Set(values);
+  }
+
   private toDto(d: {
     id: string;
     domain: string;
     isPrimary: boolean;
+    status: 'PENDING' | 'VERIFIED' | 'FAILED';
     verificationToken: string;
     verifiedAt: Date | null;
+    lastCheckedAt: Date | null;
+    lastCheckError: string | null;
     createdAt: Date;
   }): TenantDomainDto {
     return {
       id: d.id,
       domain: d.domain,
       isPrimary: d.isPrimary,
-      verified: d.verifiedAt != null,
+      status: d.status,
+      verified: d.verifiedAt != null && d.status === 'VERIFIED',
       verifiedAt: d.verifiedAt ? d.verifiedAt.toISOString() : null,
+      lastCheckedAt: d.lastCheckedAt ? d.lastCheckedAt.toISOString() : null,
+      lastCheckError: d.lastCheckError,
       createdAt: d.createdAt.toISOString(),
       // Subdomínio próprio: a UI esconde o passo do TXT.
       autoVerified: this.isAutoVerified(d.domain),
@@ -73,13 +97,28 @@ export class TenantDomainsService {
    * verificado. Cross-tenant e sem auth — usado pelo `ask` antes de emitir cert.
    */
   async isAllowedForTls(domain: string): Promise<boolean> {
-    const d = domain.trim().toLowerCase().replace(/\.$/, '');
+    const d = this.normalizeHost(domain);
     if (!d) return false;
     const found = await this.prisma.tenantDomain.findFirst({
-      where: { domain: d, verifiedAt: { not: null } },
+      where: { domain: d, status: 'VERIFIED', verifiedAt: { not: null } },
       select: { id: true },
     });
     return found != null;
+  }
+
+  /** CORS dinâmico: origens estáticas + domínios customizados verificados. */
+  async isAllowedOrigin(origin: string | undefined): Promise<boolean> {
+    if (!origin) return true; // curl/server-to-server sem Origin
+    const clean = origin.replace(/\/+$/, '');
+    if (this.staticOrigins().has(clean)) return true;
+    let host: string | null = null;
+    try {
+      host = this.normalizeHost(new URL(origin).host);
+    } catch {
+      return false;
+    }
+    if (!host) return false;
+    return this.isAllowedForTls(host);
   }
 
   async list(tenantId: string): Promise<TenantDomainDto[]> {
@@ -91,8 +130,15 @@ export class TenantDomainsService {
   }
 
   async create(actor: AuthenticatedUser, input: CreateTenantDomainInput): Promise<TenantDomainDto> {
+    const accountId = await this.quotas.accountIdForTenant(actor.tenantId);
+    const currentDomains = await this.prisma.tenantDomain.count({
+      where: { tenant: { accountId } },
+    });
+    await this.quotas.assertAccountLimit(accountId, 'CUSTOM_DOMAINS', currentDomains, 1);
+
     const isPrimary =
       (await this.prisma.tenantDomain.count({ where: { tenantId: actor.tenantId } })) === 0;
+    const autoVerified = this.isAutoVerified(input.domain);
     try {
       const created = await this.prisma.tenantDomain.create({
         data: {
@@ -101,7 +147,8 @@ export class TenantDomainsService {
           isPrimary,
           verificationToken: randomBytes(16).toString('hex'),
           // Subdomínio de domínio-base próprio já entra verificado.
-          verifiedAt: this.isAutoVerified(input.domain) ? new Date() : null,
+          verifiedAt: autoVerified ? new Date() : null,
+          status: autoVerified ? 'VERIFIED' : 'PENDING',
         },
       });
       await this.audit.record({
@@ -132,13 +179,19 @@ export class TenantDomainsService {
     });
     if (!existing) throw new NotFoundException('Domínio não encontrado');
 
-    if (existing.verifiedAt) return this.toDto(existing);
+    if (existing.verifiedAt && existing.status === 'VERIFIED') return this.toDto(existing);
 
+    let lastCheckError: string | null = null;
     // Subdomínio próprio: dispensa o TXT. Demais domínios comprovam por TXT.
     if (!this.isAutoVerified(existing.domain)) {
       const host = `${TENANT_DOMAIN_VERIFY_PREFIX}.${existing.domain}`;
       const records = await this.dns.txtRecords(host);
       if (!records.includes(existing.verificationToken)) {
+        lastCheckError = `TXT ausente em ${host}`;
+        await this.prisma.tenantDomain.update({
+          where: { id },
+          data: { status: 'FAILED', lastCheckedAt: new Date(), lastCheckError },
+        });
         throw new BadRequestException(
           `Registro TXT não encontrado. Crie um TXT em "${host}" com o valor "${existing.verificationToken}" e tente novamente (a propagação do DNS pode levar alguns minutos).`,
         );
@@ -147,7 +200,12 @@ export class TenantDomainsService {
 
     const updated = await this.prisma.tenantDomain.update({
       where: { id },
-      data: { verifiedAt: new Date() },
+      data: {
+        verifiedAt: new Date(),
+        status: 'VERIFIED',
+        lastCheckedAt: new Date(),
+        lastCheckError,
+      },
     });
     await this.audit.record({
       tenantId: actor.tenantId,
@@ -173,22 +231,60 @@ export class TenantDomainsService {
       this.dns.txtRecords(txtName),
       this.dns.addresses(existing.domain),
     ]);
+    const txtOk =
+      this.isAutoVerified(existing.domain) || txtFound.includes(existing.verificationToken);
+    const addressOk = addresses.length > 0;
+    await this.prisma.tenantDomain.update({
+      where: { id },
+      data: {
+        lastCheckedAt: new Date(),
+        lastCheckError: txtOk && addressOk ? null : 'DNS ainda não está totalmente configurado.',
+        status: existing.verifiedAt ? 'VERIFIED' : txtOk || addressOk ? 'PENDING' : 'FAILED',
+      },
+    });
 
     return {
       domain: existing.domain,
-      verified: existing.verifiedAt != null,
+      verified: existing.verifiedAt != null || txtOk,
       txt: {
         name: txtName,
         expected: existing.verificationToken,
         found: txtFound,
-        ok: txtFound.includes(existing.verificationToken),
+        ok: txtOk,
       },
       address: {
         name: existing.domain,
         records: addresses,
-        ok: addresses.length > 0,
+        ok: addressOk,
       },
     };
+  }
+
+  async setPrimary(actor: AuthenticatedUser, id: string): Promise<TenantDomainDto> {
+    const existing = await this.prisma.tenantDomain.findFirst({
+      where: { id, tenantId: actor.tenantId },
+    });
+    if (!existing) throw new NotFoundException('Domínio não encontrado');
+    if (!existing.verifiedAt || existing.status !== 'VERIFIED') {
+      throw new BadRequestException('Verifique o domínio antes de defini-lo como principal.');
+    }
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.tenantDomain.updateMany({
+        where: { tenantId: actor.tenantId },
+        data: { isPrimary: false },
+      });
+      return tx.tenantDomain.update({ where: { id }, data: { isPrimary: true } });
+    });
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      module: 'tenant-domains',
+      action: 'set-primary',
+      entity: 'TenantDomain',
+      entityId: id,
+      after: { domain: updated.domain },
+    });
+    return this.toDto(updated);
   }
 
   async remove(actor: AuthenticatedUser, id: string): Promise<void> {
@@ -197,10 +293,10 @@ export class TenantDomainsService {
     });
     if (!existing) throw new NotFoundException('Domínio não encontrado');
     await this.prisma.tenantDomain.delete({ where: { id } });
-    // Se removeu o primário e ainda há domínios, promove o mais antigo.
+    // Se removeu o primário e ainda há domínios verificados, promove o mais antigo.
     if (existing.isPrimary) {
       const next = await this.prisma.tenantDomain.findFirst({
-        where: { tenantId: actor.tenantId },
+        where: { tenantId: actor.tenantId, status: 'VERIFIED', verifiedAt: { not: null } },
         orderBy: { createdAt: 'asc' },
       });
       if (next) {
