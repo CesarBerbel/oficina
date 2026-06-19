@@ -1,0 +1,39 @@
+# Caddy (host) — proxy de borda com TLS automático para a plataforma SaaS.
+#
+#   - apex + *.saecbpa.com  → certificado via DNS-01 (Cloudflare), renovação automática.
+#   - domínios próprios dos clientes → TLS on-demand, liberado pelo "porteiro"
+#     /api/internal/tls-check (só emite cert para domínio de oficina verificado).
+#
+# Requisitos:
+#   - Caddy com o plugin DNS do Cloudflare (xcaddy build --with github.com/caddy-dns/cloudflare),
+#     ou o pacote oficial + plugin.
+#   - Variável de ambiente CLOUDFLARE_API_TOKEN (mesmo token usado no wildcard).
+#
+# Troque "saecbpa.com" pelo seu domínio. O reverse_proxy aponta para o Nginx
+# interno do docker-compose (127.0.0.1:18081), que mantém o roteamento /api vs /
+# e a sobrescrita anti-spoof do X-Forwarded-Host.
+
+{
+	# Porteiro do on-demand: o Caddy só emite cert se a API responder 200.
+	on_demand_tls {
+		ask http://127.0.0.1:18081/api/internal/tls-check
+	}
+}
+
+# Apex + wildcard da plataforma (DNS-01 Cloudflare)
+saecbpa.com, www.saecbpa.com, *.saecbpa.com {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:18081
+}
+
+# Domínios próprios dos clientes (TLS on-demand, autorizado pelo porteiro acima)
+https:// {
+	tls {
+		on_demand
+	}
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:18081
+}
