@@ -401,6 +401,65 @@ oficina pelo painel comum.
 4. Você adiciona o domínio ao `server_name` do vhost (ou cria um vhost próprio) e
    emite o TLS: `sudo certbot --nginx -d oficinadoze.com.br`.
 
+### (Opcional) TLS automático dos domínios de cliente — Caddy on-demand
+
+Para não fazer o passo 4 (vhost + certbot) à mão a cada cliente, troque o **Nginx
+do host por Caddy**. O Caddy emite/renova o certificado **sozinho na 1ª visita** a
+qualquer domínio, desde que a API autorize via `GET /api/internal/tls-check`
+(responde 200 só para domínio de oficina **verificado**). O `*.seudominio.com` e o
+apex continuam com cert automático, agora via DNS-01 do Cloudflare (sem certbot).
+
+1. **Instalar o Caddy com o plugin do Cloudflare** (DNS-01):
+
+   ```bash
+   sudo apt -y install debian-keyring debian-archive-keyring apt-transport-https curl
+   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+   sudo apt update && sudo apt -y install caddy
+   # adiciona o plugin DNS do Cloudflare ao binário
+   sudo caddy add-package github.com/caddy-dns/cloudflare
+   ```
+
+2. **Caddyfile** — use o do repositório como base (`docker/caddy/Caddyfile`),
+   trocando `saecbpa.com` pelo seu domínio:
+
+   ```bash
+   sudo cp /opt/oficina/docker/caddy/Caddyfile /etc/caddy/Caddyfile
+   sudo sed -i 's/saecbpa\.com/seudominio.com/g' /etc/caddy/Caddyfile
+   ```
+
+3. **Token do Cloudflare** para o Caddy (o mesmo do wildcard):
+
+   ```bash
+   sudo mkdir -p /etc/systemd/system/caddy.service.d
+   printf '[Service]\nEnvironment=CLOUDFLARE_API_TOKEN=SEU_TOKEN\n' | \
+     sudo tee /etc/systemd/system/caddy.service.d/cloudflare.conf
+   sudo systemctl daemon-reload
+   ```
+
+4. **Swap sem downtime** (libera as portas 80/443 do Nginx para o Caddy):
+
+   ```bash
+   sudo caddy validate --config /etc/caddy/Caddyfile
+   sudo systemctl stop nginx && sudo systemctl disable nginx
+   sudo systemctl enable --now caddy
+   ```
+
+5. **Testar**: o apex, um subdomínio e um domínio de cliente já verificado devem
+   abrir com cadeado. O `tls-check` pode ser conferido localmente:
+
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' \
+     'http://127.0.0.1:18081/api/internal/tls-check?domain=oficinadoze.com.br'   # 200 se verificado
+   ```
+
+> **Rollback:** `sudo systemctl stop caddy && sudo systemctl enable --now nginx`.
+> Os vhosts do Nginx continuam em `/etc/nginx/sites-available`.
+>
+> O domínio do cliente precisa apontar **direto para a VPS** (DNS only) para o
+> on-demand (HTTP-01/TLS-ALPN) funcionar. O `*.seudominio.com` pode seguir atrás
+> do Cloudflare (laranja), pois usa DNS-01.
+
 ---
 
 ## 11. Backup, monitoramento e atualizações

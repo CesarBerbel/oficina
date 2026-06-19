@@ -68,6 +68,20 @@ export class TenantDomainsService {
     };
   }
 
+  /**
+   * Porteiro do TLS on-demand (Caddy): true só se o domínio existe e está
+   * verificado. Cross-tenant e sem auth — usado pelo `ask` antes de emitir cert.
+   */
+  async isAllowedForTls(domain: string): Promise<boolean> {
+    const d = domain.trim().toLowerCase().replace(/\.$/, '');
+    if (!d) return false;
+    const found = await this.prisma.tenantDomain.findFirst({
+      where: { domain: d, verifiedAt: { not: null } },
+      select: { id: true },
+    });
+    return found != null;
+  }
+
   async list(tenantId: string): Promise<TenantDomainDto[]> {
     const rows = await this.prisma.tenantDomain.findMany({
       where: { tenantId },
