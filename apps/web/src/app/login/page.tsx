@@ -32,13 +32,19 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   // Conta resolvida pelo host: undefined = carregando; null = apex/dev (pede slug).
   const [account, setAccount] = useState<LoginContextDto['account'] | undefined>(undefined);
+  // true no apex da plataforma (login do super admin).
+  const [platform, setPlatform] = useState(false);
 
-  // Descobre se este host (subdomínio próprio) já representa uma conta.
+  // Descobre o que este host representa (conta de oficina, plataforma, ou apex/dev).
   useEffect(() => {
     let active = true;
     api
       .get<LoginContextDto>('/auth/context')
-      .then((ctx) => active && setAccount(ctx.account))
+      .then((ctx) => {
+        if (!active) return;
+        setAccount(ctx.account);
+        setPlatform(ctx.platform);
+      })
       .catch(() => active && setAccount(null));
     return () => {
       active = false;
@@ -49,8 +55,9 @@ export default function LoginPage() {
     if (status === 'authenticated') router.replace('/dashboard');
   }, [status, router]);
 
-  // No apex/dev pede o slug; no subdomínio próprio a conta vem do host.
-  const needsSlug = account === null;
+  // Pede o slug só no apex/dev "puro": no subdomínio a conta vem do host e no
+  // apex da plataforma o login é do super admin (sem slug).
+  const needsSlug = account === null && !platform;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -84,7 +91,11 @@ export default function LoginPage() {
             <Wrench className="size-6" />
           </span>
           <h1 className="text-xl font-semibold">
-            {account ? `Entrar — ${account.name}` : 'Entrar na Oficina'}
+            {platform
+              ? 'Administração da plataforma'
+              : account
+                ? `Entrar — ${account.name}`
+                : 'Entrar na Oficina'}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {needsSlug

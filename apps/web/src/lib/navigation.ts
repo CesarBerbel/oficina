@@ -155,6 +155,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Activity,
         permission: Permission.AUDIT_READ,
       },
+      { label: 'Painel', href: '/plataforma', icon: LayoutDashboard, platformAdmin: true },
       { label: 'Oficinas', href: '/oficinas', icon: Building2, platformAdmin: true },
       { label: 'Contas', href: '/contas', icon: Store, platformAdmin: true },
     ],

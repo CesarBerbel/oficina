@@ -18,6 +18,11 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 export class AccountsController {
   constructor(private readonly accounts: AccountsService) {}
 
+  @Get('overview')
+  overview() {
+    return this.accounts.overview();
+  }
+
   @Get()
   list() {
     return this.accounts.listAccounts();

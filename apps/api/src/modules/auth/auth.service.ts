@@ -143,10 +143,45 @@ export class AuthService {
     return domain?.tenant.account ?? null;
   }
 
-  /** Contexto de login do host: qual conta o subdomínio representa (ou null). */
-  async loginContext(host: string | null): Promise<LoginContextDto> {
+  /** Slug da conta interna da plataforma (lar do super admin). */
+  private platformAccountSlug(): string {
+    return (process.env.PLATFORM_ACCOUNT_SLUG ?? 'plataforma').trim().toLowerCase();
+  }
+
+  /** O host é o apex da plataforma (saecbpa.com / www.saecbpa.com)? */
+  isPlatformHost(host: string | null): boolean {
+    const h = this.normalizeHost(host);
+    const base = (process.env.PLATFORM_BASE_DOMAIN ?? '').trim().toLowerCase();
+    if (!h || !base) return false;
+    return h === base || h === `www.${base}`;
+  }
+
+  /**
+   * Alvo do login a partir do host: no apex é a plataforma (só super admin); num
+   * subdomínio/domínio próprio é a conta daquela oficina.
+   */
+  async resolveLoginTarget(
+    host: string | null,
+  ): Promise<{ accountId: string | null; platform: boolean }> {
+    if (this.isPlatformHost(host)) {
+      const account = await this.prisma.account.findUnique({
+        where: { slug: this.platformAccountSlug() },
+        select: { id: true },
+      });
+      return { accountId: account?.id ?? null, platform: true };
+    }
     const account = await this.resolveAccountByHost(host);
-    return { account: account ? { name: account.name, slug: account.slug } : null };
+    return { accountId: account?.id ?? null, platform: false };
+  }
+
+  /** Contexto de login do host (para a tela de login decidir o que mostrar). */
+  async loginContext(host: string | null): Promise<LoginContextDto> {
+    if (this.isPlatformHost(host)) return { account: null, platform: true };
+    const account = await this.resolveAccountByHost(host);
+    return {
+      account: account ? { name: account.name, slug: account.slug } : null,
+      platform: false,
+    };
   }
 
   /**
@@ -181,7 +216,7 @@ export class AuthService {
   }
 
   async login(
-    opts: { tenantSlug?: string | null; accountId?: string | null },
+    opts: { tenantSlug?: string | null; accountId?: string | null; platform?: boolean },
     email: string,
     password: string,
     meta: RequestMeta,
@@ -205,6 +240,15 @@ export class AuthService {
     }
     if (!user.active) {
       throw new ForbiddenException('Usuário inativo. Procure o administrador.');
+    }
+    // Separação de papéis:
+    // - No apex da plataforma só entra o super admin.
+    // - Num subdomínio de oficina o super admin NÃO entra (ele só gere a plataforma).
+    if (opts.platform && !user.superAdmin) {
+      throw new ForbiddenException('Área exclusiva da plataforma.');
+    }
+    if (!opts.platform && opts.accountId && user.superAdmin) {
+      throw new ForbiddenException('O super usuário acessa apenas a plataforma.');
     }
     // Conta suspensa/pendente bloqueia o login (super usuário da plataforma é exceção).
     if (!user.superAdmin && user.tenant.account.status !== 'ACTIVE') {
