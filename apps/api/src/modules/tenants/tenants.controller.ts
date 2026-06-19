@@ -19,10 +19,12 @@ import { TenantsService } from './tenants.service';
 import { PlatformAdminGuard } from './platform-admin.guard';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AllowAuthenticated } from '../../common/decorators/allow-authenticated.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 @Controller('platform/tenants')
 @UseGuards(PlatformAdminGuard)
+@AllowAuthenticated()
 export class TenantsController {
   constructor(private readonly tenants: TenantsService) {}
 

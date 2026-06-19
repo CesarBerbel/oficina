@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   canTransition,
@@ -304,11 +309,20 @@ export class PurchasesService {
       for (const item of order.items) {
         const recv = recvMap.get(item.id) ?? 0;
         if (recv <= 0) continue;
-        const newReceived = round3(dec(item.receivedQuantity) + recv);
-        await tx.purchaseOrderItem.update({
-          where: { id: item.id },
-          data: { receivedQuantity: newReceived },
+        const maxBeforeReceive = round3(dec(item.quantity) - recv);
+        const updated = await tx.purchaseOrderItem.updateMany({
+          where: {
+            id: item.id,
+            purchaseOrderId: id,
+            receivedQuantity: { lte: maxBeforeReceive },
+          },
+          data: { receivedQuantity: { increment: recv } },
         });
+        if (updated.count !== 1) {
+          throw new ConflictException(
+            'Recebimento concorrente detectado. Recarregue o pedido e tente novamente.',
+          );
+        }
         await applyStockMovement(tx, {
           tenantId: actor.tenantId,
           partId: item.partId,
@@ -346,19 +360,20 @@ export class PurchasesService {
           canTransition(os.status, 'ORCAMENTO_APROVADO') &&
           (await this.isOrderStockCovered(tx, os.id))
         ) {
-          await tx.serviceOrder.update({
-            where: { id: os.id },
-            data: {
-              status: 'ORCAMENTO_APROVADO',
-              history: {
-                create: {
-                  status: 'ORCAMENTO_APROVADO',
-                  userId: actor.id,
-                  note: `Peças recebidas (pedido #${order.number}) — orçamento aprovado`,
-                },
-              },
-            },
+          const moved = await tx.serviceOrder.updateMany({
+            where: { id: os.id, status: 'AGUARDANDO_PECA' },
+            data: { status: 'ORCAMENTO_APROVADO' },
           });
+          if (moved.count === 1) {
+            await tx.serviceOrderStatusHistory.create({
+              data: {
+                serviceOrderId: os.id,
+                status: 'ORCAMENTO_APROVADO',
+                userId: actor.id,
+                note: `Peças recebidas (pedido #${order.number}) — orçamento aprovado`,
+              },
+            });
+          }
         }
       }
     });
@@ -490,6 +505,7 @@ export class PurchasesService {
     });
     if (!order) return [];
     const branchId = order.tenantId;
+    const groupId = await this.groupOf(tx, branchId);
 
     const items = await tx.serviceOrderItem.findMany({
       where: { serviceOrderId: orderId, kind: 'PART', sourcePartId: { not: null } },
@@ -504,9 +520,11 @@ export class PurchasesService {
 
     const partIds = [...byPart.keys()];
     // Catálogo (custo/fornecedor) é do grupo; saldo/reserva são da filial da OS.
+    // O filtro por tenantId do grupo impede que um sourcePartId forjado de outro
+    // tenant influencie compras, reservas ou baixas de estoque.
     const [parts, stocks] = await Promise.all([
       tx.part.findMany({
-        where: { id: { in: partIds } },
+        where: { id: { in: partIds }, tenantId: groupId },
         select: { id: true, costPrice: true, supplierId: true },
       }),
       tx.partStock.findMany({
@@ -514,6 +532,10 @@ export class PurchasesService {
         select: { partId: true, currentStock: true, reservedStock: true },
       }),
     ]);
+    if (parts.length !== partIds.length) {
+      throw new BadRequestException('A OS contém peça de catálogo inválida para este tenant');
+    }
+
     const stockByPart = new Map(stocks.map((s) => [s.partId, s]));
     return parts.map((part) => ({
       partId: part.id,
@@ -588,31 +610,77 @@ export class PurchasesService {
     _tenantId: string,
     orderId: string,
   ): Promise<{ shortfall: boolean }> {
-    const order = await tx.serviceOrder.findUniqueOrThrow({
-      where: { id: orderId },
-      select: { partsReserved: true },
-    });
     const needs = await this.orderPartNeeds(tx, orderId);
     if (needs.length === 0) return { shortfall: false };
 
-    let anyShortfall = false;
-    for (const n of needs) {
-      const available = n.currentStock - n.reservedStock;
-      if (round3(Math.max(0, n.needed - available)) > 0) anyShortfall = true;
-      // Reserva a demanda completa na filial (só uma vez por OS).
-      if (!order.partsReserved) {
-        await tx.partStock.upsert({
-          where: { tenantId_partId: { tenantId: n.branchId, partId: n.partId } },
-          create: { tenantId: n.branchId, partId: n.partId, reservedStock: n.needed },
-          update: { reservedStock: { increment: n.needed } },
-        });
-      }
+    // Primeiro reivindica a reserva da OS de forma atômica. Se outra transação
+    // já reservou esta OS, não incrementa novamente o estoque reservado.
+    const claimed = await tx.serviceOrder.updateMany({
+      where: { id: orderId, partsReserved: false },
+      data: { partsReserved: true },
+    });
+
+    if (claimed.count !== 1) {
+      // Idempotência defensiva: se a OS já estava reservada, apenas informa se
+      // o conjunto de reservas atual deixou alguma peça descoberta.
+      return {
+        shortfall: needs.some((n) => round3(n.currentStock - n.reservedStock) < 0),
+      };
     }
 
-    if (!order.partsReserved) {
-      await tx.serviceOrder.update({
-        where: { id: orderId },
-        data: { partsReserved: true },
+    let anyShortfall = false;
+    for (const n of needs) {
+      if (n.needed <= 0) continue;
+
+      // Garante a linha de saldo antes do update condicional. Se a peça ainda
+      // não possui saldo na filial, já há falta e a reserva será registrada.
+      await tx.partStock.upsert({
+        where: { tenantId_partId: { tenantId: n.branchId, partId: n.partId } },
+        create: { tenantId: n.branchId, partId: n.partId, currentStock: 0, reservedStock: 0 },
+        update: {},
+      });
+
+      // Reserva coberta: update atômico somente se ainda houver disponibilidade
+      // no momento da gravação. Isso evita que duas OS simultâneas consumam a
+      // mesma disponibilidade lógica.
+      const covered = await tx.$executeRaw`
+        UPDATE "part_stock"
+        SET "reservedStock" = "reservedStock" + ${n.needed}, "updatedAt" = NOW()
+        WHERE "tenantId" = ${n.branchId}
+          AND "partId" = ${n.partId}
+          AND ("currentStock" - "reservedStock") >= ${n.needed}
+      `;
+
+      if (Number(covered) === 1) {
+        await tx.stockReservation.create({
+          data: {
+            tenantId: n.branchId,
+            serviceOrderId: orderId,
+            partId: n.partId,
+            quantity: n.needed,
+            status: 'ACTIVE',
+            reason: 'Reserva coberta por estoque disponível',
+          },
+        });
+        continue;
+      }
+
+      // Reserva descoberta: mantém a reserva da OS para refletir a demanda real
+      // e sinaliza a necessidade de compra/backorder.
+      anyShortfall = true;
+      await tx.partStock.updateMany({
+        where: { tenantId: n.branchId, partId: n.partId },
+        data: { reservedStock: { increment: n.needed } },
+      });
+      await tx.stockReservation.create({
+        data: {
+          tenantId: n.branchId,
+          serviceOrderId: orderId,
+          partId: n.partId,
+          quantity: n.needed,
+          status: 'ACTIVE',
+          reason: 'Reserva descoberta aguardando compra/backorder',
+        },
       });
     }
 
@@ -678,6 +746,56 @@ export class PurchasesService {
     return { created };
   }
 
+  /** Fecha as reservas formais da OS e atualiza o agregado part_stock.reservedStock. */
+  private async closeOrderReservations(
+    tx: Tx,
+    orderId: string,
+    status: 'RELEASED' | 'CONSUMED' | 'CANCELED',
+  ): Promise<void> {
+    const active = await tx.stockReservation.findMany({
+      where: { serviceOrderId: orderId, status: 'ACTIVE' },
+      select: { id: true, tenantId: true, partId: true, quantity: true },
+    });
+
+    const lines =
+      active.length > 0
+        ? active.map((r) => ({
+            id: r.id,
+            branchId: r.tenantId,
+            partId: r.partId,
+            needed: dec(r.quantity),
+          }))
+        : (await this.orderPartNeeds(tx, orderId)).map((n) => ({
+            id: null,
+            branchId: n.branchId,
+            partId: n.partId,
+            needed: n.needed,
+          }));
+
+    for (const line of lines) {
+      if (line.needed <= 0) continue;
+      await tx.$executeRaw`
+        UPDATE "part_stock"
+        SET "reservedStock" = GREATEST(0, "reservedStock" - ${line.needed}), "updatedAt" = NOW()
+        WHERE "tenantId" = ${line.branchId}
+          AND "partId" = ${line.partId}
+      `;
+    }
+
+    if (active.length > 0) {
+      const now = new Date();
+      await tx.stockReservation.updateMany({
+        where: { id: { in: active.map((r) => r.id) }, status: 'ACTIVE' },
+        data: {
+          status,
+          ...(status === 'RELEASED' ? { releasedAt: now } : {}),
+          ...(status === 'CONSUMED' ? { consumedAt: now } : {}),
+          ...(status === 'CANCELED' ? { canceledAt: now } : {}),
+        },
+      });
+    }
+  }
+
   /** Libera a reserva de estoque das peças da OS (reabertura/cancelamento). */
   async releaseOrderReservations(tx: Tx, orderId: string): Promise<void> {
     const order = await tx.serviceOrder.findUniqueOrThrow({
@@ -685,19 +803,16 @@ export class PurchasesService {
       select: { partsReserved: true },
     });
     if (!order.partsReserved) return;
-    const needs = await this.orderPartNeeds(tx, orderId);
-    for (const n of needs) {
-      if (n.needed <= 0) continue;
-      const newReserved = round3(Math.max(0, n.reservedStock - n.needed));
-      await tx.partStock.updateMany({
-        where: { tenantId: n.branchId, partId: n.partId },
-        data: { reservedStock: newReserved },
-      });
-    }
-    await tx.serviceOrder.update({
-      where: { id: orderId },
+
+    // Reivindica a liberação para impedir decremento duplo em reabertura,
+    // cancelamento ou execução concorrente da mesma OS.
+    const claimed = await tx.serviceOrder.updateMany({
+      where: { id: orderId, partsReserved: true },
       data: { partsReserved: false },
     });
+    if (claimed.count !== 1) return;
+
+    await this.closeOrderReservations(tx, orderId, 'RELEASED');
   }
 
   /** Reabertura/cancelamento da OS: cancela compras em aberto e libera reservas. */
@@ -736,8 +851,14 @@ export class PurchasesService {
         userId,
       });
     }
-    // A baixa libera a reserva (a peça saiu do estoque para a OS).
-    await this.releaseOrderReservations(tx, orderId);
+    // A baixa consome a reserva (a peça saiu do estoque para a OS).
+    const claimed = await tx.serviceOrder.updateMany({
+      where: { id: orderId, partsReserved: true },
+      data: { partsReserved: false },
+    });
+    if (claimed.count === 1) {
+      await this.closeOrderReservations(tx, orderId, 'CONSUMED');
+    }
     await this.replenishBelowMin(
       tx,
       tenantId,
@@ -761,7 +882,7 @@ export class PurchasesService {
     const groupId = await this.groupOf(tx, tenantId);
     const [parts, stocks] = await Promise.all([
       tx.part.findMany({
-        where: { id: { in: partIds }, tenantId: groupId, active: true },
+        where: { id: { in: partIds }, tenantId: groupId },
         select: {
           id: true,
           minStock: true,

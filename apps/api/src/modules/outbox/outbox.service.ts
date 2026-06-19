@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Prisma, type MessageEvent, type PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
-import { MessagingService } from '../messaging/messaging.service';
+import { DispatchOutboxMessageUseCase } from './use-cases/dispatch-outbox-message.usecase';
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -23,8 +23,17 @@ export class OutboxService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly messaging: MessagingService,
+    private readonly dispatchOutboxMessage: DispatchOutboxMessageUseCase,
   ) {}
+
+  private orderEventIdempotencyKey(
+    tenantId: string,
+    event: MessageEvent,
+    orderId: string,
+    scope: string,
+  ): string {
+    return `ORDER_EVENT:${tenantId}:${event}:${orderId}:${scope}`;
+  }
 
   /** Enfileira um evento de OS dentro da transação do produtor. */
   async enqueueOrderEvent(
@@ -32,13 +41,25 @@ export class OutboxService {
     tenantId: string,
     event: MessageEvent,
     orderId: string,
+    idempotencyScope = 'default',
   ): Promise<void> {
-    await tx.outboxMessage.create({
-      data: {
+    const idempotencyKey = this.orderEventIdempotencyKey(
+      tenantId,
+      event,
+      orderId,
+      idempotencyScope,
+    );
+    await tx.outboxMessage.upsert({
+      where: { idempotencyKey },
+      create: {
         tenantId,
         type: 'ORDER_EVENT',
+        idempotencyKey,
         payload: { event, orderId } satisfies OrderEventPayload,
       },
+      // Mantém a mensagem original. Se ela já foi criada por outra transação,
+      // não reabre DONE/FAILED nem duplica o dispatch.
+      update: { payload: { event, orderId } satisfies OrderEventPayload },
     });
   }
 
@@ -86,7 +107,7 @@ export class OutboxService {
       if (claim.count !== 1) continue;
 
       try {
-        await this.handle(msg.type, msg.tenantId, msg.payload);
+        await this.handle(msg.id, msg.type, msg.tenantId, msg.payload);
         await this.prisma.outboxMessage.update({
           where: { id: msg.id },
           data: { status: 'DONE', processedAt: new Date(), lastError: null },
@@ -123,12 +144,12 @@ export class OutboxService {
     return { done, failed, retried };
   }
 
-  private async handle(type: string, tenantId: string, payload: Prisma.JsonValue): Promise<void> {
-    if (type === 'ORDER_EVENT') {
-      const { event, orderId } = payload as OrderEventPayload;
-      await this.messaging.dispatchOrderEvent(tenantId, event, orderId);
-      return;
-    }
-    throw new Error(`Tipo de outbox desconhecido: ${type}`);
+  private async handle(
+    messageId: string,
+    type: string,
+    tenantId: string,
+    payload: Prisma.JsonValue,
+  ): Promise<void> {
+    await this.dispatchOutboxMessage.execute({ messageId, type, tenantId, payload });
   }
 }

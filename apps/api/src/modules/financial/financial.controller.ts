@@ -53,6 +53,12 @@ export class FinancialController {
     return this.financial.ledger(actor.tenantId, id);
   }
 
+  @Get('entries/:id/accounting')
+  @RequirePermission(Permission.FINANCE_READ)
+  accountingJournal(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.financial.accountingJournal(actor.tenantId, id);
+  }
+
   @Post('entries')
   @RequirePermission(Permission.FINANCE_WRITE)
   create(

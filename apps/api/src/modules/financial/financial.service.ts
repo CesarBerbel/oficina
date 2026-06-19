@@ -16,7 +16,7 @@ import {
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
-import { calculateFinancialSettlement } from './financial.helper';
+import { PostAccountingJournalUseCase } from './use-cases/post-accounting-journal.usecase';
 
 const dec = (value: Prisma.Decimal | number | null | undefined): number =>
   value == null ? 0 : Number(value);
@@ -67,6 +67,7 @@ export class FinancialService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly postAccountingJournal: PostAccountingJournalUseCase,
   ) {}
 
   private toDto(row: EntryRow): FinancialEntryDto {
@@ -204,7 +205,10 @@ export class FinancialService {
     return this.toDto(row);
   }
 
-  /** Posta um movimento imutável no ledger (dentro da transação do chamador). */
+  /**
+   * Posta um movimento imutável no ledger operacional e o lançamento contábil
+   * correspondente por partidas dobradas (dentro da transação do chamador).
+   */
   private async postLedger(
     tx: Prisma.TransactionClient,
     data: {
@@ -226,6 +230,7 @@ export class FinancialService {
         createdById: data.createdById ?? null,
       },
     });
+    await this.postAccountingJournal.execute(tx, data);
   }
 
   /** Ledger (movimentos imutáveis) de um lançamento financeiro. */
@@ -245,6 +250,43 @@ export class FinancialService {
       amount: dec(r.amount),
       description: r.description,
       createdAt: r.createdAt.toISOString(),
+    }));
+  }
+
+  /** Journals contábeis de partidas dobradas ligados ao lançamento financeiro. */
+  async accountingJournal(tenantId: string, entryId: string) {
+    const entry = await this.prisma.financialEntry.findFirst({
+      where: { id: entryId, tenantId },
+      select: { id: true },
+    });
+    if (!entry) throw new NotFoundException('Lançamento financeiro não encontrado');
+
+    const rows = await this.prisma.accountingJournalEntry.findMany({
+      where: { tenantId, financialEntryId: entryId },
+      include: {
+        lines: {
+          include: {
+            debitAccount: { select: { code: true, name: true, type: true } },
+            creditAccount: { select: { code: true, name: true, type: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return rows.map((journal) => ({
+      id: journal.id,
+      kind: journal.kind,
+      status: journal.status,
+      description: journal.description,
+      createdAt: journal.createdAt.toISOString(),
+      lines: journal.lines.map((line) => ({
+        id: line.id,
+        debit: line.debitAccount,
+        credit: line.creditAccount,
+        amount: dec(line.amount),
+        memo: line.memo,
+      })),
     }));
   }
 
@@ -297,47 +339,74 @@ export class FinancialService {
     id: string,
     input: PayFinancialEntryInput,
   ): Promise<FinancialEntryDto> {
+    const paymentAmount = Math.round(input.amount * 100) / 100;
+    if (paymentAmount <= 0) {
+      throw new BadRequestException('Valor de baixa inválido');
+    }
+
     const row = await this.prisma.$transaction(async (tx) => {
       const entry = await tx.financialEntry.findFirst({ where: { id, tenantId: actor.tenantId } });
       if (!entry) throw new NotFoundException('Lançamento financeiro não encontrado');
-      if (entry.status === 'CANCELED')
+      if (entry.status === 'CANCELED') {
         throw new BadRequestException('Lançamento cancelado não pode receber baixa');
+      }
       if (entry.status === 'PAID') throw new BadRequestException('Lançamento já está quitado');
-      const settlement = calculateFinancialSettlement({
-        amount: dec(entry.amount),
-        paidAmount: dec(entry.paidAmount),
-        paymentAmount: input.amount,
-      });
+
+      // Update condicional e atômico: impede overpayment em duas baixas
+      // simultâneas e calcula o novo status no banco usando o saldo real no
+      // momento do update.
+      const updatedCount = await tx.$executeRaw`
+        UPDATE "financial_entries"
+        SET
+          "paidAmount" = "paidAmount" + ${paymentAmount},
+          "remainingAmount" = "remainingAmount" - ${paymentAmount},
+          "status" = CASE
+            WHEN "remainingAmount" - ${paymentAmount} <= 0 THEN 'PAID'::"FinancialEntryStatus"
+            ELSE 'PARTIAL'::"FinancialEntryStatus"
+          END,
+          "updatedAt" = NOW()
+        WHERE "id" = ${id}
+          AND "tenantId" = ${actor.tenantId}
+          AND "status" NOT IN ('CANCELED'::"FinancialEntryStatus", 'PAID'::"FinancialEntryStatus")
+          AND "remainingAmount" >= ${paymentAmount}
+      `;
+
+      if (Number(updatedCount) !== 1) {
+        const latest = await tx.financialEntry.findFirst({
+          where: { id, tenantId: actor.tenantId },
+          select: { status: true, remainingAmount: true },
+        });
+        if (!latest) throw new NotFoundException('Lançamento financeiro não encontrado');
+        if (latest.status === 'PAID') throw new BadRequestException('Lançamento já está quitado');
+        if (latest.status === 'CANCELED') {
+          throw new BadRequestException('Lançamento cancelado não pode receber baixa');
+        }
+        throw new BadRequestException(
+          `Valor de baixa excede o saldo restante (${dec(latest.remainingAmount).toFixed(2)}).`,
+        );
+      }
+
       await tx.financialPayment.create({
         data: {
           tenantId: actor.tenantId,
           entryId: id,
-          amount: money(input.amount),
+          amount: money(paymentAmount),
           method: input.method,
           paidAt: input.paidAt ? new Date(input.paidAt) : new Date(),
           notes: input.notes,
         },
       });
-      const updated = await tx.financialEntry.update({
-        where: { id },
-        data: {
-          paidAmount: money(settlement.paidAmount),
-          remainingAmount: money(settlement.remainingAmount),
-          status: settlement.status,
-        },
-        include,
-      });
       // Movimento de baixa no ledger (reduz o saldo devido).
-      const applied = settlement.paidAmount - dec(entry.paidAmount);
       await this.postLedger(tx, {
         tenantId: actor.tenantId,
         entryId: id,
         kind: 'PAYMENT',
-        amount: -applied,
+        amount: -paymentAmount,
         description: `Baixa (${input.method})`,
         createdById: actor.id,
       });
-      return updated;
+
+      return tx.financialEntry.findUniqueOrThrow({ where: { id }, include });
     });
     await this.audit.record({
       tenantId: actor.tenantId,

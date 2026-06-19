@@ -227,6 +227,35 @@ export class ServiceOrdersService {
     });
   }
 
+  async reservations(tenantId: string, id: string) {
+    const order = await this.prisma.serviceOrder.findFirst({
+      where: { id, tenantId },
+      select: { id: true },
+    });
+    if (!order) throw new NotFoundException('OS não encontrada');
+
+    const rows = await this.prisma.stockReservation.findMany({
+      where: { tenantId, serviceOrderId: id },
+      include: { part: { select: { id: true, name: true, sku: true, unit: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return rows.map((r) => ({
+      id: r.id,
+      partId: r.partId,
+      partName: r.part.name,
+      partSku: r.part.sku,
+      unit: r.part.unit,
+      quantity: dec(r.quantity),
+      status: r.status,
+      reason: r.reason,
+      createdAt: r.createdAt.toISOString(),
+      releasedAt: r.releasedAt?.toISOString() ?? null,
+      consumedAt: r.consumedAt?.toISOString() ?? null,
+      canceledAt: r.canceledAt?.toISOString() ?? null,
+    }));
+  }
+
   async findOne(tenantId: string, id: string): Promise<ServiceOrderDetailDto> {
     const row = await this.prisma.serviceOrder.findFirst({
       where: { id, tenantId },
@@ -471,8 +500,9 @@ export class ServiceOrdersService {
       input.status,
     );
 
-    // Aprovação manual (ORCAMENTO → ORCAMENTO_APROVADO): gera pedido de compra do
-    // que falta; se faltar peça, a OS vai para "aguardando peça".
+    // Aprovação manual (ORCAMENTO → ORCAMENTO_APROVADO): reserva estoque e
+    // decide o orçamento com atualização condicional para bloquear respostas
+    // públicas/manuais concorrentes.
     const approving = input.status === 'ORCAMENTO_APROVADO' && row.status === 'ORCAMENTO';
     const refusing = input.status === 'ORCAMENTO_RECUSADO' && row.status === 'ORCAMENTO';
     // Entrar em execução baixa o estoque das peças (uma única vez, vindo de
@@ -494,7 +524,7 @@ export class ServiceOrdersService {
             actor.tenantId,
             id,
           );
-          await tx.quote.updateMany({
+          const updatedQuote = await tx.quote.updateMany({
             where: { serviceOrderId: id, status: 'ENVIADO' },
             data: {
               status: 'APROVADO',
@@ -502,14 +532,18 @@ export class ServiceOrdersService {
               decidedAt: new Date(),
             },
           });
+          if (updatedQuote.count !== 1) {
+            throw new ConflictException('Orçamento já foi respondido por outra operação');
+          }
           await tx.quoteItem.updateMany({
             where: { quote: { serviceOrderId: id } },
             data: { decision: QuoteItemDecision.APROVADO },
           });
+          await this.outbox.enqueueOrderEvent(tx, actor.tenantId, 'QUOTE_APPROVED', id);
           if (shortfall) target = 'AGUARDANDO_PECA';
         }
         if (refusing) {
-          await tx.quote.updateMany({
+          const updatedQuote = await tx.quote.updateMany({
             where: { serviceOrderId: id, status: 'ENVIADO' },
             data: {
               status: 'RECUSADO',
@@ -517,6 +551,9 @@ export class ServiceOrdersService {
               decidedAt: new Date(),
             },
           });
+          if (updatedQuote.count !== 1) {
+            throw new ConflictException('Orçamento já foi respondido por outra operação');
+          }
           await tx.quoteItem.updateMany({
             where: { quote: { serviceOrderId: id } },
             data: { decision: QuoteItemDecision.RECUSADO },
@@ -533,18 +570,26 @@ export class ServiceOrdersService {
           (target === 'AGUARDANDO_PECA'
             ? 'Orçamento aprovado — aguardando peça (gere o pedido de compra)'
             : null);
-        await tx.serviceOrder.update({
-          where: { id },
+
+        const statusUpdate = await tx.serviceOrder.updateMany({
+          where: { id, tenantId: actor.tenantId, status: row.status },
           data: {
             status: target,
             ...(isTerminalStatus(target) ? { closedAt: new Date() } : {}),
-            history: {
-              create: {
-                status: target,
-                userId: actor.id,
-                note,
-              },
-            },
+          },
+        });
+        if (statusUpdate.count !== 1) {
+          throw new ConflictException(
+            'A OS foi alterada por outra operação. Recarregue e tente novamente.',
+          );
+        }
+
+        await tx.serviceOrderStatusHistory.create({
+          data: {
+            serviceOrderId: id,
+            status: target,
+            userId: actor.id,
+            note,
           },
         });
         await this.recordOrderEvent(tx, {
@@ -755,8 +800,6 @@ export class ServiceOrdersService {
           quantity: input.quantity,
           unitPrice: round2(input.unitPrice),
           total: lineTotal,
-          sourceServiceId: input.sourceServiceId ?? null,
-          sourcePartId: input.sourcePartId ?? null,
         },
       });
       await this.recomputeTotals(tx, orderId);

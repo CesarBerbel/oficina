@@ -10,11 +10,13 @@ import { AccountsService } from './accounts.service';
 import { PlatformAdminGuard } from '../tenants/platform-admin.guard';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AllowAuthenticated } from '../../common/decorators/allow-authenticated.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 /** Gestão de contas do SaaS — restrito ao super usuário da plataforma. */
 @Controller('platform/accounts')
 @UseGuards(PlatformAdminGuard)
+@AllowAuthenticated()
 export class AccountsController {
   constructor(private readonly accounts: AccountsService) {}
 

@@ -132,3 +132,23 @@ export interface ProvisionedAccountDto {
   /** URL de acesso da conta (quando há domínio). */
   loginUrl: string | null;
 }
+
+/** Sessão ativa global exibida no painel do super admin da plataforma. */
+export interface PlatformSessionDto {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  role: 'ADMIN' | 'ATENDENTE' | 'TECNICO' | 'ESTOQUISTA';
+  platformAdmin: boolean;
+  tenantId: string;
+  tenantName: string;
+  tenantSlug: string;
+  accountName: string;
+  accountSlug: string;
+  ip: string | null;
+  userAgent: string | null;
+  /** Criado em: representa login ou última rotação de refresh token. */
+  createdAt: string;
+  expiresAt: string;
+}

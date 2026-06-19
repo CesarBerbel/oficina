@@ -30,6 +30,10 @@ export class MessagingService {
     private readonly mail: MailService,
   ) {}
 
+  private isUniqueConstraintError(err: unknown): boolean {
+    return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
+  }
+
   // ─── Templates ───
   private toTemplate(t: Prisma.MessageTemplateGetPayload<object>): MessageTemplateDto {
     return {
@@ -161,7 +165,12 @@ export class MessagingService {
   }
 
   /** Dispara mensagens automáticas configuradas para um evento de uma OS. */
-  async dispatchOrderEvent(tenantId: string, event: MessageEvent, orderId: string): Promise<void> {
+  async dispatchOrderEvent(
+    tenantId: string,
+    event: MessageEvent,
+    orderId: string,
+    dispatchKeyBase?: string,
+  ): Promise<void> {
     const templates = await this.prisma.messageTemplate.findMany({
       where: { tenantId, event, active: true, autoSend: true },
     });
@@ -171,6 +180,15 @@ export class MessagingService {
     if (!built) return;
 
     for (const t of templates) {
+      const dispatchKey = dispatchKeyBase ? `${dispatchKeyBase}:template:${t.id}` : null;
+      if (dispatchKey) {
+        const already = await this.prisma.messageLog.findUnique({
+          where: { dispatchKey },
+          select: { id: true },
+        });
+        if (already) continue;
+      }
+
       const body = this.render(t.body, built.ctx);
       const to =
         t.channel === 'EMAIL'
@@ -178,20 +196,26 @@ export class MessagingService {
           : (built.order.customer.phone ?? built.order.customer.whatsapp ?? '');
       const subject = `${built.ctx.oficina.nome} — OS #${built.ctx.os.numero}`;
       const res = await this.deliver(t.channel, to, body, subject);
-      await this.prisma.messageLog.create({
-        data: {
-          tenantId,
-          templateId: t.id,
-          customerId: built.order.customerId,
-          serviceOrderId: orderId,
-          channel: t.channel,
-          event,
-          status: res.status,
-          to,
-          body,
-          error: res.error,
-        },
-      });
+      try {
+        await this.prisma.messageLog.create({
+          data: {
+            tenantId,
+            templateId: t.id,
+            customerId: built.order.customerId,
+            serviceOrderId: orderId,
+            channel: t.channel,
+            event,
+            dispatchKey,
+            status: res.status,
+            to,
+            body,
+            error: res.error,
+          },
+        });
+      } catch (err) {
+        if (!this.isUniqueConstraintError(err)) throw err;
+        // Outro worker já registrou este dispatch. O handler é idempotente.
+      }
     }
   }
 

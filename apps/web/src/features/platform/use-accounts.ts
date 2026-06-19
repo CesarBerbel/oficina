@@ -5,6 +5,7 @@ import type {
   AccountDto,
   AccountRequestDto,
   PlatformOverviewDto,
+  PlatformSessionDto,
   ProvisionedAccountDto,
 } from '@oficina/shared';
 import { api } from '@/lib/api';
@@ -59,5 +60,13 @@ export function useSetAccountStatus() {
     mutationFn: ({ id, status }: { id: string; status: 'ACTIVE' | 'SUSPENDED' }) =>
       api.patch<AccountDto>(`/platform/accounts/${id}/status`, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
+  });
+}
+
+export function usePlatformSessions() {
+  return useQuery({
+    queryKey: ['platform-sessions'],
+    queryFn: () => api.get<PlatformSessionDto[]>('/platform/sessions'),
+    refetchInterval: 60_000,
   });
 }
