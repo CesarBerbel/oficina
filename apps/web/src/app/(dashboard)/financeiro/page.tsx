@@ -31,6 +31,9 @@ import {
   useCancelFinancialEntry,
   useFinancialEntries,
   useFinancialSummary,
+  useIncomeStatement,
+  useReverseFinancialPayment,
+  useTrialBalance,
 } from '@/features/financial/use-financial';
 
 const STATUS_VARIANT: Record<FinancialEntryStatus, BadgeProps['variant']> = {
@@ -50,6 +53,8 @@ export default function FinancialPage() {
   const [type, setType] = useState<'' | FinancialEntryType>('');
   const [status, setStatus] = useState<'' | FinancialEntryStatus>('');
   const { data: summary, isLoading: loadingSummary } = useFinancialSummary();
+  const { data: dre } = useIncomeStatement();
+  const { data: trialBalance } = useTrialBalance();
   const { data, isLoading } = useFinancialEntries({
     page,
     pageSize: 20,
@@ -99,6 +104,33 @@ export default function FinancialPage() {
           loading={loadingSummary}
           tone={(summary?.projectedBalance ?? 0) >= 0 ? 'positive' : 'negative'}
         />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <Kpi title="Receita contábil" value={dre?.revenue ?? 0} loading={!dre} tone="positive" />
+        <Kpi title="Despesas contábeis" value={dre?.expenses ?? 0} loading={!dre} tone="negative" />
+        <Kpi
+          title="Resultado contábil"
+          value={dre?.netIncome ?? 0}
+          loading={!dre}
+          tone={(dre?.netIncome ?? 0) >= 0 ? 'positive' : 'negative'}
+        />
+      </div>
+
+      <div className="rounded-xl border bg-card p-4 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Balancete contábil</h2>
+            <p className="text-muted-foreground">
+              Débitos: {formatCurrency(trialBalance?.totals.debit ?? 0)} · Créditos:{' '}
+              {formatCurrency(trialBalance?.totals.credit ?? 0)} · Diferença:{' '}
+              {formatCurrency(trialBalance?.totals.balance ?? 0)}
+            </p>
+          </div>
+          <Badge variant={(trialBalance?.totals.balance ?? 0) === 0 ? 'success' : 'destructive'}>
+            {(trialBalance?.totals.balance ?? 0) === 0 ? 'fechado' : 'divergente'}
+          </Badge>
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card p-4">
@@ -263,6 +295,7 @@ function EntryRow({
   onPay: () => void;
 }) {
   const cancel = useCancelFinancialEntry(entry.id);
+  const reversePayment = useReverseFinancialPayment(entry.id);
   const canSettle =
     canWrite &&
     entry.status !== FinancialEntryStatus.PAID &&
@@ -284,6 +317,34 @@ function EntryRow({
           {entry.serviceOrderNumber != null && ` · OS #${entry.serviceOrderNumber}`}
           {entry.purchaseOrderNumber != null && ` · Compra #${entry.purchaseOrderNumber}`}
         </p>
+        {entry.payments.some((p) => !p.reversedAt) && canWrite && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {entry.payments
+              .filter((p) => !p.reversedAt)
+              .slice(0, 3)
+              .map((p) => (
+                <Button
+                  key={p.id}
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={reversePayment.isPending}
+                  onClick={async () => {
+                    const reason = window.prompt('Motivo do estorno da baixa');
+                    if (!reason) return;
+                    try {
+                      await reversePayment.mutateAsync({ paymentId: p.id, reason });
+                      toast.success('Baixa estornada');
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : 'Erro ao estornar baixa');
+                    }
+                  }}
+                >
+                  Estornar baixa {formatCurrency(p.amount)}
+                </Button>
+              ))}
+          </div>
+        )}
       </TableCell>
       <TableCell>{FINANCIAL_ENTRY_TYPE_LABELS[entry.type]}</TableCell>
       <TableCell className={entry.overdue ? 'font-medium text-destructive' : ''}>

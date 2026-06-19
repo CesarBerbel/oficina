@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   HttpCode,
   Post,
+  Param,
   Req,
   Res,
   UnauthorizedException,
@@ -187,6 +189,41 @@ export class AuthController {
   @HttpCode(204)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
     await this.auth.logout(req.cookies?.[this.cookieName()]);
+    this.clearRefreshCookie(res);
+  }
+
+  @AllowAuthenticated()
+  @Get('sessions')
+  sessions(@CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+    return this.auth.listSessions(user.id, req.cookies?.[this.cookieName()]);
+  }
+
+  @AllowAuthenticated()
+  @Delete('sessions/:id')
+  @HttpCode(204)
+  async revokeSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const revokedCurrent = await this.auth.revokeOwnSession(
+      user.id,
+      id,
+      req.cookies?.[this.cookieName()],
+    );
+    if (revokedCurrent) this.clearRefreshCookie(res);
+  }
+
+  @AllowAuthenticated()
+  @Post('logout-all')
+  @HttpCode(204)
+  async logoutAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.auth.logoutAll(user.id, this.meta(req));
     this.clearRefreshCookie(res);
   }
 

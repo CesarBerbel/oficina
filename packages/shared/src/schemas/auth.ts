@@ -170,3 +170,12 @@ export interface LoginResponse {
   accessToken: string;
   user: AuthUser;
 }
+
+export interface UserSessionDto {
+  id: string;
+  ip: string | null;
+  userAgent: string | null;
+  current: boolean;
+  createdAt: string;
+  expiresAt: string;
+}

@@ -95,3 +95,58 @@ export function useSyncPurchaseFinancial() {
     },
   });
 }
+
+export function useAccountingAccounts() {
+  return useQuery({
+    queryKey: ['accounting-accounts'],
+    queryFn: () =>
+      api.get<import('@oficina/shared').AccountingAccountDto[]>('/financial/accounting/accounts'),
+  });
+}
+
+export function useAccountingJournals(params: { from?: string; to?: string } = {}) {
+  return useQuery({
+    queryKey: ['accounting-journals', params],
+    queryFn: () =>
+      api.get<import('@oficina/shared').AccountingJournalDto[]>(
+        `/financial/accounting/journals${qs(params)}`,
+      ),
+  });
+}
+
+export function useTrialBalance(params: { from?: string; to?: string } = {}) {
+  return useQuery({
+    queryKey: ['trial-balance', params],
+    queryFn: () =>
+      api.get<import('@oficina/shared').AccountingTrialBalanceDto>(
+        `/financial/accounting/trial-balance${qs(params)}`,
+      ),
+  });
+}
+
+export function useIncomeStatement(params: { from?: string; to?: string } = {}) {
+  return useQuery({
+    queryKey: ['income-statement', params],
+    queryFn: () =>
+      api.get<import('@oficina/shared').AccountingIncomeStatementDto>(
+        `/financial/accounting/income-statement${qs(params)}`,
+      ),
+  });
+}
+
+export function useReverseFinancialPayment(entryId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ paymentId, reason }: { paymentId: string; reason: string }) =>
+      api.post<FinancialEntryDto>(`/financial/entries/${entryId}/payments/${paymentId}/reverse`, {
+        reason,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['financial-entries'] });
+      void qc.invalidateQueries({ queryKey: ['financial-summary'] });
+      void qc.invalidateQueries({ queryKey: ['accounting-journals'] });
+      void qc.invalidateQueries({ queryKey: ['trial-balance'] });
+      void qc.invalidateQueries({ queryKey: ['income-statement'] });
+    },
+  });
+}

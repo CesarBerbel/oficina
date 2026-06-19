@@ -4,12 +4,17 @@ import {
   FinancialEntryStatus,
   FinancialEntryType,
   type CreateFinancialEntryInput,
+  type AccountingAccountDto,
+  type AccountingIncomeStatementDto,
+  type AccountingJournalDto,
+  type AccountingTrialBalanceDto,
   type FinancialEntryDto,
   type FinancialLedgerEntryDto,
   type FinancialSummaryDto,
   type ListFinancialEntriesQuery,
   type Paginated,
   type PayFinancialEntryInput,
+  type ReverseFinancialPaymentInput,
   type SyncPurchaseFinancialInput,
   type SyncServiceOrderFinancialInput,
 } from '@oficina/shared';
@@ -107,6 +112,8 @@ export class FinancialService {
         method: p.method,
         paidAt: p.paidAt.toISOString(),
         notes: p.notes,
+        reversedAt: p.reversedAt?.toISOString() ?? null,
+        reversalReason: p.reversalReason ?? null,
       })),
       createdAt: row.createdAt.toISOString(),
     };
@@ -125,7 +132,12 @@ export class FinancialService {
         select: { type: true, dueDate: true, remainingAmount: true },
       }),
       this.prisma.financialPayment.findMany({
-        where: { tenantId, paidAt: { gte: from, lte: to }, entry: { status: { not: 'CANCELED' } } },
+        where: {
+          tenantId,
+          reversedAt: null,
+          paidAt: { gte: from, lte: to },
+          entry: { status: { not: 'CANCELED' } },
+        },
         include: { entry: { select: { type: true } } },
       }),
     ]);
@@ -214,7 +226,7 @@ export class FinancialService {
     data: {
       tenantId: string;
       entryId: string;
-      kind: 'ISSUE' | 'ADJUSTMENT' | 'PAYMENT' | 'CANCELLATION';
+      kind: 'ISSUE' | 'ADJUSTMENT' | 'PAYMENT' | 'PAYMENT_REVERSAL' | 'CANCELLATION';
       amount: number;
       description?: string | null;
       createdById?: string | null;
@@ -254,7 +266,7 @@ export class FinancialService {
   }
 
   /** Journals contábeis de partidas dobradas ligados ao lançamento financeiro. */
-  async accountingJournal(tenantId: string, entryId: string) {
+  async accountingJournal(tenantId: string, entryId: string): Promise<AccountingJournalDto[]> {
     const entry = await this.prisma.financialEntry.findFirst({
       where: { id: entryId, tenantId },
       select: { id: true },
@@ -276,18 +288,242 @@ export class FinancialService {
 
     return rows.map((journal) => ({
       id: journal.id,
+      financialEntryId: journal.financialEntryId,
       kind: journal.kind,
       status: journal.status,
       description: journal.description,
       createdAt: journal.createdAt.toISOString(),
       lines: journal.lines.map((line) => ({
         id: line.id,
-        debit: line.debitAccount,
-        credit: line.creditAccount,
+        debit: {
+          id: line.debitAccountId,
+          code: line.debitAccount.code,
+          name: line.debitAccount.name,
+          type: line.debitAccount.type,
+          active: true,
+        },
+        credit: {
+          id: line.creditAccountId,
+          code: line.creditAccount.code,
+          name: line.creditAccount.name,
+          type: line.creditAccount.type,
+          active: true,
+        },
         amount: dec(line.amount),
         memo: line.memo,
       })),
     }));
+  }
+
+  async accountingAccounts(tenantId: string): Promise<AccountingAccountDto[]> {
+    const rows = await this.prisma.accountingAccount.findMany({
+      where: { tenantId },
+      orderBy: [{ code: 'asc' }],
+    });
+    return rows.map((a) => ({
+      id: a.id,
+      code: a.code,
+      name: a.name,
+      type: a.type,
+      active: a.active,
+    }));
+  }
+
+  async accountingJournals(
+    tenantId: string,
+    period: { from?: string; to?: string },
+  ): Promise<AccountingJournalDto[]> {
+    const rows = await this.prisma.accountingJournalEntry.findMany({
+      where: {
+        tenantId,
+        ...(period.from || period.to
+          ? {
+              createdAt: {
+                ...(period.from ? { gte: new Date(period.from) } : {}),
+                ...(period.to ? { lte: new Date(period.to) } : {}),
+              },
+            }
+          : {}),
+      },
+      include: {
+        lines: {
+          include: {
+            debitAccount: true,
+            creditAccount: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+    });
+    return rows.map((journal) => ({
+      id: journal.id,
+      financialEntryId: journal.financialEntryId,
+      kind: journal.kind,
+      status: journal.status,
+      description: journal.description,
+      createdAt: journal.createdAt.toISOString(),
+      lines: journal.lines.map((line) => ({
+        id: line.id,
+        debit: {
+          id: line.debitAccount.id,
+          code: line.debitAccount.code,
+          name: line.debitAccount.name,
+          type: line.debitAccount.type,
+          active: line.debitAccount.active,
+        },
+        credit: {
+          id: line.creditAccount.id,
+          code: line.creditAccount.code,
+          name: line.creditAccount.name,
+          type: line.creditAccount.type,
+          active: line.creditAccount.active,
+        },
+        amount: dec(line.amount),
+        memo: line.memo,
+      })),
+    }));
+  }
+
+  async trialBalance(
+    tenantId: string,
+    period: { from?: string; to?: string },
+  ): Promise<AccountingTrialBalanceDto> {
+    const journals = await this.prisma.accountingJournalEntry.findMany({
+      where: {
+        tenantId,
+        status: 'POSTED',
+        ...(period.from || period.to
+          ? {
+              createdAt: {
+                ...(period.from ? { gte: new Date(period.from) } : {}),
+                ...(period.to ? { lte: new Date(period.to) } : {}),
+              },
+            }
+          : {}),
+      },
+      include: { lines: { include: { debitAccount: true, creditAccount: true } } },
+    });
+    const byAccount = new Map<
+      string,
+      { account: AccountingAccountDto; debit: number; credit: number }
+    >();
+    const ensure = (a: {
+      id: string;
+      code: string;
+      name: string;
+      type: AccountingAccountDto['type'];
+      active: boolean;
+    }) => {
+      const existing = byAccount.get(a.id);
+      if (existing) return existing;
+      const row = {
+        account: { id: a.id, code: a.code, name: a.name, type: a.type, active: a.active },
+        debit: 0,
+        credit: 0,
+      };
+      byAccount.set(a.id, row);
+      return row;
+    };
+    for (const journal of journals) {
+      for (const line of journal.lines) {
+        ensure(line.debitAccount).debit += dec(line.amount);
+        ensure(line.creditAccount).credit += dec(line.amount);
+      }
+    }
+    const rows = [...byAccount.values()]
+      .map((r) => ({ ...r, balance: Math.round((r.debit - r.credit) * 100) / 100 }))
+      .sort((a, b) => a.account.code.localeCompare(b.account.code));
+    const totals = rows.reduce(
+      (acc, r) => ({
+        debit: acc.debit + r.debit,
+        credit: acc.credit + r.credit,
+        balance: acc.balance + r.balance,
+      }),
+      { debit: 0, credit: 0, balance: 0 },
+    );
+    return {
+      from: period.from ?? null,
+      to: period.to ?? null,
+      rows,
+      totals: {
+        debit: Math.round(totals.debit * 100) / 100,
+        credit: Math.round(totals.credit * 100) / 100,
+        balance: Math.round(totals.balance * 100) / 100,
+      },
+    };
+  }
+
+  async incomeStatement(
+    tenantId: string,
+    period: { from?: string; to?: string },
+  ): Promise<AccountingIncomeStatementDto> {
+    const trial = await this.trialBalance(tenantId, period);
+    const revenue = trial.rows
+      .filter((r) => r.account.type === 'REVENUE')
+      .reduce((acc, r) => acc + Math.max(0, r.credit - r.debit), 0);
+    const expenses = trial.rows
+      .filter((r) => r.account.type === 'EXPENSE')
+      .reduce((acc, r) => acc + Math.max(0, r.debit - r.credit), 0);
+    return {
+      from: period.from ?? null,
+      to: period.to ?? null,
+      revenue: Math.round(revenue * 100) / 100,
+      expenses: Math.round(expenses * 100) / 100,
+      netIncome: Math.round((revenue - expenses) * 100) / 100,
+    };
+  }
+
+  async reversePayment(
+    actor: AuthenticatedUser,
+    entryId: string,
+    paymentId: string,
+    input: ReverseFinancialPaymentInput,
+  ): Promise<FinancialEntryDto> {
+    const row = await this.prisma.$transaction(async (tx) => {
+      const payment = await tx.financialPayment.findFirst({
+        where: { id: paymentId, entryId, tenantId: actor.tenantId, reversedAt: null },
+        include: { entry: true },
+      });
+      if (!payment) throw new NotFoundException('Baixa ativa não encontrada');
+      if (payment.entry.status === 'CANCELED') {
+        throw new BadRequestException('Não é possível estornar baixa de lançamento cancelado');
+      }
+      const amount = dec(payment.amount);
+      await tx.financialPayment.update({
+        where: { id: payment.id },
+        data: { reversedAt: new Date(), reversedById: actor.id, reversalReason: input.reason },
+      });
+      const newPaid = Math.max(0, dec(payment.entry.paidAmount) - amount);
+      const newRemaining = dec(payment.entry.remainingAmount) + amount;
+      await tx.financialEntry.update({
+        where: { id: entryId },
+        data: {
+          paidAmount: money(newPaid),
+          remainingAmount: money(newRemaining),
+          status: newPaid <= 0 ? 'OPEN' : 'PARTIAL',
+        },
+      });
+      await this.postLedger(tx, {
+        tenantId: actor.tenantId,
+        entryId,
+        kind: 'PAYMENT_REVERSAL',
+        amount,
+        description: `Estorno de baixa: ${input.reason}`,
+        createdById: actor.id,
+      });
+      return tx.financialEntry.findUniqueOrThrow({ where: { id: entryId }, include });
+    });
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      module: 'financial',
+      action: 'reverse-payment',
+      entity: 'FinancialPayment',
+      entityId: paymentId,
+      after: { entryId, reason: input.reason },
+    });
+    return this.toDto(row);
   }
 
   async create(

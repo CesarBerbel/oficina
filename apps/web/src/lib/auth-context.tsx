@@ -19,6 +19,7 @@ interface AuthContextValue {
   status: Status;
   login: (email: string, password: string, tenantSlug?: string) => Promise<void>;
   logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
   hasPermission: (permission: Permission | string) => boolean;
 }
 
@@ -120,14 +121,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     broadcast('logout');
   }, [broadcast]);
 
+  const logoutAll = useCallback(async () => {
+    try {
+      await api.post('/auth/logout-all');
+    } catch {
+      /* ignora erro de logout global */
+    }
+    setAccessToken(null);
+    setUser(null);
+    setStatus('unauthenticated');
+    broadcast('logout');
+  }, [broadcast]);
+
   const hasPermission = useCallback(
     (permission: Permission | string) => user?.permissions?.includes(permission as string) ?? false,
     [user],
   );
 
   const value = useMemo(
-    () => ({ user, status, login, logout, hasPermission }),
-    [user, status, login, logout, hasPermission],
+    () => ({ user, status, login, logout, logoutAll, hasPermission }),
+    [user, status, login, logout, logoutAll, hasPermission],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
