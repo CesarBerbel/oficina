@@ -44,8 +44,10 @@ services:
       PLATFORM_BASE_DOMAIN: ${PLATFORM_BASE_DOMAIN:-}
       PLATFORM_ACCOUNT_SLUG: ${PLATFORM_ACCOUNT_SLUG:-plataforma}
       TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES: ${TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES:-}
-      TENANT_DOMAIN_REQUIRE_VERIFIED: ${TENANT_DOMAIN_REQUIRE_VERIFIED:-}
-      PUBLIC_STRICT_HOST: ${PUBLIC_STRICT_HOST:-}
+      # Enums booleanas: default precisa ser válido ('true'|'false'), nunca vazio
+      # — em produção o NODE_ENV=production já força o modo estrito de qualquer jeito.
+      TENANT_DOMAIN_REQUIRE_VERIFIED: ${TENANT_DOMAIN_REQUIRE_VERIFIED:-false}
+      PUBLIC_STRICT_HOST: ${PUBLIC_STRICT_HOST:-false}
       # Alertas ativos / monitor.
       ALERT_MONITOR_ENABLED: ${ALERT_MONITOR_ENABLED:-true}
       ALERT_RENOTIFY_HOURS: ${ALERT_RENOTIFY_HOURS:-24}
