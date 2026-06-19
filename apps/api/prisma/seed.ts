@@ -42,16 +42,18 @@ async function main(): Promise<void> {
 
   const passwordHash = await argon2.hash(adminPassword, { type: argon2.argon2id });
 
+  // Admin da OFICINA (não é super admin — o super admin da plataforma é criado
+  // separadamente pelo comando create-superadmin).
   await prisma.user.upsert({
     where: { tenantId_email: { tenantId: tenant.id, email: adminEmail } },
-    update: { passwordHash, role: Role.ADMIN, active: true, superAdmin: true },
+    update: { passwordHash, role: Role.ADMIN, active: true, superAdmin: false },
     create: {
       tenantId: tenant.id,
       name: 'Administrador',
       email: adminEmail,
       passwordHash,
       role: Role.ADMIN,
-      superAdmin: true,
+      superAdmin: false,
     },
   });
 
