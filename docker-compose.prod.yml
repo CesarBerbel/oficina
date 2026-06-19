@@ -39,6 +39,18 @@ services:
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       APP_VERSION: ${APP_VERSION:-0.1.0}
+      # SaaS multi-conta: domínio-base da plataforma (apex = login do super admin)
+      # e auto-verificação dos subdomínios próprios. Sem isso, host→conta não resolve.
+      PLATFORM_BASE_DOMAIN: ${PLATFORM_BASE_DOMAIN:-}
+      PLATFORM_ACCOUNT_SLUG: ${PLATFORM_ACCOUNT_SLUG:-plataforma}
+      TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES: ${TENANT_DOMAIN_AUTO_VERIFY_SUFFIXES:-}
+      TENANT_DOMAIN_REQUIRE_VERIFIED: ${TENANT_DOMAIN_REQUIRE_VERIFIED:-}
+      PUBLIC_STRICT_HOST: ${PUBLIC_STRICT_HOST:-}
+      # Alertas ativos / monitor.
+      ALERT_MONITOR_ENABLED: ${ALERT_MONITOR_ENABLED:-true}
+      ALERT_RENOTIFY_HOURS: ${ALERT_RENOTIFY_HOURS:-24}
+      BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-26}
+      OUTBOX_STUCK_AGE_SEC: ${OUTBOX_STUCK_AGE_SEC:-600}
       # Rate limiting (global e de login).
       RATE_LIMIT_TTL: ${RATE_LIMIT_TTL:-60}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-120}
