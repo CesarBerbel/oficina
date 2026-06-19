@@ -97,8 +97,6 @@ export const addItemSchema = z.object({
   description: z.string().trim().min(1, 'Informe a descrição').max(200),
   quantity: z.coerce.number().positive('Quantidade inválida').max(99_999),
   unitPrice: z.coerce.number().min(0).max(9_999_999),
-  sourceServiceId: optionalString(40),
-  sourcePartId: optionalString(40),
 });
 
 export type AddItemInput = z.infer<typeof addItemSchema>;

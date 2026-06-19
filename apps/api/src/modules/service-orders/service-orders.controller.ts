@@ -80,6 +80,12 @@ export class ServiceOrdersController {
     return this.orders.timeline(actor.tenantId, id);
   }
 
+  @Get(':id/reservations')
+  @RequirePermission(Permission.OS_READ)
+  reservations(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.orders.reservations(actor.tenantId, id);
+  }
+
   @Post(':id/technical-update')
   @RequirePermission(Permission.OS_DIAGNOSE)
   technicalUpdate(

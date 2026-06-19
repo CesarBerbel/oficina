@@ -27,6 +27,7 @@ import { AuthService, type IssuedSession } from './auth.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AllowAuthenticated } from '../../common/decorators/allow-authenticated.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 @Controller('auth')
@@ -171,6 +172,7 @@ export class AuthController {
     return this.auth.resetPassword(body.token, body.password);
   }
 
+  @AllowAuthenticated()
   @Post(['change-password', 'me/change-password'])
   @HttpCode(200)
   changePassword(
@@ -180,6 +182,7 @@ export class AuthController {
     return this.auth.changePassword(user.id, body.password, body.currentPassword);
   }
 
+  @AllowAuthenticated()
   @Post('logout')
   @HttpCode(204)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
@@ -187,6 +190,7 @@ export class AuthController {
     this.clearRefreshCookie(res);
   }
 
+  @AllowAuthenticated()
   @Get('me')
   me(@CurrentUser() user: AuthenticatedUser) {
     return this.auth.me(user.id);

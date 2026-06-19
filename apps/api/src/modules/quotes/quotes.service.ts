@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, QuoteItemDecision } from '@prisma/client';
 import {
   canTransition,
@@ -24,6 +29,13 @@ const brl = (n: number): string =>
 interface RequestMeta {
   ip?: string | null;
   userAgent?: string | null;
+}
+
+class QuoteAlreadyDecidedError extends Error {
+  constructor() {
+    super('Este orçamento já foi respondido');
+    this.name = 'QuoteAlreadyDecidedError';
+  }
 }
 
 @Injectable()
@@ -168,7 +180,13 @@ export class QuotesService {
       });
 
       // Mensagem de orçamento enviado via outbox (atômico com a geração).
-      await this.outbox.enqueueOrderEvent(tx, actor.tenantId, 'QUOTE_SENT', orderId);
+      await this.outbox.enqueueOrderEvent(
+        tx,
+        actor.tenantId,
+        'QUOTE_SENT',
+        orderId,
+        `quote:${q.id}:send:${q.sendCount}`,
+      );
 
       return tx.quote.findUniqueOrThrow({
         where: { id: q.id },
@@ -332,7 +350,9 @@ export class QuotesService {
 
     const quote = order.quote;
     if (quote.status !== 'ENVIADO') {
-      throw new ServiceOrderDomainError('Este orçamento já foi respondido');
+      // Idempotência pública: respostas repetidas ao mesmo link retornam o
+      // orçamento já decidido, sem reexecutar efeitos colaterais.
+      return toQuoteDto(quote, order.publicToken);
     }
 
     const decisionMap = new Map(input.itemDecisions.map((d) => [d.itemId, d.decision]));
@@ -378,105 +398,134 @@ export class QuotesService {
           ? 'APROVADO'
           : 'APROVADO_PARCIAL';
 
-    await this.prisma.$transaction(async (tx) => {
-      for (const u of updates) {
-        await tx.quoteItem.update({
-          where: { id: u.id },
-          data: { decision: u.decision },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Claim atômico do orçamento. Em concorrência, apenas uma requisição
+        // consegue trocar ENVIADO → decidido; as demais retornam o estado já
+        // persistido sem duplicar timeline/reserva/outbox.
+        const claimed = await tx.quote.updateMany({
+          where: { id: quote.id, status: 'ENVIADO' },
+          data: {
+            status,
+            decisionType,
+            decidedAt: new Date(),
+            decisionIp: meta.ip ?? null,
+            decisionUa: meta.userAgent ?? null,
+            signatureName: input.signatureName,
+            signatureDoc: input.signatureDoc,
+          },
         });
-      }
-      await tx.quote.update({
-        where: { id: quote.id },
-        data: {
-          status,
-          decisionType,
-          decidedAt: new Date(),
-          decisionIp: meta.ip ?? null,
-          decisionUa: meta.userAgent ?? null,
-          signatureName: input.signatureName,
-          signatureDoc: input.signatureDoc,
-        },
-      });
+        if (claimed.count !== 1) {
+          throw new QuoteAlreadyDecidedError();
+        }
 
-      if (approved === 0) {
-        // Recusa total: a OS vai para "recusado", de onde é possível gerar
-        // um novo orçamento.
-        if (canTransition(order.status, 'ORCAMENTO_RECUSADO')) {
-          await tx.serviceOrder.update({
-            where: { id: order.id },
-            data: {
-              status: 'ORCAMENTO_RECUSADO',
-              history: {
-                create: {
-                  status: 'ORCAMENTO_RECUSADO',
-                  note: 'Orçamento recusado pelo cliente',
-                },
+        for (const u of updates) {
+          await tx.quoteItem.updateMany({
+            where: { id: u.id, quoteId: quote.id },
+            data: { decision: u.decision },
+          });
+        }
+
+        if (approved === 0) {
+          // Recusa total: a OS vai para "recusado", de onde é possível gerar
+          // um novo orçamento.
+          if (canTransition(order.status, 'ORCAMENTO_RECUSADO')) {
+            const moved = await tx.serviceOrder.updateMany({
+              where: { id: order.id, tenantId: order.tenantId, status: order.status },
+              data: { status: 'ORCAMENTO_RECUSADO' },
+            });
+            if (moved.count !== 1) {
+              throw new ConflictException(
+                'A OS foi alterada por outra operação. Recarregue e tente novamente.',
+              );
+            }
+            await tx.serviceOrderStatusHistory.create({
+              data: {
+                serviceOrderId: order.id,
+                status: 'ORCAMENTO_RECUSADO',
+                note: 'Orçamento recusado pelo cliente',
               },
-            },
-          });
-          await tx.serviceOrderEvent.create({
-            data: {
-              tenantId: order.tenantId,
-              serviceOrderId: order.id,
-              type: 'STATUS_CHANGE',
-              title: 'Orçamento recusado',
-              description: 'Orçamento recusado pelo cliente',
-              visibility: 'PUBLIC',
-              fromStatus: order.status,
-              toStatus: 'ORCAMENTO_RECUSADO',
-            },
-          });
-        }
-      } else {
-        // Aprovação parcial: remove da OS os itens recusados (nada foi baixado
-        // do estoque ainda) e recalcula os totais para refletir só o aprovado.
-        if (rejectedOrderItemIds.length > 0) {
-          await tx.serviceOrderItem.deleteMany({
-            where: {
-              id: { in: rejectedOrderItemIds },
-              serviceOrderId: order.id,
-            },
-          });
-          await this.recomputeOrderTotals(tx, order.id);
-        }
+            });
+            await tx.serviceOrderEvent.create({
+              data: {
+                tenantId: order.tenantId,
+                serviceOrderId: order.id,
+                type: 'STATUS_CHANGE',
+                title: 'Orçamento recusado',
+                description: 'Orçamento recusado pelo cliente',
+                visibility: 'PUBLIC',
+                fromStatus: order.status,
+                toStatus: 'ORCAMENTO_RECUSADO',
+              },
+            });
+          }
+        } else {
+          // Aprovação parcial: remove da OS os itens recusados (nada foi baixado
+          // do estoque ainda) e recalcula os totais para refletir só o aprovado.
+          if (rejectedOrderItemIds.length > 0) {
+            await tx.serviceOrderItem.deleteMany({
+              where: {
+                id: { in: rejectedOrderItemIds },
+                serviceOrderId: order.id,
+              },
+            });
+            await this.recomputeOrderTotals(tx, order.id);
+          }
 
-        // Reserva o estoque das peças aprovadas e verifica se faltou estoque.
-        // Com falta → "aguardando peça" (o pedido de compra é gerado pelo botão);
-        // tudo coberto → "aprovado".
-        const { shortfall } = await this.purchases.commitApprovalReservation(
-          tx,
-          order.tenantId,
-          order.id,
-        );
-        const target = shortfall ? 'AGUARDANDO_PECA' : 'ORCAMENTO_APROVADO';
-        if (canTransition(order.status, target)) {
-          const note = shortfall
-            ? 'Orçamento aprovado — aguardando peça (gere o pedido de compra)'
-            : decisionType === 'TOTAL'
-              ? 'Orçamento aprovado pelo cliente'
-              : 'Orçamento aprovado parcialmente pelo cliente';
-          await tx.serviceOrder.update({
-            where: { id: order.id },
-            data: {
-              status: target,
-              history: { create: { status: target, note } },
-            },
-          });
-          await tx.serviceOrderEvent.create({
-            data: {
-              tenantId: order.tenantId,
-              serviceOrderId: order.id,
-              type: 'STATUS_CHANGE',
-              title: shortfall ? 'Orçamento aprovado com falta de peça' : 'Orçamento aprovado',
-              description: note,
-              visibility: 'PUBLIC',
-              fromStatus: order.status,
-              toStatus: target,
-            },
-          });
+          // Reserva o estoque das peças aprovadas e verifica se faltou estoque.
+          // Com falta → "aguardando peça" (o pedido de compra é gerado pelo botão);
+          // tudo coberto → "aprovado".
+          const { shortfall } = await this.purchases.commitApprovalReservation(
+            tx,
+            order.tenantId,
+            order.id,
+          );
+          const target = shortfall ? 'AGUARDANDO_PECA' : 'ORCAMENTO_APROVADO';
+          if (canTransition(order.status, target)) {
+            const note = shortfall
+              ? 'Orçamento aprovado — aguardando peça (gere o pedido de compra)'
+              : decisionType === 'TOTAL'
+                ? 'Orçamento aprovado pelo cliente'
+                : 'Orçamento aprovado parcialmente pelo cliente';
+            const moved = await tx.serviceOrder.updateMany({
+              where: { id: order.id, tenantId: order.tenantId, status: order.status },
+              data: { status: target },
+            });
+            if (moved.count !== 1) {
+              throw new ConflictException(
+                'A OS foi alterada por outra operação. Recarregue e tente novamente.',
+              );
+            }
+            await tx.serviceOrderStatusHistory.create({
+              data: { serviceOrderId: order.id, status: target, note },
+            });
+            await tx.serviceOrderEvent.create({
+              data: {
+                tenantId: order.tenantId,
+                serviceOrderId: order.id,
+                type: 'STATUS_CHANGE',
+                title: shortfall ? 'Orçamento aprovado com falta de peça' : 'Orçamento aprovado',
+                description: note,
+                visibility: 'PUBLIC',
+                fromStatus: order.status,
+                toStatus: target,
+              },
+            });
+          }
+
+          await this.outbox.enqueueOrderEvent(tx, order.tenantId, 'QUOTE_APPROVED', order.id);
         }
+      });
+    } catch (err) {
+      if (err instanceof QuoteAlreadyDecidedError) {
+        const fresh = await this.prisma.quote.findUniqueOrThrow({
+          where: { id: quote.id },
+          include: quoteInclude,
+        });
+        return toQuoteDto(fresh, order.publicToken);
       }
-    });
+      throw err;
+    }
 
     await this.audit.record({
       tenantId: order.tenantId,
@@ -505,11 +554,6 @@ export class QuotesService {
       entity: 'ServiceOrder',
       entityId: order.id,
     });
-
-    if (approved > 0) {
-      // Decisão já comitada; enfileira a mensagem de aprovação no outbox.
-      await this.outbox.enqueueOrderEvent(this.prisma, order.tenantId, 'QUOTE_APPROVED', order.id);
-    }
 
     const fresh = await this.prisma.quote.findUniqueOrThrow({
       where: { id: quote.id },

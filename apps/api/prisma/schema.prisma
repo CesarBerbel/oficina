@@ -74,6 +74,14 @@ enum StockMovementType {
   ESTORNO
 }
 
+/// Status da reserva formal de estoque vinculada a uma OS.
+enum StockReservationStatus {
+  ACTIVE
+  RELEASED
+  CONSUMED
+  CANCELED
+}
+
 enum QuoteStatus {
   RASCUNHO
   ENVIADO
@@ -129,6 +137,21 @@ enum FinancialEntryOrigin {
   MANUAL
   SERVICE_ORDER
   PURCHASE_ORDER
+}
+
+/// Tipos de conta do plano de contas simplificado.
+enum AccountingAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+/// Status de um lançamento contábil de partidas dobradas.
+enum AccountingJournalStatus {
+  POSTED
+  VOIDED
 }
 
 enum MessageEvent {
@@ -332,6 +355,9 @@ model Tenant {
   operationalSettings OperationalSettings?
   outboxMessages OutboxMessage[]
   financialLedger FinancialLedgerEntry[]
+  stockReservations StockReservation[]
+  accountingAccounts AccountingAccount[]
+  accountingJournals AccountingJournalEntry[]
   domains TenantDomain[]
 
   @@index([accountId])
@@ -369,6 +395,8 @@ model OutboxMessage {
   tenantId    String
   type        String // ex.: ORDER_EVENT
   payload     Json
+  // Chave determinística opcional: evita enfileirar duas vezes o mesmo evento de domínio.
+  idempotencyKey String? @unique
   status      OutboxStatus @default(PENDING)
   attempts    Int          @default(0)
   maxAttempts Int          @default(8)
@@ -382,6 +410,7 @@ model OutboxMessage {
 
   @@index([status, availableAt])
   @@index([tenantId])
+  @@index([tenantId, type])
   @@map("outbox_messages")
 }
 
@@ -597,6 +626,7 @@ model ServiceOrder {
   purchaseOrders PurchaseOrder[]
   events     ServiceOrderEvent[]
   financialEntries FinancialEntry[]
+  stockReservations StockReservation[]
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
@@ -796,6 +826,7 @@ model Part {
   defaultForms  ServiceDefaultPart[]
   purchaseItems PurchaseOrderItem[]
   stocks        PartStock[]
+  stockReservations StockReservation[]
 
   @@index([tenantId])
   @@index([tenantId, name])
@@ -821,6 +852,32 @@ model PartStock {
   @@index([tenantId])
   @@index([partId])
   @@map("part_stock")
+}
+
+/// Reserva formal/auditável de uma peça para uma OS.
+/// O saldo agregado em `part_stock.reservedStock` continua existindo para consultas
+/// rápidas, mas cada reserva passa a ter identidade, status e datas próprias.
+model StockReservation {
+  id             String                 @id @default(cuid())
+  tenantId       String
+  serviceOrderId String
+  partId         String
+  quantity       Decimal                @db.Decimal(12, 3)
+  status         StockReservationStatus @default(ACTIVE)
+  reason         String?
+  createdAt      DateTime               @default(now())
+  releasedAt     DateTime?
+  consumedAt     DateTime?
+  canceledAt     DateTime?
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  serviceOrder ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  part         Part         @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([serviceOrderId, status])
+  @@index([partId, status])
+  @@map("stock_reservations")
 }
 
 /// Fornecedor (usado em compras e na importação de NF-e).
@@ -920,6 +977,7 @@ model FinancialEntry {
   purchaseOrder PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   payments      FinancialPayment[]
   ledger        FinancialLedgerEntry[]
+  accountingJournals AccountingJournalEntry[]
 
   @@unique([tenantId, serviceOrderId, type])
   @@unique([tenantId, purchaseOrderId, type])
@@ -974,6 +1032,66 @@ model FinancialLedgerEntry {
   @@index([tenantId, createdAt])
   @@index([entryId])
   @@map("financial_ledger_entries")
+}
+
+/// Conta contábil por tenant. É um plano mínimo, extensível por código.
+model AccountingAccount {
+  id        String                @id @default(cuid())
+  tenantId  String
+  code      String
+  name      String
+  type      AccountingAccountType
+  active    Boolean               @default(true)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  tenant Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  debitLines AccountingJournalLine[] @relation("AccountingDebitAccount")
+  creditLines AccountingJournalLine[] @relation("AccountingCreditAccount")
+
+  @@unique([tenantId, code])
+  @@index([tenantId, type])
+  @@map("accounting_accounts")
+}
+
+/// Lançamento contábil de partidas dobradas. Cada journal precisa fechar
+/// débitos == créditos, validado pela aplicação no momento da postagem.
+model AccountingJournalEntry {
+  id                String                  @id @default(cuid())
+  tenantId          String
+  financialEntryId  String?
+  kind              FinancialLedgerKind
+  status            AccountingJournalStatus @default(POSTED)
+  description       String?
+  createdById       String?
+  createdAt         DateTime                @default(now())
+
+  tenant         Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  financialEntry FinancialEntry?         @relation(fields: [financialEntryId], references: [id], onDelete: SetNull)
+  lines          AccountingJournalLine[]
+
+  @@index([tenantId, createdAt])
+  @@index([financialEntryId])
+  @@map("accounting_journal_entries")
+}
+
+model AccountingJournalLine {
+  id               String   @id @default(cuid())
+  journalEntryId   String
+  debitAccountId   String
+  creditAccountId  String
+  amount           Decimal  @db.Decimal(12, 2)
+  memo             String?
+  createdAt        DateTime @default(now())
+
+  journalEntry  AccountingJournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  debitAccount  AccountingAccount      @relation("AccountingDebitAccount", fields: [debitAccountId], references: [id])
+  creditAccount AccountingAccount      @relation("AccountingCreditAccount", fields: [creditAccountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([debitAccountId])
+  @@index([creditAccountId])
+  @@map("accounting_journal_lines")
 }
 
 /// Notificação interna para um usuário.
@@ -1349,6 +1467,7 @@ model MessageLog {
   serviceOrderId String?
   channel        MessageChannel
   event          MessageEvent   @default(MANUAL)
+  dispatchKey    String?        @unique
   status         MessageStatus  @default(SIMULADO)
   to             String?
   body           String
@@ -1359,6 +1478,7 @@ model MessageLog {
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, createdAt])
+  @@index([tenantId, event, serviceOrderId])
   @@map("message_logs")
 }
 

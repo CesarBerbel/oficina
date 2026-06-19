@@ -10,6 +10,7 @@ import {
 } from '@oficina/shared';
 import { CategoriesService } from './categories.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { AllowAuthenticated } from '../../common/decorators/allow-authenticated.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -21,6 +22,7 @@ export class CategoriesController {
   // Listagem liberada a qualquer usuário autenticado (alimenta os selects dos
   // cadastros de cliente, serviço e peça).
   @Get()
+  @AllowAuthenticated()
   list(
     @CurrentUser() actor: AuthenticatedUser,
     @Query(new ZodValidationPipe(listCategoriesQuerySchema))

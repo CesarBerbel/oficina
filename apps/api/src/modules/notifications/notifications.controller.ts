@@ -9,10 +9,12 @@ import { z } from 'zod';
 import { NotificationsService } from './notifications.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AllowAuthenticated } from '../../common/decorators/allow-authenticated.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 const unsubscribeSchema = z.object({ endpoint: z.string().min(1) });
 
+@AllowAuthenticated()
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}

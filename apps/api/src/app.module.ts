@@ -33,6 +33,7 @@ import { OutboxModule } from './modules/outbox/outbox.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { AccountsModule } from './modules/accounts/accounts.module';
+import { PlatformSessionsModule } from './modules/platform-sessions/platform-sessions.module';
 import { TenantDomainsModule } from './modules/tenant-domains/tenant-domains.module';
 import { SiteModule } from './modules/site/site.module';
 import { CategoriesModule } from './modules/categories/categories.module';
@@ -90,6 +91,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     MetricsModule,
     TenantsModule,
     AccountsModule,
+    PlatformSessionsModule,
     TenantDomainsModule,
     DashboardModule,
     SiteModule,
