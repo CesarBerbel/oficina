@@ -6,6 +6,10 @@ export interface JwtPayload {
   tenantId: string;
   role: Role;
   email: string;
+  /** Session id: id do refresh token que originou este access token. */
+  sid: string;
+  /** Versão global de sessão do usuário no momento da emissão. */
+  sv: number;
 }
 
 /** Usuário anexado em `req.user` após autenticação. */
@@ -23,4 +27,6 @@ export interface AuthenticatedUser {
   role: Role;
   email: string;
   superAdmin: boolean;
+  /** Session id do access token validado. */
+  sessionId?: string;
 }

@@ -16,6 +16,7 @@ import type {
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
 import { AuditService } from '../audit/audit.service';
+import { QuotasService } from '../saas/quotas.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 const userSelect = {
@@ -50,6 +51,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly audit: AuditService,
+    private readonly quotas: QuotasService,
   ) {}
 
   async list(tenantId: string, query: ListUsersQuery): Promise<Paginated<UserDto>> {
@@ -110,6 +112,12 @@ export class UsersService {
       where: { tenantId_email: { tenantId: actor.tenantId, email } },
     });
     if (exists) throw new ConflictException('Já existe um usuário com este e-mail');
+
+    const accountId = await this.quotas.accountIdForTenant(actor.tenantId);
+    const usersInAccount = await this.prisma.user.count({
+      where: { tenant: { accountId }, active: true },
+    });
+    await this.quotas.assertAccountLimit(accountId, 'USERS', usersInAccount, 1);
 
     const passwordHash = await this.passwords.hash(input.password);
     const created = await this.prisma.user.create({

@@ -29,6 +29,7 @@ describe('Login por subdomínio (host → conta) (e2e)', () => {
         domain: HOST,
         verificationToken: 'tok-host',
         verifiedAt: new Date(),
+        status: 'VERIFIED',
         isPrimary: true,
       },
     });

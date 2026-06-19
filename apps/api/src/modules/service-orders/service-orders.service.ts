@@ -31,6 +31,8 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OutboxService } from '../outbox/outbox.service';
 import { PurchasesService } from '../purchases/purchases.service';
+import { QuotasService } from '../saas/quotas.service';
+import { UploadAssetsService } from '../uploads/upload-assets.service';
 import {
   summaryInclude,
   boardInclude,
@@ -72,6 +74,8 @@ export class ServiceOrdersService {
     private readonly notifications: NotificationsService,
     private readonly purchases: PurchasesService,
     private readonly outbox: OutboxService,
+    private readonly quotas: QuotasService,
+    private readonly uploadAssets: UploadAssetsService,
   ) {}
 
   // ─── Mapping → ./service-orders.mapper.ts ───
@@ -330,6 +334,8 @@ export class ServiceOrdersService {
       });
       if (!tech) throw new BadRequestException('Técnico inválido');
     }
+
+    await this.quotas.consumeForTenant(actor.tenantId, 'SERVICE_ORDERS_MONTH', 1);
 
     const created = await this.withUniqueConstraintRetry(
       () =>
@@ -710,6 +716,8 @@ export class ServiceOrdersService {
     if (isTerminalStatus(row.status)) {
       throw new BadRequestException('Não é possível atualizar OS terminal');
     }
+
+    await this.uploadAssets.assertOwnedInternalPhotoUrls(actor.tenantId, input.photos);
 
     const hasChecklist = input.checklist.length > 0;
     const hasPhotos = input.photos.length > 0;

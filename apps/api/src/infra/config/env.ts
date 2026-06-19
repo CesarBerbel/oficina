@@ -12,6 +12,8 @@ const baseEnvSchema = z.object({
   API_PORT: z.coerce.number().int().default(3333),
   API_GLOBAL_PREFIX: z.string().default('api'),
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
+  /** Origens permitidas adicionais (CSV). WEB_ORIGIN continua aceito para compatibilidade. */
+  WEB_ORIGINS: z.string().optional().default(''),
   /** Base pública confiável para montar URLs absolutas (ex.: uploads). Vazio = relativo. */
   APP_URL: z.string().url().or(z.literal('')).default(''),
   /** Exige TenantDomain verificado para resolver o site por domínio (sempre em prod). */

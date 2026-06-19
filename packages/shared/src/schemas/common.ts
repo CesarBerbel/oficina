@@ -21,6 +21,20 @@ export interface Paginated<T> {
   };
 }
 
+/** URL absoluta ou caminho interno retornado pelo endpoint de uploads.
+ * A autorização/ownership é validada no backend contra upload_assets. */
+export const uploadedPhotoUrlSchema = z
+  .string()
+  .trim()
+  .refine(
+    // Caminho interno do sistema, ou URL absoluta cujo caminho é um upload do sistema.
+    // (evita `new URL`, indisponível no lib do pacote shared/isomórfico)
+    (value) =>
+      /^\/uploads\/[a-f0-9]{32}\.(png|jpg|jpeg|webp|gif)$/i.test(value) ||
+      /^https?:\/\/[^/]+\/uploads\/[a-f0-9]{32}\.(png|jpg|jpeg|webp|gif)$/i.test(value),
+    { message: 'Informe uma foto enviada pelo sistema.' },
+  );
+
 function onlyDigits(value: string): string {
   return value.replace(/\D/g, '');
 }

@@ -42,6 +42,18 @@ export class InventoryController {
     return this.inventory.reorderSuggestions(actor);
   }
 
+  @Get('reservations/reconciliation')
+  @RequirePermission(Permission.INVENTORY_READ)
+  reservationReconciliation(@CurrentUser() actor: AuthenticatedUser) {
+    return this.inventory.reservationReconciliation(actor);
+  }
+
+  @Post('reservations/reconcile')
+  @RequirePermission(Permission.STOCK_MOVE)
+  reconcileReservations(@CurrentUser() actor: AuthenticatedUser) {
+    return this.inventory.reconcileReservations(actor);
+  }
+
   @Post('reservations/:id/release')
   @RequirePermission(Permission.STOCK_MOVE)
   releaseReservation(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {

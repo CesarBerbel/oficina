@@ -96,10 +96,16 @@ export class PlatformSessionsService {
       select: { id: true, tenantId: true, email: true },
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
-    const result = await this.prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
-      data: { revokedAt: new Date() },
-    });
+    const [result] = await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { sessionVersion: { increment: 1 } },
+      }),
+    ]);
     await this.audit.record({
       tenantId: actor.tenantId,
       userId: actor.id,

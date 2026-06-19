@@ -1,8 +1,10 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post } from '@nestjs/common';
 import {
   createTenantDomainSchema,
+  setPrimaryTenantDomainSchema,
   Permission,
   type CreateTenantDomainInput,
+  type SetPrimaryTenantDomainInput,
 } from '@oficina/shared';
 import { TenantDomainsService } from './tenant-domains.service';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
@@ -33,6 +35,16 @@ export class TenantDomainsController {
   @RequirePermission(Permission.SETTINGS_MANAGE)
   verify(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
     return this.domains.verify(actor, id);
+  }
+
+  @Post(':id/primary')
+  @RequirePermission(Permission.SETTINGS_MANAGE)
+  primary(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(setPrimaryTenantDomainSchema)) _body: SetPrimaryTenantDomainInput,
+  ) {
+    return this.domains.setPrimary(actor, id);
   }
 
   @Get(':id/dns-check')

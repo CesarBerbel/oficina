@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   FinancialEntryStatus,
@@ -482,28 +487,52 @@ export class FinancialService {
   ): Promise<FinancialEntryDto> {
     const row = await this.prisma.$transaction(async (tx) => {
       const payment = await tx.financialPayment.findFirst({
-        where: { id: paymentId, entryId, tenantId: actor.tenantId, reversedAt: null },
+        where: { id: paymentId, entryId, tenantId: actor.tenantId },
         include: { entry: true },
       });
-      if (!payment) throw new NotFoundException('Baixa ativa não encontrada');
+      if (!payment) throw new NotFoundException('Baixa não encontrada');
+      if (payment.reversedAt) {
+        throw new ConflictException('Baixa já estornada por outra operação');
+      }
       if (payment.entry.status === 'CANCELED') {
         throw new BadRequestException('Não é possível estornar baixa de lançamento cancelado');
       }
+
       const amount = dec(payment.amount);
-      await tx.financialPayment.update({
-        where: { id: payment.id },
+
+      // Claim condicional: somente uma requisição concorrente consegue marcar a
+      // baixa como estornada. As demais falham antes de mexer no saldo, ledger
+      // ou journal contábil.
+      const claimed = await tx.financialPayment.updateMany({
+        where: { id: payment.id, entryId, tenantId: actor.tenantId, reversedAt: null },
         data: { reversedAt: new Date(), reversedById: actor.id, reversalReason: input.reason },
       });
-      const newPaid = Math.max(0, dec(payment.entry.paidAmount) - amount);
-      const newRemaining = dec(payment.entry.remainingAmount) + amount;
-      await tx.financialEntry.update({
-        where: { id: entryId },
-        data: {
-          paidAmount: money(newPaid),
-          remainingAmount: money(newRemaining),
-          status: newPaid <= 0 ? 'OPEN' : 'PARTIAL',
-        },
-      });
+      if (claimed.count !== 1) {
+        throw new ConflictException('Baixa já estornada por outra operação');
+      }
+
+      // Atualização atômica baseada no saldo atual do banco. Evita perda de
+      // atualização se houver outro ajuste/estorno concorrente no lançamento.
+      const updatedCount = await tx.$executeRaw`
+        UPDATE "financial_entries"
+        SET
+          "paidAmount" = GREATEST(0, "paidAmount" - ${amount}),
+          "remainingAmount" = "remainingAmount" + ${amount},
+          "status" = CASE
+            WHEN GREATEST(0, "paidAmount" - ${amount}) <= 0 THEN 'OPEN'::"FinancialEntryStatus"
+            ELSE 'PARTIAL'::"FinancialEntryStatus"
+          END,
+          "updatedAt" = NOW()
+        WHERE "id" = ${entryId}
+          AND "tenantId" = ${actor.tenantId}
+          AND "status" <> 'CANCELED'::"FinancialEntryStatus"
+          AND "paidAmount" >= ${amount}
+      `;
+
+      if (Number(updatedCount) !== 1) {
+        throw new ConflictException('Saldo do lançamento mudou durante o estorno');
+      }
+
       await this.postLedger(tx, {
         tenantId: actor.tenantId,
         entryId,

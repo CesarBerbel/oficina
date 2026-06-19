@@ -163,6 +163,40 @@ export interface StockReservationSummaryDto {
   releasedReservations: number;
 }
 
+export interface StockReservationReconciliationIssueDto {
+  partId: string;
+  partName: string;
+  partSku: string | null;
+  currentStock: number;
+  reservedStock: number;
+  activeReservedQuantity: number;
+  difference: number;
+}
+
+export interface ServiceOrderReservationFlagIssueDto {
+  serviceOrderId: string;
+  serviceOrderNumber: number;
+  partsReserved: boolean;
+  shouldBeReserved: boolean;
+}
+
+export interface StockReservationReconciliationDto {
+  tenantId: string;
+  checkedAt: string;
+  issues: StockReservationReconciliationIssueDto[];
+  serviceOrderIssues: ServiceOrderReservationFlagIssueDto[];
+  totals: {
+    stockIssues: number;
+    serviceOrderIssues: number;
+    absoluteDifference: number;
+  };
+}
+
+export interface StockReservationReconcileResultDto extends StockReservationReconciliationDto {
+  fixedPartStocks: number;
+  fixedServiceOrders: number;
+}
+
 export interface ReorderSuggestionDto {
   partId: string;
   name: string;

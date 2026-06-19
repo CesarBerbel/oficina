@@ -19,7 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
-    if (!payload?.sub || !payload?.tenantId) {
+    if (!payload?.sub || !payload?.tenantId || !payload?.sid || typeof payload.sv !== 'number') {
       throw new UnauthorizedException('Token inválido');
     }
 
@@ -36,6 +36,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: true,
         email: true,
         superAdmin: true,
+        sessionVersion: true,
         tenant: {
           select: { parentId: true, accountId: true, account: { select: { status: true } } },
         },
@@ -44,6 +45,25 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (!user) {
       throw new UnauthorizedException('Sessão inválida');
+    }
+
+    if (user.sessionVersion !== payload.sv) {
+      throw new UnauthorizedException('Sessão revogada');
+    }
+
+    const session = await this.prisma.refreshToken.findFirst({
+      where: {
+        id: payload.sid,
+        userId: payload.sub,
+        sessionVersion: payload.sv,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      select: { id: true },
+    });
+
+    if (!session) {
+      throw new UnauthorizedException('Sessão revogada');
     }
 
     // Conta suspensa/pendente não acessa (super usuário da plataforma é exceção).
@@ -60,6 +80,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: user.role,
       email: user.email,
       superAdmin: user.superAdmin,
+      sessionId: payload.sid,
     };
   }
 }

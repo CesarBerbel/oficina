@@ -105,11 +105,6 @@ describe('Auth e sessão (e2e)', () => {
     expect(secondCookie).not.toBe(firstCookie);
 
     await request(app.getHttpServer())
-      .post('/api/auth/refresh')
-      .set('Cookie', firstCookie)
-      .expect(401);
-
-    await request(app.getHttpServer())
       .post('/api/auth/logout')
       .set(authHeader(refresh.body.accessToken))
       .set('Cookie', secondCookie)
@@ -118,6 +113,11 @@ describe('Auth e sessão (e2e)', () => {
     await request(app.getHttpServer())
       .post('/api/auth/refresh')
       .set('Cookie', secondCookie)
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .set('Cookie', firstCookie)
       .expect(401);
   });
 

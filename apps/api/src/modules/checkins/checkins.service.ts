@@ -15,6 +15,7 @@ import type {
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { UploadAssetsService } from '../uploads/upload-assets.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 type CheckinRow = Prisma.VehicleCheckinGetPayload<{
@@ -64,6 +65,7 @@ export class CheckinsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly uploadAssets: UploadAssetsService,
   ) {}
 
   async list(tenantId: string, query: ListCheckinsQuery): Promise<Paginated<CheckinDto>> {
@@ -131,6 +133,8 @@ export class CheckinsService {
     if (os.vehicleId !== vehicle.id) {
       throw new BadRequestException('A OS informada é de outro veículo');
     }
+
+    await this.uploadAssets.assertOwnedInternalPhotoUrls(actor.tenantId, input.photos);
 
     // Apenas um check-in por OS.
     const existing = await this.prisma.vehicleCheckin.findFirst({

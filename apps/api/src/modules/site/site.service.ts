@@ -206,7 +206,7 @@ export class SiteService {
     const match = await this.prisma.tenantDomain.findFirst({
       where: {
         domain,
-        ...(requireVerified ? { verifiedAt: { not: null } } : {}),
+        ...(requireVerified ? { verifiedAt: { not: null }, status: 'VERIFIED' as const } : {}),
         tenant: { active: true, siteSettings: { published: true } },
       },
       select: { tenantId: true },

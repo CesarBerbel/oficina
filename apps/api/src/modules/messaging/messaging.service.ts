@@ -15,6 +15,7 @@ import type {
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { MailService } from '../../infra/mail/mail.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { QuotasService } from '../saas/quotas.service';
 
 const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 const brl = (n: number): string =>
@@ -28,7 +29,12 @@ export class MessagingService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
+    private readonly quotas: QuotasService,
   ) {}
+
+  private async consumeMessageQuota(tenantId: string): Promise<void> {
+    await this.quotas.consumeForTenant(tenantId, 'MESSAGES_MONTH', 1);
+  }
 
   private isUniqueConstraintError(err: unknown): boolean {
     return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
@@ -195,6 +201,7 @@ export class MessagingService {
           ? (built.order.customer.email ?? '')
           : (built.order.customer.phone ?? built.order.customer.whatsapp ?? '');
       const subject = `${built.ctx.oficina.nome} — OS #${built.ctx.os.numero}`;
+      await this.consumeMessageQuota(tenantId);
       const res = await this.deliver(t.channel, to, body, subject);
       try {
         await this.prisma.messageLog.create({
@@ -263,6 +270,7 @@ export class MessagingService {
         t.channel === 'EMAIL'
           ? (customer.email ?? '')
           : (customer.phone ?? customer.whatsapp ?? '');
+      await this.consumeMessageQuota(tenantId);
       const res = await this.deliver(
         t.channel,
         to,
@@ -307,6 +315,7 @@ export class MessagingService {
         `(${built.ctx.veiculo.modelo} · ${built.ctx.veiculo.placa}) está pronto. ` +
         `Acesse o link para consultar a OS, ver a timeline e aprovar online: ${built.ctx.os.link}`;
 
+    await this.consumeMessageQuota(tenantId);
     const res = await this.deliver(
       'EMAIL',
       to,
@@ -370,6 +379,7 @@ export class MessagingService {
       link,
     });
 
+    await this.consumeMessageQuota(tenantId);
     const res = await this.deliver(
       'EMAIL',
       params.to,
@@ -432,6 +442,7 @@ export class MessagingService {
     const body =
       'Este é um e-mail de teste do sistema da oficina. ' +
       'Se você recebeu esta mensagem, o envio por e-mail está funcionando.';
+    await this.consumeMessageQuota(actor.tenantId);
     const res = await this.deliver('EMAIL', to, body, 'Teste de e-mail — Oficina');
     await this.prisma.messageLog.create({
       data: {
@@ -472,6 +483,7 @@ export class MessagingService {
       if (c) to = input.channel === 'EMAIL' ? (c.email ?? '') : (c.phone ?? c.whatsapp ?? '');
     }
 
+    await this.consumeMessageQuota(actor.tenantId);
     const res = await this.deliver(input.channel, to, body);
     const log = await this.prisma.messageLog.create({
       data: {

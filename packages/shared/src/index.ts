@@ -52,3 +52,4 @@ export * from './schemas/operational.js';
 export * from './schemas/financial.js';
 export * from './schemas/metrics.js';
 export * from './schemas/tenant-domain.js';
+export * from './schemas/saas.js';

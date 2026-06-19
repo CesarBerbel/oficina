@@ -8,6 +8,7 @@ import express from 'express';
 import { isAbsolute, join } from 'node:path';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { TenantDomainsService } from './modules/tenant-domains/tenant-domains.service';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -38,8 +39,16 @@ async function bootstrap(): Promise<void> {
   const prefix = config.get<string>('API_GLOBAL_PREFIX') ?? 'api';
   app.setGlobalPrefix(prefix);
 
+  const tenantDomains = app.get(TenantDomainsService);
   app.enableCors({
-    origin: config.get<string>('WEB_ORIGIN'),
+    origin: async (origin, callback) => {
+      try {
+        const allowed = await tenantDomains.isAllowedOrigin(origin);
+        callback(allowed ? null : new Error('Origin not allowed by CORS'), allowed);
+      } catch (err) {
+        callback(err instanceof Error ? err : new Error('CORS origin validation failed'), false);
+      }
+    },
     credentials: true,
   });
 

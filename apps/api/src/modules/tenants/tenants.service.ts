@@ -9,6 +9,7 @@ import type { CreateBranchInput, PlatformTenantDto } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
 import { AuditService } from '../audit/audit.service';
+import { QuotasService } from '../saas/quotas.service';
 import { seedMessageTemplates } from '../messaging/default-templates';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
@@ -40,6 +41,7 @@ export class TenantsService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly audit: AuditService,
+    private readonly quotas: QuotasService,
   ) {}
 
   private toDto(t: TenantRow): PlatformTenantDto {
@@ -83,6 +85,9 @@ export class TenantsService {
     const matrizId = me?.parentId ?? actor.tenantId;
     // A filial herda a conta da matriz/grupo.
     const accountId = me?.accountId ?? actor.accountId;
+
+    const branchCount = await this.prisma.tenant.count({ where: { accountId } });
+    await this.quotas.assertAccountLimit(accountId, 'BRANCHES', branchCount, 1);
 
     const slug = input.slug.trim().toLowerCase();
     const passwordHash = await this.passwords.hash(input.password);

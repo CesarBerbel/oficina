@@ -14,6 +14,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CryptoService } from '../../infra/security/crypto.service';
 import { AuditService } from '../audit/audit.service';
 import { AiProviderService } from './ai-provider.service';
+import { QuotasService } from '../saas/quotas.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class AiService {
     private readonly crypto: CryptoService,
     private readonly audit: AuditService,
     private readonly provider: AiProviderService,
+    private readonly quotas: QuotasService,
   ) {}
 
   private async getOrCreate(tenantId: string) {
@@ -198,6 +200,7 @@ export class AiService {
   async assist(actor: AuthenticatedUser, input: AiAssistInput): Promise<AiAssistResult> {
     const client = await this.resolveClient(actor.tenantId);
     await this.assertWithinLimits(actor.tenantId, actor.id, client);
+    await this.quotas.consumeForTenant(actor.tenantId, 'AI_MONTH', 1);
     const system = [
       'Você é um assistente de uma oficina mecânica no Brasil.',
       'Escreva em português do Brasil, de forma clara, profissional e objetiva.',
@@ -246,6 +249,7 @@ export class AiService {
   async article(actor: AuthenticatedUser, input: AiArticleInput): Promise<AiArticleResult> {
     const client = await this.resolveClient(actor.tenantId);
     await this.assertWithinLimits(actor.tenantId, actor.id, client);
+    await this.quotas.consumeForTenant(actor.tenantId, 'AI_MONTH', 1);
     const system = [
       'Você é um redator especialista em conteúdo para oficinas mecânicas no Brasil.',
       'Escreva em português do Brasil, tom acessível e confiável.',

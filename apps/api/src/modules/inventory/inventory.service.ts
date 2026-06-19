@@ -9,6 +9,8 @@ import type {
   StockMovementDto,
   StockMovementInput,
   StockReservationDto,
+  StockReservationReconciliationDto,
+  StockReservationReconcileResultDto,
   StockReservationSummaryDto,
   UpdatePartInput,
 } from '@oficina/shared';
@@ -208,6 +210,154 @@ export class InventoryService {
       reservedParts: new Set(active.map((r) => r.partId)).size,
       consumedReservations: consumed,
       releasedReservations: released,
+    };
+  }
+
+  private async stockReservationReconciliationSnapshot(
+    actor: AuthenticatedUser,
+  ): Promise<StockReservationReconciliationDto> {
+    const stockRows = await this.prisma.$queryRaw<
+      {
+        partId: string;
+        partName: string;
+        partSku: string | null;
+        currentStock: Prisma.Decimal | number | null;
+        reservedStock: Prisma.Decimal | number | null;
+        activeReservedQuantity: Prisma.Decimal | number | null;
+      }[]
+    >`
+      SELECT
+        p."id" AS "partId",
+        p."name" AS "partName",
+        p."sku" AS "partSku",
+        COALESCE(ps."currentStock", 0) AS "currentStock",
+        COALESCE(ps."reservedStock", 0) AS "reservedStock",
+        COALESCE(SUM(sr."quantity") FILTER (WHERE sr."status" = 'ACTIVE'::"StockReservationStatus"), 0) AS "activeReservedQuantity"
+      FROM "parts" p
+      LEFT JOIN "part_stock" ps
+        ON ps."partId" = p."id" AND ps."tenantId" = ${actor.tenantId}
+      LEFT JOIN "stock_reservations" sr
+        ON sr."partId" = p."id" AND sr."tenantId" = ${actor.tenantId}
+      WHERE p."tenantId" = ${actor.groupId}
+      GROUP BY p."id", p."name", p."sku", ps."currentStock", ps."reservedStock"
+      HAVING COALESCE(ps."reservedStock", 0) <> COALESCE(SUM(sr."quantity") FILTER (WHERE sr."status" = 'ACTIVE'::"StockReservationStatus"), 0)
+      ORDER BY p."name" ASC
+    `;
+
+    const serviceOrderRows = await this.prisma.$queryRaw<
+      {
+        serviceOrderId: string;
+        serviceOrderNumber: number;
+        partsReserved: boolean;
+        shouldBeReserved: boolean;
+      }[]
+    >`
+      SELECT
+        so."id" AS "serviceOrderId",
+        so."number" AS "serviceOrderNumber",
+        so."partsReserved" AS "partsReserved",
+        EXISTS (
+          SELECT 1
+          FROM "stock_reservations" sr
+          WHERE sr."tenantId" = so."tenantId"
+            AND sr."serviceOrderId" = so."id"
+            AND sr."status" = 'ACTIVE'::"StockReservationStatus"
+        ) AS "shouldBeReserved"
+      FROM "service_orders" so
+      WHERE so."tenantId" = ${actor.tenantId}
+        AND so."partsReserved" <> EXISTS (
+          SELECT 1
+          FROM "stock_reservations" sr
+          WHERE sr."tenantId" = so."tenantId"
+            AND sr."serviceOrderId" = so."id"
+            AND sr."status" = 'ACTIVE'::"StockReservationStatus"
+        )
+      ORDER BY so."number" ASC
+    `;
+
+    const issues = stockRows.map((row) => {
+      const reservedStock = round3(dec(row.reservedStock));
+      const activeReservedQuantity = round3(dec(row.activeReservedQuantity));
+      return {
+        partId: row.partId,
+        partName: row.partName,
+        partSku: row.partSku,
+        currentStock: round3(dec(row.currentStock)),
+        reservedStock,
+        activeReservedQuantity,
+        difference: round3(activeReservedQuantity - reservedStock),
+      };
+    });
+
+    return {
+      tenantId: actor.tenantId,
+      checkedAt: new Date().toISOString(),
+      issues,
+      serviceOrderIssues: serviceOrderRows.map((row) => ({
+        serviceOrderId: row.serviceOrderId,
+        serviceOrderNumber: row.serviceOrderNumber,
+        partsReserved: row.partsReserved,
+        shouldBeReserved: row.shouldBeReserved,
+      })),
+      totals: {
+        stockIssues: issues.length,
+        serviceOrderIssues: serviceOrderRows.length,
+        absoluteDifference: round3(
+          issues.reduce((sum, issue) => sum + Math.abs(issue.difference), 0),
+        ),
+      },
+    };
+  }
+
+  async reservationReconciliation(
+    actor: AuthenticatedUser,
+  ): Promise<StockReservationReconciliationDto> {
+    return this.stockReservationReconciliationSnapshot(actor);
+  }
+
+  async reconcileReservations(
+    actor: AuthenticatedUser,
+  ): Promise<StockReservationReconcileResultDto> {
+    const before = await this.stockReservationReconciliationSnapshot(actor);
+    await this.prisma.$transaction(async (tx) => {
+      for (const issue of before.issues) {
+        await tx.partStock.upsert({
+          where: { tenantId_partId: { tenantId: actor.tenantId, partId: issue.partId } },
+          create: {
+            tenantId: actor.tenantId,
+            partId: issue.partId,
+            currentStock: new Prisma.Decimal(issue.currentStock),
+            reservedStock: new Prisma.Decimal(issue.activeReservedQuantity),
+          },
+          update: { reservedStock: new Prisma.Decimal(issue.activeReservedQuantity) },
+        });
+      }
+
+      for (const issue of before.serviceOrderIssues) {
+        await tx.serviceOrder.updateMany({
+          where: { id: issue.serviceOrderId, tenantId: actor.tenantId },
+          data: { partsReserved: issue.shouldBeReserved },
+        });
+      }
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'RECONCILE_STOCK_RESERVATIONS',
+      module: 'inventory',
+      entity: 'StockReservation',
+      after: {
+        fixedPartStocks: before.issues.length,
+        fixedServiceOrders: before.serviceOrderIssues.length,
+      },
+    });
+
+    const after = await this.stockReservationReconciliationSnapshot(actor);
+    return {
+      ...after,
+      fixedPartStocks: before.issues.length,
+      fixedServiceOrders: before.serviceOrderIssues.length,
     };
   }
 
