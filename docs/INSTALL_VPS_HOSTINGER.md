@@ -409,6 +409,18 @@ qualquer domínio, desde que a API autorize via `GET /api/internal/tls-check`
 (responde 200 só para domínio de oficina **verificado**). O `*.seudominio.com` e o
 apex continuam com cert automático, agora via DNS-01 do Cloudflare (sem certbot).
 
+> **Pré-requisito — código novo no ar primeiro.** O porteiro `/api/internal/tls-check`
+> faz parte da API. Se você migrar pro Caddy com a API **antiga**, o on-demand
+> recebe 404 e **nenhum domínio de cliente sobe**. Atualize e rebuilde antes:
+>
+> ```bash
+> cd /opt/oficina && git pull origin main
+> docker compose -f docker-compose.prod.yml up -d --build
+> # confirme o porteiro (troque pelo domínio de uma oficina já verificada):
+> curl -s -o /dev/null -w '%{http_code}\n' \
+>   'http://127.0.0.1:18081/api/internal/tls-check?domain=oficinadoze.com.br'   # tem que dar 200
+> ```
+
 1. **Instalar o Caddy com o plugin do Cloudflare** (DNS-01):
 
    ```bash
@@ -420,15 +432,30 @@ apex continuam com cert automático, agora via DNS-01 do Cloudflare (sem certbot
    sudo caddy add-package github.com/caddy-dns/cloudflare
    ```
 
-2. **Caddyfile** — use o do repositório como base (`docker/caddy/Caddyfile`),
-   trocando `saecbpa.com` pelo seu domínio:
+2. **Caddyfile** — o arquivo do repositório (`docker/caddy/Caddyfile`) já vem com o
+   domínio de exemplo `saecbpa.com`.
+
+   - Se o **seu** domínio é o mesmo do arquivo, só copie (**não** rode o `sed`):
+
+     ```bash
+     sudo cp /opt/oficina/docker/caddy/Caddyfile /etc/caddy/Caddyfile
+     ```
+
+   - Se for **outro** domínio, troque no `sed` (substitua `MEUDOMINIO.com` pelo real):
+
+     ```bash
+     sudo cp /opt/oficina/docker/caddy/Caddyfile /etc/caddy/Caddyfile
+     sudo sed -i 's/saecbpa\.com/MEUDOMINIO.com/g' /etc/caddy/Caddyfile
+     ```
+
+   Confirme que ficou só com o **seu** domínio (e nenhum placeholder):
 
    ```bash
-   sudo cp /opt/oficina/docker/caddy/Caddyfile /etc/caddy/Caddyfile
-   sudo sed -i 's/saecbpa\.com/seudominio.com/g' /etc/caddy/Caddyfile
+   grep -nE 'saecbpa|seudominio|MEUDOMINIO' /etc/caddy/Caddyfile
    ```
 
-3. **Token do Cloudflare** para o Caddy (o mesmo do wildcard):
+3. **Token do Cloudflare** para o Caddy (o mesmo do wildcard). Cole o valor **cru**
+   (sem aspas, sem `{}`, sem `Bearer`):
 
    ```bash
    sudo mkdir -p /etc/systemd/system/caddy.service.d
@@ -437,12 +464,17 @@ apex continuam com cert automático, agora via DNS-01 do Cloudflare (sem certbot
    sudo systemctl daemon-reload
    ```
 
+   > O token fica **só no serviço**. Comandos avulsos (`caddy validate`, `sudo caddy ...`)
+   > **não** enxergam esse `Environment=` — por isso a validação abaixo passa o token na linha.
+
 4. **Swap sem downtime** (libera as portas 80/443 do Nginx para o Caddy):
 
    ```bash
-   sudo caddy validate --config /etc/caddy/Caddyfile
+   # valide passando o token (o validate avulso não lê o env do systemd):
+   sudo env CLOUDFLARE_API_TOKEN="SEU_TOKEN" caddy validate --config /etc/caddy/Caddyfile
    sudo systemctl stop nginx && sudo systemctl disable nginx
-   sudo systemctl enable --now caddy
+   sudo systemctl restart caddy            # restart: o apt já deixou o Caddy rodando
+   sudo journalctl -u caddy -n 30 --no-pager
    ```
 
 5. **Testar**: o apex, um subdomínio e um domínio de cliente já verificado devem
@@ -459,6 +491,15 @@ apex continuam com cert automático, agora via DNS-01 do Cloudflare (sem certbot
 > O domínio do cliente precisa apontar **direto para a VPS** (DNS only) para o
 > on-demand (HTTP-01/TLS-ALPN) funcionar. O `*.seudominio.com` pode seguir atrás
 > do Cloudflare (laranja), pois usa DNS-01.
+
+#### Troubleshooting
+
+| Erro no `journalctl -u caddy` / sintoma | Causa & correção |
+| --- | --- |
+| `expected 1 zone, got 0 for seudominio.com.` | O Caddyfile ficou com **domínio errado** (placeholder) ou o token não vê a zona. Refaça o `grep` do passo 2; garanta que o token tem **Zone → DNS → Edit** **na zona** `seudominio.com`. |
+| `API token '' appears invalid` | O env não chegou no processo. Valide com `sudo env CLOUDFLARE_API_TOKEN=... caddy validate ...` e use o **serviço** (que lê o drop-in), não `caddy` avulso. |
+| **Domínio de cliente parou** depois de migrar (apex/subdomínios ok) | A API antiga não tem o porteiro → `curl ...tls-check` dá **404**. Rode o **Pré-requisito** (rebuild) e depois `sudo systemctl restart caddy`. |
+| Cliente não emite cert, mas `tls-check` dá 200 | Domínio não aponta direto pra VPS / porta 80 fechada. Deixe **DNS only** e cheque o firewall. |
 
 ---
 
