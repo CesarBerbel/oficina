@@ -1,11 +1,19 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import type { CreateBranchInput, PlatformTenantDto } from '@oficina/shared';
+import type {
+  CreateAccountBranchInput,
+  CreateBranchInput,
+  CreatedBranchDto,
+  PlatformTenantDto,
+  RenameTenantInput,
+} from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
 import { AuditService } from '../audit/audit.service';
@@ -69,6 +77,145 @@ export class TenantsService {
       select: SELECT,
     });
     return rows.map((r) => this.toDto(r));
+  }
+
+  // ── Gestão pelo ADMIN GERAL da própria conta ─────────────────────────────────
+
+  /** Só o admin geral (ADMIN na matriz; groupId === tenantId) gerencia oficinas. */
+  private assertGeneralAdmin(actor: AuthenticatedUser): void {
+    if (!(actor.role === 'ADMIN' && actor.tenantId === actor.groupId)) {
+      throw new ForbiddenException(
+        'Apenas o administrador geral da conta pode gerenciar oficinas.',
+      );
+    }
+  }
+
+  /** Lista as oficinas (matriz + filiais) da conta. */
+  async listForAccount(accountId: string): Promise<PlatformTenantDto[]> {
+    const rows = await this.prisma.tenant.findMany({
+      where: { accountId },
+      orderBy: [{ parentId: { sort: 'asc', nulls: 'first' } }, { createdAt: 'asc' }],
+      select: SELECT,
+    });
+    return rows.map((r) => this.toDto(r));
+  }
+
+  /** Cria uma filial na conta do admin geral, com admin próprio (senha temporária). */
+  async createAccountBranch(
+    actor: AuthenticatedUser,
+    input: CreateAccountBranchInput,
+  ): Promise<CreatedBranchDto> {
+    this.assertGeneralAdmin(actor);
+    const accountId = actor.accountId;
+    const matrizId = actor.tenantId; // o admin geral está na matriz
+
+    const branchCount = await this.prisma.tenant.count({ where: { accountId } });
+    await this.quotas.assertAccountLimit(accountId, 'BRANCHES', branchCount, 1);
+
+    const slug = input.slug.trim().toLowerCase();
+    const tempPassword = randomBytes(9).toString('base64url');
+    const passwordHash = await this.passwords.hash(tempPassword);
+
+    let createdId: string;
+    try {
+      const tenant = await this.prisma.$transaction(async (tx) => {
+        const branch = await tx.tenant.create({
+          data: {
+            name: input.shopName,
+            slug,
+            cnpj: input.cnpj ?? null,
+            parentId: matrizId,
+            accountId,
+          },
+        });
+        await tx.user.create({
+          data: {
+            tenantId: branch.id,
+            name: input.adminName,
+            email: input.adminEmail,
+            passwordHash,
+            role: 'ADMIN',
+            active: true,
+            superAdmin: false,
+            forcePasswordChange: true,
+          },
+        });
+        await tx.siteSettings.create({
+          data: { tenantId: branch.id, shopName: input.shopName, cnpj: input.cnpj ?? null },
+        });
+        return branch;
+      });
+      createdId = tenant.id;
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException('Já existe uma oficina com esse identificador. Escolha outro.');
+      }
+      throw err;
+    }
+
+    try {
+      await seedMessageTemplates(this.prisma, createdId);
+    } catch {
+      /* não bloqueia a criação da filial */
+    }
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'CREATE_BRANCH',
+      module: 'account',
+      entity: 'Tenant',
+      entityId: createdId,
+    });
+
+    const created = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: createdId },
+      select: SELECT,
+    });
+    return {
+      tenant: this.toDto(created),
+      admin: { name: input.adminName, email: input.adminEmail },
+      tempPassword,
+    };
+  }
+
+  /** Renomeia (nome + slug) uma oficina da própria conta. Matriz continua matriz. */
+  async renameTenant(
+    actor: AuthenticatedUser,
+    tenantId: string,
+    input: RenameTenantInput,
+  ): Promise<PlatformTenantDto> {
+    this.assertGeneralAdmin(actor);
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, accountId: true },
+    });
+    if (!tenant || tenant.accountId !== actor.accountId) {
+      throw new NotFoundException('Oficina não encontrada');
+    }
+    const slug = input.slug.trim().toLowerCase();
+    try {
+      const updated = await this.prisma.tenant.update({
+        where: { id: tenantId },
+        data: { name: input.name, slug },
+        select: SELECT,
+      });
+      await this.audit.record({
+        tenantId: actor.tenantId,
+        userId: actor.id,
+        action: 'RENAME_TENANT',
+        module: 'account',
+        entity: 'Tenant',
+        entityId: tenantId,
+        after: { name: input.name, slug },
+      });
+      return this.toDto(updated);
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException('Já existe uma oficina com esse identificador. Escolha outro.');
+      }
+      throw err;
+    }
   }
 
   /** Cria uma filial sob a matriz do grupo do super usuário. */
