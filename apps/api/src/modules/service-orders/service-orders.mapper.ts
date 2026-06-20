@@ -116,6 +116,7 @@ export function toDetailDto(row: DetailRow): ServiceOrderDetailDto {
         quantity: dec(it.quantity),
         unitPrice: dec(it.unitPrice),
         total: dec(it.total),
+        discountPercent: dec(it.discountPercent),
         comboLabel: it.comboLabel,
         parentItemId: it.parentItemId,
         linkedServiceName: it.parentItemId ? (byId.get(it.parentItemId) ?? null) : null,

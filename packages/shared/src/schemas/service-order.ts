@@ -105,6 +105,8 @@ export const updateItemSchema = z.object({
   description: z.string().trim().min(1).max(200).optional(),
   quantity: z.coerce.number().positive().max(99_999).optional(),
   unitPrice: z.coerce.number().min(0).max(9_999_999).optional(),
+  /** Desconto percentual do item (0–100), aplicado ao gerar o orçamento. */
+  discountPercent: z.coerce.number().min(0).max(100).optional(),
   /** Vincular (id do serviço) ou desvincular (null) a peça de um serviço. */
   parentItemId: z.string().nullable().optional(),
 });
@@ -146,6 +148,8 @@ export interface ServiceOrderItemDto {
   quantity: number;
   unitPrice: number;
   total: number;
+  /** Desconto percentual do item (0 = sem desconto), aplicado no orçamento. */
+  discountPercent: number;
   comboLabel: string | null;
   /** Item de serviço ao qual esta peça está vinculada (se houver). */
   parentItemId: string | null;

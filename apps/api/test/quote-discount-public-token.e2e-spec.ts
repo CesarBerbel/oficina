@@ -167,16 +167,22 @@ describe('Orçamento: desconto por item e expiração de link público (e2e)', (
     const admin = await loginAs(app);
     const fixture = await createReadyOrder(admin.token);
 
+    // O desconto por item é definido no próprio item da OS (lista de itens).
+    await request(app.getHttpServer())
+      .patch(`/api/service-orders/${fixture.order.id}/items/${fixture.serviceItemId}`)
+      .set(authHeader(admin.token))
+      .send({ discountPercent: 10 })
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch(`/api/service-orders/${fixture.order.id}/items/${fixture.partItemId}`)
+      .set(authHeader(admin.token))
+      .send({ discountPercent: 20 })
+      .expect(200);
+
     const quoteResponse = await request(app.getHttpServer())
       .post(`/api/service-orders/${fixture.order.id}/quote`)
       .set(authHeader(admin.token))
-      .send({
-        publicNotes: 'Descontos aplicados diretamente nos itens do orçamento.',
-        itemDiscounts: [
-          { serviceOrderItemId: fixture.serviceItemId, discountPercent: 10 },
-          { serviceOrderItemId: fixture.partItemId, discountPercent: 20 },
-        ],
-      })
+      .send({ publicNotes: 'Descontos aplicados diretamente nos itens do orçamento.' })
       .expect(201);
     const quote = quoteResponse.body as QuoteBody;
 
@@ -245,25 +251,23 @@ describe('Orçamento: desconto por item e expiração de link público (e2e)', (
     ]);
   });
 
-  it('rejeita desconto maior que 100% e desconto apontando para item inexistente', async () => {
+  it('rejeita desconto maior que 100% e item inexistente', async () => {
     const admin = await loginAs(app);
     const fixture = await createReadyOrder(admin.token);
 
+    // Desconto > 100% é barrado pela validação do item.
     await request(app.getHttpServer())
-      .post(`/api/service-orders/${fixture.order.id}/quote`)
+      .patch(`/api/service-orders/${fixture.order.id}/items/${fixture.serviceItemId}`)
       .set(authHeader(admin.token))
-      .send({
-        itemDiscounts: [{ serviceOrderItemId: fixture.serviceItemId, discountPercent: 100.01 }],
-      })
+      .send({ discountPercent: 100.01 })
       .expect(400);
 
+    // Item inexistente → 404.
     await request(app.getHttpServer())
-      .post(`/api/service-orders/${fixture.order.id}/quote`)
+      .patch(`/api/service-orders/${fixture.order.id}/items/item-inexistente`)
       .set(authHeader(admin.token))
-      .send({
-        itemDiscounts: [{ serviceOrderItemId: 'item-inexistente', discountPercent: 10 }],
-      })
-      .expect(400);
+      .send({ discountPercent: 10 })
+      .expect(404);
   });
 
   it('bloqueia acompanhamento e decisão quando o token público está expirado', async () => {

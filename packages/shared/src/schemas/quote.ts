@@ -18,16 +18,6 @@ export const generateQuoteSchema = z.object({
     .max(500)
     .optional()
     .transform((v) => (v === '' ? undefined : v)),
-  /** Desconto percentual aplicado diretamente a itens da OS ao gerar o orçamento. */
-  itemDiscounts: z
-    .array(
-      z.object({
-        serviceOrderItemId: z.string().min(1),
-        discountPercent: z.coerce.number().min(0).max(100),
-      }),
-    )
-    .optional()
-    .default([]),
 });
 export type GenerateQuoteInput = z.infer<typeof generateQuoteSchema>;
 

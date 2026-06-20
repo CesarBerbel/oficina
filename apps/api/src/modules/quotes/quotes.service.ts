@@ -85,20 +85,12 @@ export class QuotesService {
       throw new BadRequestException('Informe o motivo do reenvio do orçamento.');
     }
 
-    const orderItemIds = new Set(order.items.map((it) => it.id));
-    const discountByOrderItem = new Map<string, number>();
-    for (const row of input.itemDiscounts ?? []) {
-      if (!orderItemIds.has(row.serviceOrderItemId)) {
-        throw new BadRequestException('Desconto informado para item inválido do orçamento.');
-      }
-      discountByOrderItem.set(row.serviceOrderItemId, clampPercent(row.discountPercent));
-    }
-
     const quoteItems = order.items.map((it) => {
       const quantity = dec(it.quantity);
       const unitPrice = dec(it.unitPrice);
       const subtotal = round2(quantity * unitPrice);
-      const discountPercent = discountByOrderItem.get(it.id) ?? 0;
+      // O desconto por item vem do próprio item da OS (definido na lista de itens).
+      const discountPercent = clampPercent(dec(it.discountPercent));
       const discountAmount = round2((subtotal * discountPercent) / 100);
       return {
         item: it,
