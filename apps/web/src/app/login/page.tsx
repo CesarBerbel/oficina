@@ -34,7 +34,6 @@ export default function LoginPage() {
   const [account, setAccount] = useState<LoginContextDto['account'] | undefined>(undefined);
   // true no apex da plataforma (login do super admin).
   const [platform, setPlatform] = useState(false);
-  const [resolvedTenantSlug, setResolvedTenantSlug] = useState<string | null>(null);
 
   // Descobre o que este host representa (conta de oficina, plataforma, ou apex/dev).
   useEffect(() => {
@@ -50,14 +49,13 @@ export default function LoginPage() {
         }
         setAccount(ctx.account);
         setPlatform(ctx.platform);
-        setResolvedTenantSlug(ctx.tenantSlug);
         const branches = ctx.account?.branches ?? [];
+        // Pré-seleciona a oficina do host (matriz, normalmente); na falta dela,
+        // a primeira da lista (a matriz vem primeiro por parentId asc).
         if (ctx.tenantSlug) {
           setTenantSlug(ctx.tenantSlug);
-        } else if (branches.length === 1) {
+        } else if (branches.length >= 1) {
           setTenantSlug(branches[0]?.slug ?? '');
-        } else if (branches.length > 1) {
-          setTenantSlug('');
         }
       })
       .catch(() => active && setAccount(null));
@@ -70,9 +68,10 @@ export default function LoginPage() {
     if (status === 'authenticated') router.replace('/dashboard');
   }, [status, router]);
 
-  // No subdomínio da conta (host não fixou uma oficina), mostra o select de
-  // oficinas. Com só a matriz, vem o nome dela e desabilitado.
-  const branchContext = !!account && !resolvedTenantSlug && account.branches.length >= 1;
+  // Num host de conta de oficina, mostra o select de oficinas (matriz + filiais)
+  // já com a oficina do host pré-selecionada. Com só a matriz, vem o nome dela
+  // e desabilitado.
+  const branchContext = !!account && account.branches.length >= 1;
   const singleBranch = (account?.branches.length ?? 0) === 1;
   const needsBranchSelection = branchContext;
   // No apex/dev "puro" pede o slug; no apex da plataforma é o super admin (sem slug).
@@ -138,7 +137,6 @@ export default function LoginPage() {
                   onChange={(e) => setTenantSlug(e.target.value)}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {!singleBranch && <option value="">Selecione a filial</option>}
                   {account?.branches.map((branch) => (
                     <option key={branch.slug} value={branch.slug}>
                       {branch.name}
