@@ -1,7 +1,8 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { MailService } from '../src/infra/mail/mail.service';
 import { createE2eApp } from './support/e2e-app';
-import { prisma, resetAndSeed, TEST_PASSWORD } from './support/e2e-db';
+import { createBranchTenant, prisma, resetAndSeed, TEST_PASSWORD } from './support/e2e-db';
 
 const HOST = 'modelo.saecbpa.test';
 
@@ -44,7 +45,11 @@ describe('Login por subdomínio (host → conta) (e2e)', () => {
       .get('/api/auth/context')
       .set('X-Forwarded-Host', HOST)
       .expect(200);
-    expect(ctx.body.account).toEqual({ name: 'Oficina Modelo', slug: 'oficina-modelo' });
+    expect(ctx.body.account).toMatchObject({ name: 'Oficina Modelo', slug: 'oficina-modelo' });
+    expect(ctx.body.tenantSlug).toBe('oficina-modelo');
+    expect(ctx.body.account.branches).toEqual(
+      expect.arrayContaining([{ name: 'Oficina Modelo', slug: 'oficina-modelo' }]),
+    );
 
     const none = await request(app.getHttpServer())
       .get('/api/auth/context')
@@ -77,6 +82,68 @@ describe('Login por subdomínio (host → conta) (e2e)', () => {
       .set('X-Forwarded-Host', HOST)
       .send({ email: other.email, password: TEST_PASSWORD })
       .expect(401);
+  });
+
+  it('login multi-filial permite escolher filial pelo slug', async () => {
+    const matriz = await prisma.tenant.findUniqueOrThrow({
+      where: { slug: 'oficina-modelo' },
+      select: { id: true },
+    });
+    const filial = await createBranchTenant(matriz.id, {
+      slug: 'oficina-modelo-filial-e2e',
+      name: 'Oficina Modelo Filial E2E',
+      adminEmail: 'admin@oficina.local',
+    });
+
+    const ctx = await request(app.getHttpServer())
+      .get('/api/auth/context')
+      .set('X-Forwarded-Host', HOST)
+      .expect(200);
+    expect(ctx.body.account.branches).toEqual(
+      expect.arrayContaining([
+        { name: 'Oficina Modelo', slug: 'oficina-modelo' },
+        { name: 'Oficina Modelo Filial E2E', slug: filial.slug },
+      ]),
+    );
+
+    const matrizLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .set('X-Forwarded-Host', HOST)
+      .send({ email: 'admin@oficina.local', password: TEST_PASSWORD })
+      .expect(200);
+    expect(matrizLogin.body.user.tenantId).toBe(matriz.id);
+
+    const filialLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .set('X-Forwarded-Host', HOST)
+      .send({
+        tenantSlug: filial.slug,
+        email: 'admin@oficina.local',
+        password: TEST_PASSWORD,
+      })
+      .expect(200);
+    expect(filialLogin.body.user.tenantId).toBe(filial.id);
+  });
+
+  it('reset de senha monta link usando o domínio confiável da requisição', async () => {
+    const mail = app.get(MailService);
+    const sendSpy = jest.spyOn(mail, 'send').mockResolvedValue({
+      ok: false,
+      skipped: true,
+      error: null,
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/auth/forgot-password')
+      .set('X-Forwarded-Host', HOST)
+      .set('X-Forwarded-Proto', 'https')
+      .send({ email: 'admin@oficina.local' })
+      .expect(200);
+
+    expect(sendSpy).toHaveBeenCalledTimes(1);
+    const sent = sendSpy.mock.calls[0]?.[0];
+    expect(sent?.text).toContain(`https://${HOST}/redefinir-senha?token=`);
+    sendSpy.mockRestore();
   });
 
   it('refresh confia na origem do próprio host e barra origem estranha', async () => {

@@ -34,6 +34,7 @@ export default function LoginPage() {
   const [account, setAccount] = useState<LoginContextDto['account'] | undefined>(undefined);
   // true no apex da plataforma (login do super admin).
   const [platform, setPlatform] = useState(false);
+  const [resolvedTenantSlug, setResolvedTenantSlug] = useState<string | null>(null);
 
   // Descobre o que este host representa (conta de oficina, plataforma, ou apex/dev).
   useEffect(() => {
@@ -49,6 +50,15 @@ export default function LoginPage() {
         }
         setAccount(ctx.account);
         setPlatform(ctx.platform);
+        setResolvedTenantSlug(ctx.tenantSlug);
+        const branches = ctx.account?.branches ?? [];
+        if (ctx.tenantSlug) {
+          setTenantSlug(ctx.tenantSlug);
+        } else if (branches.length === 1) {
+          setTenantSlug(branches[0]?.slug ?? '');
+        } else if (branches.length > 1) {
+          setTenantSlug('');
+        }
       })
       .catch(() => active && setAccount(null));
     return () => {
@@ -62,7 +72,8 @@ export default function LoginPage() {
 
   // Pede o slug só no apex/dev "puro": no subdomínio a conta vem do host e no
   // apex da plataforma o login é do super admin (sem slug).
-  const needsSlug = account === null && !platform;
+  const needsBranchSelection = !!account && !resolvedTenantSlug && account.branches.length > 1;
+  const needsSlug = (account === null && !platform) || needsBranchSelection;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -113,17 +124,34 @@ export default function LoginPage() {
           {needsSlug && (
             <div className="space-y-1.5">
               <Label htmlFor="tenantSlug" required>
-                Oficina
+                {needsBranchSelection ? 'Oficina/filial' : 'Oficina'}
               </Label>
-              <Input
-                id="tenantSlug"
-                name="tenantSlug"
-                type="text"
-                autoComplete="organization"
-                value={tenantSlug}
-                onChange={(e) => setTenantSlug(e.target.value)}
-                placeholder="slug-da-oficina"
-              />
+              {needsBranchSelection ? (
+                <select
+                  id="tenantSlug"
+                  name="tenantSlug"
+                  value={tenantSlug}
+                  onChange={(e) => setTenantSlug(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="">Selecione a filial</option>
+                  {account?.branches.map((branch) => (
+                    <option key={branch.slug} value={branch.slug}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  id="tenantSlug"
+                  name="tenantSlug"
+                  type="text"
+                  autoComplete="organization"
+                  value={tenantSlug}
+                  onChange={(e) => setTenantSlug(e.target.value)}
+                  placeholder="slug-da-oficina"
+                />
+              )}
               {errors.tenantSlug && <p className="text-xs text-destructive">{errors.tenantSlug}</p>}
             </div>
           )}

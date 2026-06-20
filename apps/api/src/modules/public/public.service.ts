@@ -29,6 +29,9 @@ export class PublicService {
       },
     });
     if (!order) throw new NotFoundException('Acompanhamento não encontrado');
+    if (order.publicTokenExpiresAt && order.publicTokenExpiresAt < new Date()) {
+      throw new NotFoundException('Link de acompanhamento expirado');
+    }
 
     const year = order.vehicle.modelYear ? ` ${order.vehicle.modelYear}` : '';
 
@@ -54,6 +57,9 @@ export class PublicService {
         description: it.description,
         quantity: dec(it.quantity),
         unitPrice: dec(it.unitPrice),
+        // Itens da OS não carregam desconto por item (isso vive no orçamento).
+        discountPercent: 0,
+        discountAmount: 0,
         total: dec(it.total),
       })),
       totalServices: dec(order.totalServices),

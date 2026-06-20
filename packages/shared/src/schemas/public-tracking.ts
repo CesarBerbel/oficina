@@ -7,6 +7,9 @@ export interface PublicTrackingItemDto {
   description: string;
   quantity: number;
   unitPrice: number;
+  /** Desconto por item (vem do orçamento; itens avulsos da OS = 0). */
+  discountPercent: number;
+  discountAmount: number;
   total: number;
 }
 

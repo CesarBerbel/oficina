@@ -298,13 +298,35 @@ function QuoteSection({ order }: { order: GarageOrderWithQuote }) {
   const docResult = cpfCnpjSchema.safeParse(signerDoc);
   const canSubmit = signature.trim().length > 0 && docResult.success && docResult.data !== null;
   const canDecide = quote.status === 'ENVIADO';
+  const approvedItems = quote.items.filter((item) => isApproved(item));
+  const shownServices = canDecide
+    ? approvedItems
+        .filter((item) => item.kind === 'SERVICE')
+        .reduce((sum, item) => sum + item.total, 0)
+    : quote.totalServices;
+  const shownParts = canDecide
+    ? approvedItems
+        .filter((item) => item.kind === 'PART')
+        .reduce((sum, item) => sum + item.total, 0)
+    : quote.totalParts;
+  const shownTotal = canDecide
+    ? Math.max(0, shownServices + shownParts - quote.discount)
+    : quote.total;
 
   function isApproved(item: QuoteItemDto): boolean {
     return decisions[item.id] ?? true;
   }
 
   function toggleItem(item: QuoteItemDto, checked: boolean) {
-    setDecisions((current) => ({ ...current, [item.id]: checked }));
+    const key = item.parentItemId ?? item.id;
+    const members = quote.items.filter(
+      (candidate) => (candidate.parentItemId ?? candidate.id) === key,
+    );
+    setDecisions((current) => {
+      const next = { ...current };
+      for (const member of members) next[member.id] = checked;
+      return next;
+    });
   }
 
   return (
@@ -352,22 +374,34 @@ function QuoteSection({ order }: { order: GarageOrderWithQuote }) {
                 {linked && <span className="mr-1 text-muted-foreground">↳</span>}
                 {item.description}
                 <span className="text-muted-foreground"> ×{item.quantity}</span>
+                {item.discountPercent > 0 && (
+                  <span className="ml-1 text-xs text-emerald-700">
+                    -{item.discountPercent.toLocaleString('pt-BR')}%
+                  </span>
+                )}
               </span>
             </div>
-            <span className="font-medium">{formatCurrency(item.total)}</span>
+            <div className="text-right">
+              {item.discountPercent > 0 && (
+                <p className="text-xs text-muted-foreground line-through">
+                  {formatCurrency(item.quantity * item.unitPrice)}
+                </p>
+              )}
+              <p className="font-medium">{formatCurrency(item.total)}</p>
+            </div>
           </div>
         ))}
       </div>
 
       <div className="mt-3 space-y-1 text-sm">
-        <Row label="Serviços" value={formatCurrency(quote.totalServices)} />
-        <Row label="Peças" value={formatCurrency(quote.totalParts)} />
+        <Row label="Serviços" value={formatCurrency(shownServices)} />
+        <Row label="Peças" value={formatCurrency(shownParts)} />
         {quote.discount > 0 && (
-          <Row label="Desconto" value={`- ${formatCurrency(quote.discount)}`} />
+          <Row label="Desconto geral" value={`- ${formatCurrency(quote.discount)}`} />
         )}
         <div className="flex justify-between pt-1 text-base font-semibold">
           <span>Total</span>
-          <span>{formatCurrency(quote.total)}</span>
+          <span>{formatCurrency(shownTotal)}</span>
         </div>
       </div>
 

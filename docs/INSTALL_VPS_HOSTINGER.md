@@ -432,27 +432,17 @@ apex continuam com cert automático, agora via DNS-01 do Cloudflare (sem certbot
    sudo caddy add-package github.com/caddy-dns/cloudflare
    ```
 
-2. **Caddyfile** — o arquivo do repositório (`docker/caddy/Caddyfile`) já vem com o
-   domínio de exemplo `saecbpa.com`.
-
-   - Se o **seu** domínio é o mesmo do arquivo, só copie (**não** rode o `sed`):
-
-     ```bash
-     sudo cp /opt/oficina/docker/caddy/Caddyfile /etc/caddy/Caddyfile
-     ```
-
-   - Se for **outro** domínio, troque no `sed` (substitua `MEUDOMINIO.com` pelo real):
-
-     ```bash
-     sudo cp /opt/oficina/docker/caddy/Caddyfile /etc/caddy/Caddyfile
-     sudo sed -i 's/saecbpa\.com/MEUDOMINIO.com/g' /etc/caddy/Caddyfile
-     ```
-
-   Confirme que ficou só com o **seu** domínio (e nenhum placeholder):
+2. **Caddyfile** — o arquivo do repositório (`docker/caddy/Caddyfile`) usa
+   `PLATFORM_BASE_DOMAIN`, então não há domínio fixo para substituir no arquivo.
 
    ```bash
-   grep -nE 'saecbpa|seudominio|MEUDOMINIO' /etc/caddy/Caddyfile
+   sudo cp /opt/oficina/docker/caddy/Caddyfile /etc/caddy/Caddyfile
+   sudo mkdir -p /etc/systemd/system/caddy.service.d
+   printf '[Service]\nEnvironment=PLATFORM_BASE_DOMAIN=seudominio.com\n' | \
+     sudo tee /etc/systemd/system/caddy.service.d/domain.conf
    ```
+
+   Troque `seudominio.com` pelo domínio real da plataforma.
 
 3. **Token do Cloudflare** para o Caddy (o mesmo do wildcard). Cole o valor **cru**
    (sem aspas, sem `{}`, sem `Bearer`):

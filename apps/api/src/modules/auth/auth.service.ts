@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -142,9 +143,11 @@ export class AuthService {
   }
 
   /** Resolve a conta dona de um host (subdomínio próprio ou domínio de terceiro). */
-  async resolveAccountByHost(
-    host: string | null,
-  ): Promise<{ id: string; name: string; slug: string; status: string } | null> {
+  async resolveTenantByHost(host: string | null): Promise<{
+    tenantId: string;
+    tenantSlug: string;
+    account: { id: string; name: string; slug: string; status: string };
+  } | null> {
     const h = this.normalizeHost(host);
     if (!h) return null;
     const domain = await this.prisma.tenantDomain.findFirst({
@@ -156,11 +159,28 @@ export class AuthService {
       },
       select: {
         tenant: {
-          select: { account: { select: { id: true, name: true, slug: true, status: true } } },
+          select: {
+            id: true,
+            slug: true,
+            account: { select: { id: true, name: true, slug: true, status: true } },
+          },
         },
       },
     });
-    return domain?.tenant.account ?? null;
+    return domain
+      ? {
+          tenantId: domain.tenant.id,
+          tenantSlug: domain.tenant.slug,
+          account: domain.tenant.account,
+        }
+      : null;
+  }
+
+  /** Resolve a conta dona de um host (subdomínio próprio ou domínio de terceiro). */
+  async resolveAccountByHost(
+    host: string | null,
+  ): Promise<{ id: string; name: string; slug: string; status: string } | null> {
+    return (await this.resolveTenantByHost(host))?.account ?? null;
   }
 
   /** Slug da conta interna da plataforma (lar do super admin). */
@@ -182,16 +202,20 @@ export class AuthService {
    */
   async resolveLoginTarget(
     host: string | null,
-  ): Promise<{ accountId: string | null; platform: boolean }> {
+  ): Promise<{ accountId: string | null; tenantSlug: string | null; platform: boolean }> {
     if (this.isPlatformHost(host)) {
       const account = await this.prisma.account.findUnique({
         where: { slug: this.platformAccountSlug() },
         select: { id: true },
       });
-      return { accountId: account?.id ?? null, platform: true };
+      return { accountId: account?.id ?? null, tenantSlug: null, platform: true };
     }
-    const account = await this.resolveAccountByHost(host);
-    return { accountId: account?.id ?? null, platform: false };
+    const tenant = await this.resolveTenantByHost(host);
+    return {
+      accountId: tenant?.account.id ?? null,
+      tenantSlug: tenant?.tenantSlug ?? null,
+      platform: false,
+    };
   }
 
   /**
@@ -214,18 +238,29 @@ export class AuthService {
   /** Contexto de login do host (para a tela de login decidir o que mostrar). */
   async loginContext(host: string | null): Promise<LoginContextDto> {
     if (this.isPlatformHost(host)) {
-      return { account: null, platform: true, suggestedSlug: null };
+      return { account: null, tenantSlug: null, platform: true, suggestedSlug: null };
     }
-    const account = await this.resolveAccountByHost(host);
-    if (account) {
+    const tenant = await this.resolveTenantByHost(host);
+    if (tenant) {
+      const branches = await this.prisma.tenant.findMany({
+        where: { accountId: tenant.account.id, active: true },
+        orderBy: [{ parentId: 'asc' }, { name: 'asc' }],
+        select: { name: true, slug: true },
+      });
       return {
-        account: { name: account.name, slug: account.slug },
+        account: { name: tenant.account.name, slug: tenant.account.slug, branches },
+        tenantSlug: tenant.tenantSlug,
         platform: false,
         suggestedSlug: null,
       };
     }
     // Sem conta: subdomínio livre da base → sugere o slug para o cadastro.
-    return { account: null, platform: false, suggestedSlug: this.suggestedSlugFor(host) };
+    return {
+      account: null,
+      tenantSlug: null,
+      platform: false,
+      suggestedSlug: this.suggestedSlugFor(host),
+    };
   }
 
   /**
@@ -240,10 +275,29 @@ export class AuthService {
       tenant: { select: { active: true, account: { select: { status: true } } } },
     } as const;
     if (opts.accountId) {
-      return this.prisma.user.findFirst({
+      if (opts.tenantSlug) {
+        const tenant = await this.prisma.tenant.findFirst({
+          where: { slug: opts.tenantSlug, accountId: opts.accountId },
+          select: { id: true },
+        });
+        if (!tenant) return null;
+        return this.prisma.user.findUnique({
+          where: { tenantId_email: { tenantId: tenant.id, email } },
+          include,
+        });
+      }
+      const users = await this.prisma.user.findMany({
         where: { email, tenant: { accountId: opts.accountId } },
         include,
+        take: 2,
+        orderBy: { createdAt: 'asc' },
       });
+      if (users.length > 1) {
+        throw new ConflictException(
+          'Este e-mail existe em mais de uma filial. Selecione a oficina/filial para entrar.',
+        );
+      }
+      return users[0] ?? null;
     }
     if (opts.tenantSlug) {
       const tenant = await this.prisma.tenant.findUnique({
@@ -480,6 +534,7 @@ export class AuthService {
     opts: { accountId?: string | null; tenantSlug?: string | null },
     email: string,
     meta: RequestMeta,
+    linkOrigin?: string | null,
   ): Promise<{ ok: true }> {
     const select = {
       id: true,
@@ -500,10 +555,26 @@ export class AuthService {
       tenant: { name: string; active: boolean };
     } | null = null;
     if (opts.accountId) {
-      user = await this.prisma.user.findFirst({
-        where: { email, tenant: { accountId: opts.accountId } },
-        select,
-      });
+      if (opts.tenantSlug) {
+        const tenant = await this.prisma.tenant.findFirst({
+          where: { slug: opts.tenantSlug, accountId: opts.accountId },
+          select: { id: true },
+        });
+        user = tenant
+          ? await this.prisma.user.findUnique({
+              where: { tenantId_email: { tenantId: tenant.id, email } },
+              select,
+            })
+          : null;
+      } else {
+        const users = await this.prisma.user.findMany({
+          where: { email, tenant: { accountId: opts.accountId } },
+          select,
+          take: 2,
+          orderBy: { createdAt: 'asc' },
+        });
+        user = users.length === 1 ? users[0] : null;
+      }
     } else if (opts.tenantSlug) {
       const tenant = await this.prisma.tenant.findUnique({
         where: { slug: opts.tenantSlug },
@@ -532,7 +603,8 @@ export class AuthService {
         },
       });
 
-      const resetUrl = `${this.appUrl()}/redefinir-senha?token=${token}`;
+      const resetBase = (linkOrigin || this.appUrl()).replace(/\/+$/, '');
+      const resetUrl = `${resetBase}/redefinir-senha?token=${token}`;
       const text = [
         `Olá, ${user.name}.`,
         '',

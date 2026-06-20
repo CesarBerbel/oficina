@@ -29,6 +29,8 @@ import type {
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
+import { QuotasService } from '../saas/quotas.service';
+import { publicTokenExpiresAt } from '../../common/utils/public-token';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import {
   ACTIVE_RECEPTION_STATUSES,
@@ -60,6 +62,7 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    private readonly quotas: QuotasService,
   ) {}
 
   private async technicianForSchedule(
@@ -1036,6 +1039,7 @@ export class LeadsService {
             input,
             customerId,
           );
+          await this.quotas.consumeForTenantTx(tx, actor.tenantId, 'SERVICE_ORDERS_MONTH', 1);
           const number = await this.nextOrderNumber(tx, actor.tenantId);
           const reportedProblem = input.reportedProblem ?? lead.message;
           const order = await tx.serviceOrder.create({
@@ -1043,6 +1047,7 @@ export class LeadsService {
               tenantId: actor.tenantId,
               number,
               publicToken: randomBytes(24).toString('hex'),
+              publicTokenExpiresAt: publicTokenExpiresAt(),
               customerId,
               vehicleId,
               km: input.km ?? input.vehicle?.currentKm ?? null,

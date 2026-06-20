@@ -71,6 +71,31 @@ export class AuthController {
     return raw ? raw.toString().split(',')[0].trim().toLowerCase() : null;
   }
 
+  /** Origem pública segura para links enviados por e-mail. */
+  private requestOriginForLinks(req: Request): string | null {
+    const origin = req.headers.origin;
+    if (typeof origin === 'string') {
+      const configured = this.config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000';
+      if (origin === configured) return origin;
+      const reqHost = this.requestHost(req);
+      try {
+        if (reqHost && new URL(origin).host.toLowerCase() === reqHost) return origin;
+      } catch {
+        return null;
+      }
+    }
+
+    const host = this.requestHost(req);
+    if (!host) return null;
+    const proto =
+      (Array.isArray(req.headers['x-forwarded-proto'])
+        ? req.headers['x-forwarded-proto'][0]
+        : req.headers['x-forwarded-proto']) ??
+      req.protocol ??
+      'https';
+    return `${proto.toString().split(',')[0].trim()}://${host}`;
+  }
+
   /**
    * Defesa CSRF para fluxos baseados em cookie (refresh): se a requisição trouxer
    * Origin/Referer, ele precisa ser confiável. Aceita a WEB_ORIGIN configurada
@@ -120,7 +145,7 @@ export class AuthController {
     const target = await this.auth.resolveLoginTarget(this.requestHost(req));
     const session = await this.auth.login(
       {
-        tenantSlug: body.tenantSlug ?? null,
+        tenantSlug: body.tenantSlug ?? target.tenantSlug ?? null,
         accountId: target.accountId,
         platform: target.platform,
       },
@@ -166,9 +191,10 @@ export class AuthController {
     // Resolve a conta pelo host (subdomínio/domínio próprio); no apex/dev usa o slug.
     const target = await this.auth.resolveLoginTarget(this.requestHost(req));
     return this.auth.requestPasswordReset(
-      { accountId: target.accountId, tenantSlug: body.tenantSlug ?? null },
+      { accountId: target.accountId, tenantSlug: body.tenantSlug ?? target.tenantSlug ?? null },
       body.email,
       this.meta(req),
+      this.requestOriginForLinks(req),
     );
   }
 
