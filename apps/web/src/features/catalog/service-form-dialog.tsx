@@ -149,8 +149,22 @@ export function ServiceFormDialog({
     setPartToAdd('');
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function resetForm() {
+    setName('');
+    setCategory('');
+    setDescription('');
+    setSalePrice('0');
+    setCost('0');
+    setEstimatedMinutes('');
+    setShowOnSite(true);
+    setDefaultParts([]);
+    setPartToAdd('');
+    setAddingCategory(false);
+    setNewCategory('');
+    setErrors({});
+  }
+
+  async function submit(addAnother: boolean) {
     const payload = {
       name,
       category,
@@ -174,12 +188,22 @@ export function ServiceFormDialog({
       } else {
         const createdService = (await create.mutateAsync(parsed.data as never)) as ServiceDto;
         toast.success('Serviço criado');
-        onCreated?.(createdService);
+        // Em "adicionar outro" não seleciona (mantém o fluxo de cadastro em série).
+        if (!addAnother) onCreated?.(createdService);
       }
-      onOpenChange(false);
+      if (addAnother && !isEdit) {
+        resetForm();
+      } else {
+        onOpenChange(false);
+      }
     } catch (err) {
       toast.error(apiErrorMessage(err, FIELD_LABELS));
     }
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void submit(false);
   }
 
   const availableParts = (partsData?.data ?? []).filter(
@@ -392,6 +416,16 @@ export function ServiceFormDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
+            {!isEdit && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => void submit(true)}
+              >
+                Salvar e adicionar outro
+              </Button>
+            )}
             <Button type="submit" disabled={pending}>
               {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}

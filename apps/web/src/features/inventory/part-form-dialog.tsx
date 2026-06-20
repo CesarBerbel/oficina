@@ -114,8 +114,7 @@ export function PartFormDialog({ open, onOpenChange, part, onCreated }: Props) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(addAnother: boolean) {
     const schema = isEdit ? updatePartSchema : createPartSchema;
     const parsed = schema.safeParse(form);
     if (!parsed.success) {
@@ -129,12 +128,23 @@ export function PartFormDialog({ open, onOpenChange, part, onCreated }: Props) {
       } else {
         const createdPart = (await create.mutateAsync(parsed.data as never)) as PartDto;
         toast.success('Peça cadastrada');
-        onCreated?.({ id: createdPart.id, name: createdPart.name });
+        // Em "adicionar outro" não seleciona (mantém o fluxo de cadastro em série).
+        if (!addAnother) onCreated?.({ id: createdPart.id, name: createdPart.name });
       }
-      onOpenChange(false);
+      if (addAnother && !isEdit) {
+        setForm(empty);
+        setErrors({});
+      } else {
+        onOpenChange(false);
+      }
     } catch (err) {
       toast.error(apiErrorMessage(err, FIELD_LABELS));
     }
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void submit(false);
   }
 
   return (
@@ -245,6 +255,16 @@ export function PartFormDialog({ open, onOpenChange, part, onCreated }: Props) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
+            {!isEdit && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => void submit(true)}
+              >
+                Salvar e adicionar outro
+              </Button>
+            )}
             <Button type="submit" disabled={pending}>
               {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Cadastrar'}

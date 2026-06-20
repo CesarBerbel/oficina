@@ -59,8 +59,7 @@ export function SupplierFormDialog({
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(addAnother: boolean) {
     const schema = isEdit ? updateSupplierSchema : createSupplierSchema;
     const parsed = schema.safeParse(form);
     if (!parsed.success) {
@@ -75,10 +74,20 @@ export function SupplierFormDialog({
         await create.mutateAsync(parsed.data as never);
         toast.success('Fornecedor criado');
       }
-      onOpenChange(false);
+      if (addAnother && !isEdit) {
+        setForm({ name: '', document: '', phone: '', email: '' });
+        setErrors({});
+      } else {
+        onOpenChange(false);
+      }
     } catch (err) {
       toast.error(apiErrorMessage(err, FIELD_LABELS));
     }
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void submit(false);
   }
 
   return (
@@ -127,6 +136,16 @@ export function SupplierFormDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
+            {!isEdit && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => void submit(true)}
+              >
+                Salvar e adicionar outro
+              </Button>
+            )}
             <Button type="submit" disabled={pending}>
               {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}
