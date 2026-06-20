@@ -146,4 +146,66 @@ describe('Papel da plataforma (super admin) (e2e)', () => {
     expect(slugs).not.toContain('plataforma');
     expect(slugs).toContain('oficina-modelo');
   });
+
+  it('forgot-password resolve a oficina pelo host (sem informar slug)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/auth/forgot-password')
+      .set('X-Forwarded-Host', OFICINA_HOST)
+      .send({ email: 'admin@oficina.local' })
+      .expect(200);
+    const modelo = await prisma.tenant.findUniqueOrThrow({
+      where: { slug: 'oficina-modelo' },
+      select: { id: true },
+    });
+    const admin = await prisma.user.findUniqueOrThrow({
+      where: { tenantId_email: { tenantId: modelo.id, email: 'admin@oficina.local' } },
+      select: { id: true },
+    });
+    const tokens = await prisma.passwordResetToken.count({
+      where: { userId: admin.id, usedAt: null },
+    });
+    expect(tokens).toBeGreaterThanOrEqual(1);
+  });
+
+  it('super admin reseta a senha do admin da oficina e a nova senha funciona', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .set('X-Forwarded-Host', BASE)
+      .send({ email: SUPER_EMAIL, password: TEST_PASSWORD })
+      .expect(200);
+    const modelo = await prisma.tenant.findUniqueOrThrow({
+      where: { slug: 'oficina-modelo' },
+      select: { accountId: true },
+    });
+    const res = await request(app.getHttpServer())
+      .post(`/api/platform/accounts/${modelo.accountId}/reset-admin-password`)
+      .set(authHeader(login.body.accessToken))
+      .expect(201);
+    expect(res.body.adminEmail).toBe('admin@oficina.local');
+    expect(typeof res.body.tempPassword).toBe('string');
+    expect(res.body.tempPassword.length).toBeGreaterThan(8);
+
+    // A nova senha temporária entra no login da oficina (pelo host).
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .set('X-Forwarded-Host', OFICINA_HOST)
+      .send({ email: 'admin@oficina.local', password: res.body.tempPassword })
+      .expect(200);
+  });
+
+  it('usuário comum não reseta a senha de uma conta', async () => {
+    const adminLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .set('X-Forwarded-Host', OFICINA_HOST)
+      .send({ email: 'admin@oficina.local', password: TEST_PASSWORD })
+      .expect(200);
+    const modelo = await prisma.tenant.findUniqueOrThrow({
+      where: { slug: 'oficina-modelo' },
+      select: { accountId: true },
+    });
+    await request(app.getHttpServer())
+      .post(`/api/platform/accounts/${modelo.accountId}/reset-admin-password`)
+      .set(authHeader(adminLogin.body.accessToken))
+      .expect(403);
+  });
 });

@@ -159,11 +159,17 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @Post('forgot-password')
   @HttpCode(200)
-  forgotPassword(
+  async forgotPassword(
     @Body(new ZodValidationPipe(forgotPasswordSchema)) body: ForgotPasswordInput,
     @Req() req: Request,
   ) {
-    return this.auth.requestPasswordReset(body.tenantSlug, body.email, this.meta(req));
+    // Resolve a conta pelo host (subdomínio/domínio próprio); no apex/dev usa o slug.
+    const target = await this.auth.resolveLoginTarget(this.requestHost(req));
+    return this.auth.requestPasswordReset(
+      { accountId: target.accountId, tenantSlug: body.tenantSlug ?? null },
+      body.email,
+      this.meta(req),
+    );
   }
 
   @Public()

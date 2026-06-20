@@ -8,6 +8,7 @@ import type {
   PlatformOverviewDto,
   ProvisionAccountInput,
   ProvisionedAccountDto,
+  ResetAdminPasswordDto,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
@@ -182,6 +183,57 @@ export class AccountsService {
       oficinasCount: updated._count.tenants,
       createdAt: updated.createdAt.toISOString(),
     };
+  }
+
+  /**
+   * Reseta a senha do admin da conta, gerando uma nova senha temporária (super
+   * admin). Invalida as sessões ativas do admin e força a troca no próximo login.
+   */
+  async resetAdminPassword(
+    actor: AuthenticatedUser,
+    accountId: string,
+  ): Promise<ResetAdminPasswordDto> {
+    const platformSlug = (process.env.PLATFORM_ACCOUNT_SLUG ?? 'plataforma').trim().toLowerCase();
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      select: { id: true, slug: true },
+    });
+    if (!account) throw new NotFoundException('Conta não encontrada');
+    if (account.slug === platformSlug) {
+      throw new ConflictException('A conta da plataforma não é gerenciada por aqui.');
+    }
+
+    // Admin "dono" da conta: o ADMIN mais antigo (criado no provisionamento).
+    const admin = await this.prisma.user.findFirst({
+      where: { role: 'ADMIN', tenant: { accountId } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, name: true, email: true },
+    });
+    if (!admin) throw new NotFoundException('Esta conta não possui um administrador.');
+
+    const tempPassword = randomBytes(9).toString('base64url');
+    const passwordHash = await this.passwords.hash(tempPassword);
+    await this.prisma.user.update({
+      where: { id: admin.id },
+      data: {
+        passwordHash,
+        forcePasswordChange: true,
+        active: true,
+        // Invalida as sessões atuais do admin (precisa entrar de novo).
+        sessionVersion: { increment: 1 },
+      },
+    });
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      action: 'RESET_ACCOUNT_ADMIN_PASSWORD',
+      module: 'platform',
+      entity: 'User',
+      entityId: admin.id,
+      after: { accountId, adminEmail: admin.email },
+    });
+
+    return { adminName: admin.name, adminEmail: admin.email, tempPassword };
   }
 
   /** Lista pedidos de conta (opcionalmente por status). */

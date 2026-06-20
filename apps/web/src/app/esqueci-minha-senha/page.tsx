@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Wrench } from 'lucide-react';
 import { toast } from 'sonner';
-import { forgotPasswordSchema } from '@oficina/shared';
+import { forgotPasswordSchema, type LoginContextDto } from '@oficina/shared';
 import { CarLoader } from '@/components/car-loader';
 import { api } from '@/lib/api';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
@@ -20,15 +21,45 @@ const FIELD_LABELS = {
 };
 
 export default function ForgotPasswordPage() {
+  const router = useRouter();
   const [tenantSlug, setTenantSlug] = useState(DEFAULT_TENANT_SLUG);
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  // Conta resolvida pelo host: undefined = carregando; null = apex/dev (pede slug).
+  const [account, setAccount] = useState<LoginContextDto['account'] | undefined>(undefined);
+  const [platform, setPlatform] = useState(false);
+
+  // Mesmo critério do login: a oficina vem do host (subdomínio/domínio próprio).
+  useEffect(() => {
+    let active = true;
+    api
+      .get<LoginContextDto>('/auth/context')
+      .then((ctx) => {
+        if (!active) return;
+        if (ctx.suggestedSlug) {
+          router.replace(`/comecar?slug=${encodeURIComponent(ctx.suggestedSlug)}`);
+          return;
+        }
+        setAccount(ctx.account);
+        setPlatform(ctx.platform);
+      })
+      .catch(() => active && setAccount(null));
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  // Só pede o slug no apex/dev "puro"; no subdomínio/plataforma a conta vem do host.
+  const needsSlug = account === null && !platform;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = forgotPasswordSchema.safeParse({ tenantSlug, email });
+    const parsed = forgotPasswordSchema.safeParse({
+      email,
+      ...(needsSlug ? { tenantSlug } : {}),
+    });
     if (!parsed.success) {
       setErrors(zodFieldErrors(parsed.error, FIELD_LABELS));
       return;
@@ -36,9 +67,7 @@ export default function ForgotPasswordPage() {
     setErrors({});
     setSubmitting(true);
     try {
-      await api.post('/auth/forgot-password', parsed.data, {
-        skipAuthRetry: true,
-      });
+      await api.post('/auth/forgot-password', parsed.data, { skipAuthRetry: true });
       setSent(true);
       toast.success('Solicitação registrada');
     } catch (err) {
@@ -57,7 +86,9 @@ export default function ForgotPasswordPage() {
           </span>
           <h1 className="text-xl font-semibold">Recuperar senha</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Informe a oficina e seu e-mail. Se o usuário existir, enviaremos um link de redefinição.
+            {needsSlug
+              ? 'Informe a oficina e seu e-mail. Se o usuário existir, enviaremos um link de redefinição.'
+              : 'Informe seu e-mail. Se o usuário existir, enviaremos um link de redefinição.'}
           </p>
         </div>
 
@@ -74,18 +105,22 @@ export default function ForgotPasswordPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="tenantSlug" required>
-                Oficina
-              </Label>
-              <Input
-                id="tenantSlug"
-                value={tenantSlug}
-                onChange={(e) => setTenantSlug(e.target.value)}
-                placeholder="oficina-modelo"
-              />
-              {errors.tenantSlug && <p className="text-xs text-destructive">{errors.tenantSlug}</p>}
-            </div>
+            {needsSlug && (
+              <div className="space-y-1.5">
+                <Label htmlFor="tenantSlug" required>
+                  Oficina
+                </Label>
+                <Input
+                  id="tenantSlug"
+                  value={tenantSlug}
+                  onChange={(e) => setTenantSlug(e.target.value)}
+                  placeholder="oficina-modelo"
+                />
+                {errors.tenantSlug && (
+                  <p className="text-xs text-destructive">{errors.tenantSlug}</p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="email" required>

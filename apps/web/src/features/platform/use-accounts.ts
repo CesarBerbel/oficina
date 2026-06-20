@@ -7,6 +7,7 @@ import type {
   PlatformOverviewDto,
   PlatformSessionDto,
   ProvisionedAccountDto,
+  ResetAdminPasswordDto,
   PlanDto,
   UpsertPlanInput,
   AssignAccountPlanInput,
@@ -65,6 +66,13 @@ export function useSetAccountStatus() {
     mutationFn: ({ id, status }: { id: string; status: 'ACTIVE' | 'SUSPENDED' }) =>
       api.patch<AccountDto>(`/platform/accounts/${id}/status`, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
+  });
+}
+
+export function useResetAccountAdminPassword() {
+  return useMutation({
+    mutationFn: (accountId: string) =>
+      api.post<ResetAdminPasswordDto>(`/platform/accounts/${accountId}/reset-admin-password`),
   });
 }
 

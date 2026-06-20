@@ -135,6 +135,14 @@ export interface ProvisionedAccountDto {
   loginUrl: string | null;
 }
 
+/** Resultado do reset de senha do admin de uma conta (pelo super admin). */
+export interface ResetAdminPasswordDto {
+  adminName: string;
+  adminEmail: string;
+  /** Nova senha temporária (troca obrigatória no 1º login). */
+  tempPassword: string;
+}
+
 /** Sessão ativa global exibida no painel do super admin da plataforma. */
 export interface PlatformSessionDto {
   id: string;

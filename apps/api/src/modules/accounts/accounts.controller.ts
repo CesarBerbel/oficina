@@ -53,6 +53,11 @@ export class AccountsController {
     return this.accounts.rejectRequest(actor, id);
   }
 
+  @Post(':id/reset-admin-password')
+  resetAdminPassword(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.accounts.resetAdminPassword(actor, id);
+  }
+
   @Patch(':id/status')
   setStatus(
     @CurrentUser() actor: AuthenticatedUser,
