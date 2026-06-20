@@ -113,3 +113,21 @@ export interface AccountQuotaSummaryDto {
   subscription: AccountSubscriptionDto | null;
   usage: QuotaUsageItemDto[];
 }
+
+/** Pedido de upgrade de plano feito pela conta (cliente). */
+export const requestPlanUpgradeSchema = z.object({
+  planId: z.string().min(1, 'Informe o plano'),
+});
+export type RequestPlanUpgradeInput = z.infer<typeof requestPlanUpgradeSchema>;
+
+export interface PlanUpgradeRequestDto {
+  id: string;
+  accountId: string;
+  accountName: string;
+  accountSlug: string;
+  planId: string;
+  planCode: string;
+  planName: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+}

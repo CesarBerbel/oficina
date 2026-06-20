@@ -218,4 +218,57 @@ describe('Papel da plataforma (super admin) (e2e)', () => {
       .set(authHeader(adminLogin.body.accessToken))
       .expect(403);
   });
+
+  it('cliente solicita upgrade de plano e o super admin aprova', async () => {
+    const superLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .set('X-Forwarded-Host', BASE)
+      .send({ email: SUPER_EMAIL, password: TEST_PASSWORD })
+      .expect(200);
+    const superHeader = authHeader(superLogin.body.accessToken);
+
+    // Super admin cria um plano ativo.
+    const plan = await request(app.getHttpServer())
+      .post('/api/platform/plans')
+      .set(superHeader)
+      .send({ code: 'pro-e2e', name: 'Pro E2E', limits: [{ feature: 'BRANCHES', limit: 5 }] })
+      .expect(201);
+
+    // Admin da oficina solicita upgrade.
+    const adminLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .set('X-Forwarded-Host', OFICINA_HOST)
+      .send({ email: 'admin@oficina.local', password: TEST_PASSWORD })
+      .expect(200);
+    await request(app.getHttpServer())
+      .post('/api/billing/upgrade-request')
+      .set(authHeader(adminLogin.body.accessToken))
+      .send({ planId: plan.body.id })
+      .expect(201);
+
+    // Super admin vê o pedido e aprova.
+    const reqs = await request(app.getHttpServer())
+      .get('/api/platform/plans/upgrade-requests')
+      .set(superHeader)
+      .expect(200);
+    const req = (reqs.body as Array<{ id: string; planId: string }>).find(
+      (r) => r.planId === plan.body.id,
+    );
+    expect(req).toBeTruthy();
+
+    await request(app.getHttpServer())
+      .post(`/api/platform/plans/upgrade-requests/${req!.id}/approve`)
+      .set(superHeader)
+      .expect(201);
+
+    // A conta passa a ter o plano atribuído.
+    const accounts = await request(app.getHttpServer())
+      .get('/api/platform/accounts')
+      .set(superHeader)
+      .expect(200);
+    const modelo = (accounts.body as Array<{ slug: string; plan: { code: string | null } }>).find(
+      (a) => a.slug === 'oficina-modelo',
+    );
+    expect(modelo?.plan.code).toBe('pro-e2e');
+  });
 });

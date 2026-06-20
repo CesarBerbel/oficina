@@ -9,6 +9,7 @@ import type {
   ProvisionedAccountDto,
   ResetAdminPasswordDto,
   PlanDto,
+  PlanUpgradeRequestDto,
   UpsertPlanInput,
   AssignAccountPlanInput,
   AccountQuotaSummaryDto,
@@ -73,6 +74,34 @@ export function useResetAccountAdminPassword() {
   return useMutation({
     mutationFn: (accountId: string) =>
       api.post<ResetAdminPasswordDto>(`/platform/accounts/${accountId}/reset-admin-password`),
+  });
+}
+
+const UPGRADE_REQUESTS_KEY = ['platform-upgrade-requests'];
+
+export function usePlatformUpgradeRequests() {
+  return useQuery({
+    queryKey: UPGRADE_REQUESTS_KEY,
+    queryFn: () => api.get<PlanUpgradeRequestDto[]>('/platform/plans/upgrade-requests'),
+  });
+}
+
+export function useApproveUpgradeRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/platform/plans/upgrade-requests/${id}/approve`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: UPGRADE_REQUESTS_KEY });
+      qc.invalidateQueries({ queryKey: ACCOUNTS_KEY });
+    },
+  });
+}
+
+export function useRejectUpgradeRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/platform/plans/upgrade-requests/${id}/reject`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: UPGRADE_REQUESTS_KEY }),
   });
 }
 

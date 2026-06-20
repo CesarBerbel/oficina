@@ -321,11 +321,29 @@ model Plan {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
-  limits        PlanFeatureLimit[]
-  accounts      Account[]
-  subscriptions AccountSubscription[]
+  limits         PlanFeatureLimit[]
+  accounts       Account[]
+  subscriptions  AccountSubscription[]
+  upgradeRequests PlanUpgradeRequest[]
 
   @@map("plans")
+}
+
+/// Pedido de upgrade de plano feito pela conta; o super admin aprova/atribui.
+model PlanUpgradeRequest {
+  id        String               @id @default(cuid())
+  accountId String
+  planId    String
+  status    AccountRequestStatus @default(PENDING)
+  createdAt DateTime             @default(now())
+  resolvedAt DateTime?
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([accountId])
+  @@map("plan_upgrade_requests")
 }
 
 /// Limite por feature de um plano. `limit=null` significa ilimitado; `enabled=false` bloqueia a feature.
@@ -412,10 +430,11 @@ model Account {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  tenants       Tenant[]
-  planRef       Plan?                 @relation(fields: [planId], references: [id], onDelete: SetNull)
-  subscriptions AccountSubscription[]
-  usageCounters AccountUsageCounter[]
+  tenants        Tenant[]
+  planRef        Plan?                 @relation(fields: [planId], references: [id], onDelete: SetNull)
+  subscriptions  AccountSubscription[]
+  usageCounters  AccountUsageCounter[]
+  upgradeRequests PlanUpgradeRequest[]
 
   @@index([planId])
   @@map("accounts")

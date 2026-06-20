@@ -21,6 +21,9 @@ import {
   usePlatformPlans,
   useAssignAccountPlan,
   useResetAccountAdminPassword,
+  usePlatformUpgradeRequests,
+  useApproveUpgradeRequest,
+  useRejectUpgradeRequest,
 } from '@/features/platform/use-accounts';
 import { CarLoader } from '@/components/car-loader';
 import { Button } from '@/components/ui/button';
@@ -52,6 +55,9 @@ export default function ContasPage() {
   const plans = usePlatformPlans();
   const assignPlan = useAssignAccountPlan();
   const resetPw = useResetAccountAdminPassword();
+  const upgrades = usePlatformUpgradeRequests();
+  const approveUpgrade = useApproveUpgradeRequest();
+  const rejectUpgrade = useRejectUpgradeRequest();
   const confirm = useConfirm();
   const [provisioned, setProvisioned] = useState<ProvisionedAccountDto | null>(null);
   const [resetResult, setResetResult] = useState<
@@ -125,6 +131,37 @@ export default function ContasPage() {
       toast.success('Senha redefinida');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Falha ao resetar a senha');
+    }
+  }
+
+  async function onApproveUpgrade(id: string, accountName: string, planName: string) {
+    const ok = await confirm({
+      title: 'Aprovar upgrade',
+      description: `Atribuir o plano "${planName}" à conta "${accountName}"?`,
+      confirmLabel: 'Aprovar e atribuir',
+    });
+    if (!ok) return;
+    try {
+      await approveUpgrade.mutateAsync(id);
+      toast.success('Plano atribuído');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Falha ao aprovar');
+    }
+  }
+
+  async function onRejectUpgrade(id: string) {
+    const ok = await confirm({
+      title: 'Recusar pedido de upgrade',
+      description: 'Recusar este pedido de upgrade?',
+      destructive: true,
+      confirmLabel: 'Recusar',
+    });
+    if (!ok) return;
+    try {
+      await rejectUpgrade.mutateAsync(id);
+      toast.success('Pedido recusado');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Falha ao recusar');
     }
   }
 
@@ -293,6 +330,59 @@ export default function ContasPage() {
           </div>
         )}
       </section>
+
+      {/* Pedidos de upgrade de plano */}
+      {(upgrades.data?.length ?? 0) > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            Pedidos de upgrade ({upgrades.data!.length})
+          </h2>
+          <div className="rounded-xl border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Conta</TableHead>
+                  <TableHead>Plano solicitado</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {upgrades.data!.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell>
+                      <div className="font-medium">{u.accountName}</div>
+                      <div className="text-xs text-muted-foreground">{u.accountSlug}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{u.planName}</div>
+                      <div className="text-xs text-muted-foreground">{u.planCode}</div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          disabled={approveUpgrade.isPending}
+                          onClick={() => onApproveUpgrade(u.id, u.accountName, u.planName)}
+                        >
+                          <Check className="size-4" /> Aprovar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={rejectUpgrade.isPending}
+                          onClick={() => onRejectUpgrade(u.id)}
+                        >
+                          <X className="size-4" /> Recusar
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+      )}
 
       {/* Contas */}
       <section className="space-y-3">
