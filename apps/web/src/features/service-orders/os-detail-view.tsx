@@ -448,7 +448,6 @@ export function OsDetailView({ id, variant }: { id: string; variant: 'full' | 't
       osId={os.id}
       osStatus={os.status}
       quote={os.quote}
-      items={os.items}
       publicToken={os.publicToken}
       editable={os.editable}
       canQuote={canQuote}

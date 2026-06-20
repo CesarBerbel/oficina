@@ -885,6 +885,10 @@ export class ServiceOrdersService {
         data: {
           ...(input.description !== undefined ? { description: input.description } : {}),
           ...(input.parentItemId !== undefined ? { parentItemId: input.parentItemId } : {}),
+          // Desconto por item (0–100); aplicado ao gerar o orçamento. Não altera o total bruto.
+          ...(input.discountPercent !== undefined
+            ? { discountPercent: round2(Math.min(100, Math.max(0, input.discountPercent))) }
+            : {}),
           quantity,
           unitPrice: round2(unitPrice),
           total: round2(quantity * unitPrice),

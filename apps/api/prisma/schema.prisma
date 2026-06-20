@@ -813,6 +813,8 @@ model ServiceOrderItem {
   quantity       Decimal              @db.Decimal(12, 3)
   unitPrice      Decimal              @db.Decimal(12, 2)
   total          Decimal              @db.Decimal(12, 2)
+  /// Desconto percentual do item (aplicado ao gerar o orçamento). 0 = sem desconto.
+  discountPercent Decimal             @default(0) @db.Decimal(5, 2)
   comboLabel     String?
   sourceServiceId String?
   sourcePartId    String?
