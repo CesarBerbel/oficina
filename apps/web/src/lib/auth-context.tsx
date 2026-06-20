@@ -31,16 +31,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<Status>('loading');
   const channelRef = useRef<BroadcastChannel | null>(null);
+  // Sela cada mudança autoritativa de sessão (login/logout). Um restoreSession em
+  // voo que resolva depois é descartado — evita o bootstrap (refresh sem cookie =
+  // 401) sobrescrever um login recém-concluído e rebater para /login.
+  const authEpoch = useRef(0);
 
   const restoreSession = useCallback(async (active: () => boolean = () => true) => {
+    const epoch = authEpoch.current;
+    const fresh = () => active() && epoch === authEpoch.current;
     try {
       const res = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
       });
-      if (!active()) return;
+      if (!fresh()) return;
       if (res.ok) {
         const data = (await res.json()) as LoginResponse;
+        if (!fresh()) return;
         setAccessToken(data.accessToken);
         setUser(data.user);
         setStatus('authenticated');
@@ -50,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setStatus('unauthenticated');
       }
     } catch {
-      if (active()) {
+      if (fresh()) {
         setAccessToken(null);
         setUser(null);
         setStatus('unauthenticated');
@@ -101,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         { email, password, ...(tenantSlug ? { tenantSlug } : {}) },
         { skipAuthRetry: true },
       );
+      authEpoch.current += 1; // login é autoritativo: descarta restoreSession em voo
       setAccessToken(data.accessToken);
       setUser(data.user);
       setStatus('authenticated');
@@ -115,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* ignora erro de logout */
     }
+    authEpoch.current += 1; // logout é autoritativo: descarta restoreSession em voo
     setAccessToken(null);
     setUser(null);
     setStatus('unauthenticated');
@@ -127,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* ignora erro de logout global */
     }
+    authEpoch.current += 1; // logout é autoritativo: descarta restoreSession em voo
     setAccessToken(null);
     setUser(null);
     setStatus('unauthenticated');
