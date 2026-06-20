@@ -4,6 +4,7 @@ import type {
   AccountSubscriptionDto,
   AssignAccountPlanInput,
   PlanDto,
+  PlanUpgradeRequestDto,
   UpsertPlanInput,
 } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -55,6 +56,91 @@ export class PlansService {
       include: { limits: true },
     });
     return rows.map((r) => this.toDto(r));
+  }
+
+  /** Planos ATIVOS — visíveis ao cliente para escolher/solicitar upgrade. */
+  async listActive(): Promise<PlanDto[]> {
+    const rows = await this.prisma.plan.findMany({
+      where: { active: true },
+      orderBy: { priceCents: 'asc' },
+      include: { limits: true },
+    });
+    return rows.map((r) => this.toDto(r));
+  }
+
+  /** A conta solicita upgrade para um plano (substitui pedido pendente anterior). */
+  async requestUpgrade(accountId: string, planId: string): Promise<{ ok: true }> {
+    const plan = await this.prisma.plan.findFirst({
+      where: { id: planId, active: true },
+      select: { id: true },
+    });
+    if (!plan) throw new NotFoundException('Plano não encontrado');
+    await this.prisma.$transaction([
+      this.prisma.planUpgradeRequest.updateMany({
+        where: { accountId, status: 'PENDING' },
+        data: { status: 'REJECTED', resolvedAt: new Date() },
+      }),
+      this.prisma.planUpgradeRequest.create({ data: { accountId, planId } }),
+    ]);
+    return { ok: true };
+  }
+
+  /** Pedidos de upgrade pendentes (visão do super admin). */
+  async listUpgradeRequests(): Promise<PlanUpgradeRequestDto[]> {
+    const rows = await this.prisma.planUpgradeRequest.findMany({
+      where: { status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        account: { select: { name: true, slug: true } },
+        plan: { select: { code: true, name: true } },
+      },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      accountId: r.accountId,
+      accountName: r.account.name,
+      accountSlug: r.account.slug,
+      planId: r.planId,
+      planCode: r.plan.code,
+      planName: r.plan.name,
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  }
+
+  /** Aprova o pedido: atribui o plano à conta e marca como APPROVED. */
+  async approveUpgrade(actor: AuthenticatedUser, id: string): Promise<AccountSubscriptionDto> {
+    const req = await this.prisma.planUpgradeRequest.findUnique({ where: { id } });
+    if (!req || req.status !== 'PENDING') {
+      throw new NotFoundException('Pedido não encontrado ou já processado');
+    }
+    const sub = await this.assignToAccount(actor, req.accountId, {
+      planId: req.planId,
+      status: 'ACTIVE',
+    });
+    await this.prisma.planUpgradeRequest.update({
+      where: { id },
+      data: { status: 'APPROVED', resolvedAt: new Date() },
+    });
+    return sub;
+  }
+
+  /** Recusa o pedido de upgrade. */
+  async rejectUpgrade(actor: AuthenticatedUser, id: string): Promise<{ ok: true }> {
+    const res = await this.prisma.planUpgradeRequest.updateMany({
+      where: { id, status: 'PENDING' },
+      data: { status: 'REJECTED', resolvedAt: new Date() },
+    });
+    if (res.count === 0) throw new NotFoundException('Pedido não encontrado ou já processado');
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      userId: actor.id,
+      module: 'plans',
+      action: 'REJECT_PLAN_UPGRADE',
+      entity: 'PlanUpgradeRequest',
+      entityId: id,
+    });
+    return { ok: true };
   }
 
   async upsert(actor: AuthenticatedUser, input: UpsertPlanInput): Promise<PlanDto> {

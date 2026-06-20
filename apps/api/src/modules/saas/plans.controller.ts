@@ -44,4 +44,19 @@ export class PlatformPlansController {
   accountUsage(@Param('accountId') accountId: string) {
     return this.plans.accountUsage(accountId);
   }
+
+  @Get('upgrade-requests')
+  upgradeRequests() {
+    return this.plans.listUpgradeRequests();
+  }
+
+  @Post('upgrade-requests/:id/approve')
+  approveUpgrade(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.plans.approveUpgrade(actor, id);
+  }
+
+  @Post('upgrade-requests/:id/reject')
+  rejectUpgrade(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.plans.rejectUpgrade(actor, id);
+  }
 }
