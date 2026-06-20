@@ -15,6 +15,7 @@ import {
   Repeat,
   Network,
   CreditCard,
+  Building2,
   ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -80,6 +81,13 @@ const ITEMS: Item[] = [
     permission: 'users:read',
   },
 
+  {
+    title: 'Minhas oficinas',
+    description: 'Matriz e filiais: renomear e adicionar oficinas conforme o plano.',
+    href: '/configuracoes/oficinas',
+    icon: Building2,
+    permission: 'settings:manage',
+  },
   {
     title: 'Plano e quotas',
     description: 'Uso do plano atual, limites e consumo mensal.',

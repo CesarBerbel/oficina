@@ -70,10 +70,13 @@ export default function LoginPage() {
     if (status === 'authenticated') router.replace('/dashboard');
   }, [status, router]);
 
-  // Pede o slug só no apex/dev "puro": no subdomínio a conta vem do host e no
-  // apex da plataforma o login é do super admin (sem slug).
-  const needsBranchSelection = !!account && !resolvedTenantSlug && account.branches.length > 1;
-  const needsSlug = (account === null && !platform) || needsBranchSelection;
+  // No subdomínio da conta (host não fixou uma oficina), mostra o select de
+  // oficinas. Com só a matriz, vem o nome dela e desabilitado.
+  const branchContext = !!account && !resolvedTenantSlug && account.branches.length >= 1;
+  const singleBranch = (account?.branches.length ?? 0) === 1;
+  const needsBranchSelection = branchContext;
+  // No apex/dev "puro" pede o slug; no apex da plataforma é o super admin (sem slug).
+  const needsSlug = (account === null && !platform) || branchContext;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -123,18 +126,19 @@ export default function LoginPage() {
         <div className="space-y-4">
           {needsSlug && (
             <div className="space-y-1.5">
-              <Label htmlFor="tenantSlug" required>
-                {needsBranchSelection ? 'Oficina/filial' : 'Oficina'}
+              <Label htmlFor="tenantSlug" required={!singleBranch}>
+                {needsBranchSelection && !singleBranch ? 'Oficina/filial' : 'Oficina'}
               </Label>
               {needsBranchSelection ? (
                 <select
                   id="tenantSlug"
                   name="tenantSlug"
                   value={tenantSlug}
+                  disabled={singleBranch}
                   onChange={(e) => setTenantSlug(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  <option value="">Selecione a filial</option>
+                  {!singleBranch && <option value="">Selecione a filial</option>}
                   {account?.branches.map((branch) => (
                     <option key={branch.slug} value={branch.slug}>
                       {branch.name}
