@@ -29,10 +29,13 @@ export function toQuoteDto(quote: QuoteRow, publicToken: string): QuoteDto {
     createdAt: quote.createdAt.toISOString(),
     items: quote.items.map((it) => ({
       id: it.id,
+      serviceOrderItemId: it.serviceOrderItemId,
       kind: it.kind,
       description: it.description,
       quantity: dec(it.quantity),
       unitPrice: dec(it.unitPrice),
+      discountPercent: dec(it.discountPercent),
+      discountAmount: dec(it.discountAmount),
       total: dec(it.total),
       decision: it.decision,
       parentItemId: it.parentItemId,

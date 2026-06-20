@@ -33,6 +33,7 @@ import { OutboxService } from '../outbox/outbox.service';
 import { PurchasesService } from '../purchases/purchases.service';
 import { QuotasService } from '../saas/quotas.service';
 import { UploadAssetsService } from '../uploads/upload-assets.service';
+import { publicTokenExpiresAt } from '../../common/utils/public-token';
 import {
   summaryInclude,
   boardInclude,
@@ -335,17 +336,17 @@ export class ServiceOrdersService {
       if (!tech) throw new BadRequestException('Técnico inválido');
     }
 
-    await this.quotas.consumeForTenant(actor.tenantId, 'SERVICE_ORDERS_MONTH', 1);
-
     const created = await this.withUniqueConstraintRetry(
       () =>
         this.prisma.$transaction(async (tx) => {
+          await this.quotas.consumeForTenantTx(tx, actor.tenantId, 'SERVICE_ORDERS_MONTH', 1);
           const number = await this.nextNumber(tx, actor.tenantId);
           const order = await tx.serviceOrder.create({
             data: {
               tenantId: actor.tenantId,
               number,
               publicToken: randomBytes(24).toString('hex'),
+              publicTokenExpiresAt: publicTokenExpiresAt(),
               customerId: input.customerId,
               vehicleId: input.vehicleId,
               km: input.km ?? null,
@@ -524,6 +525,12 @@ export class ServiceOrdersService {
     const effectiveStatus = await this.withUniqueConstraintRetry(() =>
       this.prisma.$transaction(async (tx) => {
         let target: ServiceOrderStatus = input.status;
+        let approvedQuoteTotals: {
+          totalServices: Prisma.Decimal;
+          totalParts: Prisma.Decimal;
+          discount: Prisma.Decimal;
+          total: Prisma.Decimal;
+        } | null = null;
         if (approving) {
           const { shortfall } = await this.purchases.commitApprovalReservation(
             tx,
@@ -544,6 +551,10 @@ export class ServiceOrdersService {
           await tx.quoteItem.updateMany({
             where: { quote: { serviceOrderId: id } },
             data: { decision: QuoteItemDecision.APROVADO },
+          });
+          approvedQuoteTotals = await tx.quote.findUnique({
+            where: { serviceOrderId: id },
+            select: { totalServices: true, totalParts: true, discount: true, total: true },
           });
           await this.outbox.enqueueOrderEvent(tx, actor.tenantId, 'QUOTE_APPROVED', id);
           if (shortfall) target = 'AGUARDANDO_PECA';
@@ -581,6 +592,15 @@ export class ServiceOrdersService {
           where: { id, tenantId: actor.tenantId, status: row.status },
           data: {
             status: target,
+            ...(approvedQuoteTotals
+              ? {
+                  totalServices: approvedQuoteTotals.totalServices,
+                  totalParts: approvedQuoteTotals.totalParts,
+                  discount: approvedQuoteTotals.discount,
+                  total: approvedQuoteTotals.total,
+                }
+              : {}),
+            ...(isTerminalStatus(target) ? { publicTokenExpiresAt: new Date() } : {}),
             ...(isTerminalStatus(target) ? { closedAt: new Date() } : {}),
           },
         });

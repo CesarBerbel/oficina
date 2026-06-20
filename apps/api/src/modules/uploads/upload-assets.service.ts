@@ -1,9 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 
 const UPLOAD_PATH_RE = /^\/uploads\/([a-f0-9]{32}\.(?:png|jpg|jpeg|webp|gif))$/i;
+type UploadAssetClient = PrismaService | Prisma.TransactionClient;
 
 export interface RegisterUploadAssetInput {
   actor: AuthenticatedUser;
@@ -22,8 +24,11 @@ export class UploadAssetsService {
     private readonly config: ConfigService,
   ) {}
 
-  async register(input: RegisterUploadAssetInput): Promise<{ id: string; url: string }> {
-    const asset = await this.prisma.uploadAsset.create({
+  async register(
+    input: RegisterUploadAssetInput,
+    client: UploadAssetClient = this.prisma,
+  ): Promise<{ id: string; url: string }> {
+    const asset = await client.uploadAsset.create({
       data: {
         tenantId: input.actor.tenantId,
         createdById: input.actor.id,

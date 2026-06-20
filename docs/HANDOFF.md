@@ -75,7 +75,8 @@ continue a partir do estado atual, mantendo a arquitetura e os padrões existent
    serviços na OS, sem aparecer como combo), peças/insumos, movimentações + histórico,
    baixa/estorno de estoque na OS.
 6. **Orçamento, Acompanhamento & PDF**: orçamento com aprovação total/parcial por
-   item + recusa (IP/assinatura), página pública por token (`/acompanhar/[token]`),
+   item + recusa (IP/assinatura), desconto percentual por item, link público
+   expirável (`PUBLIC_TRACKING_TOKEN_TTL_DAYS`) em `/acompanhar/[token]`,
    **PDF da OS** (pdfkit) usando logo, dados da oficina e rodapé configurável.
 7. **Compras & NF-e**: fornecedores, pedidos de compra (manual + "de peças em falta"),
    recebimento que dá entrada no estoque, **importador de NF-e XML/ZIP** com tela de
@@ -249,7 +250,8 @@ A tela `/leads` foi evoluída para Central de Pré-atendimento: busca cliente po
   (antes `xl`), melhor em tablet.
 - **Aprovação pública do orçamento** (`/acompanhar/[token]`): total **recalculado ao
   vivo** ao marcar/desmarcar itens; cada linha mostra serviço · qtd · valor unitário ·
-  total; linhas de serviço com fundo destacado; linha do tempo removida.
+  desconto percentual quando houver · total; linhas de serviço com fundo destacado;
+  linha do tempo removida. O link expira por `publicTokenExpiresAt`; após decisão, o orçamento deixa de aceitar nova resposta.
 
 **PDF da OS** (`apps/api/src/modules/pdf/service-order-pdf.renderer.ts`)
 - Redesenho profissional, compacto (alvo de 1 página): cabeçalho à esquerda em linhas

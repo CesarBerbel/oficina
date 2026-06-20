@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { isAbsolute, join } from 'node:path';
 
@@ -30,6 +30,14 @@ export class StorageService implements OnModuleInit {
     const filename = `${randomBytes(16).toString('hex')}${ext}`;
     await writeFile(join(this.dir, filename), buffer);
     return filename;
+  }
+
+  /** Remove um arquivo salvo localmente. Usado para compensar falha de banco/quota após o upload. */
+  async delete(filename: string): Promise<void> {
+    if (!/^[a-f0-9]{32}\.[a-z0-9]+$/i.test(filename)) {
+      throw new Error('Nome de arquivo inválido');
+    }
+    await unlink(join(this.dir, filename)).catch(() => undefined);
   }
 
   /** Caminho público (servido por /uploads). */

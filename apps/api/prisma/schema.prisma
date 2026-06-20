@@ -742,6 +742,7 @@ model ServiceOrder {
   tenantId        String
   number          Int
   publicToken     String             @unique
+  publicTokenExpiresAt DateTime?
   status          ServiceOrderStatus @default(ENTRADA)
   customerId      String
   vehicleId       String
@@ -778,6 +779,7 @@ model ServiceOrder {
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
+  @@index([publicTokenExpiresAt])
   @@index([customerId])
   @@index([vehicleId])
   @@map("service_orders")
@@ -1671,6 +1673,8 @@ model QuoteItem {
   description String
   quantity    Decimal              @db.Decimal(12, 3)
   unitPrice   Decimal              @db.Decimal(12, 2)
+  discountPercent Decimal           @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal           @default(0) @db.Decimal(12, 2)
   total       Decimal              @db.Decimal(12, 2)
   decision    QuoteItemDecision    @default(PENDENTE)
   // Item de peça vinculado ao item de serviço (mesmo orçamento) — cascata.

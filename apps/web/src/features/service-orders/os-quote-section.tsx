@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   FileText,
   Copy,
@@ -13,7 +13,12 @@ import {
 } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
-import { QUOTE_STATUS_LABELS, type QuoteDto, type ServiceOrderStatus } from '@oficina/shared';
+import {
+  QUOTE_STATUS_LABELS,
+  type QuoteDto,
+  type ServiceOrderItemDto,
+  type ServiceOrderStatus,
+} from '@oficina/shared';
 import { ApiError } from '@/lib/api';
 import {
   useGenerateQuote,
@@ -48,6 +53,7 @@ export function OsQuoteSection({
   osId,
   osStatus,
   quote,
+  items,
   publicToken,
   editable,
   canQuote,
@@ -55,6 +61,7 @@ export function OsQuoteSection({
   osId: string;
   osStatus: ServiceOrderStatus;
   quote: QuoteDto | null;
+  items: ServiceOrderItemDto[];
   publicToken: string;
   editable: boolean;
   canQuote: boolean;
@@ -66,6 +73,30 @@ export function OsQuoteSection({
   const confirm = useConfirm();
   const [notes, setNotes] = useState(quote?.publicNotes ?? '');
   const [reason, setReason] = useState('');
+  const [itemDiscounts, setItemDiscounts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const item of items) {
+      const quoteItem = quote?.items.find((it) => it.serviceOrderItemId === item.id);
+      next[item.id] = quoteItem?.discountPercent ? String(quoteItem.discountPercent) : '';
+    }
+    setItemDiscounts(next);
+  }, [items, quote]);
+
+  function updateItemDiscount(itemId: string, value: string) {
+    const sanitized = value.replace(',', '.');
+    setItemDiscounts((current) => ({ ...current, [itemId]: sanitized }));
+  }
+
+  function quoteItemDiscountPayload() {
+    return items
+      .map((item) => ({
+        serviceOrderItemId: item.id,
+        discountPercent: Math.min(100, Math.max(0, Number(itemDiscounts[item.id] || 0))),
+      }))
+      .filter((item) => Number.isFinite(item.discountPercent) && item.discountPercent > 0);
+  }
 
   // Reenvio = já foi enviado ao menos uma vez (exige motivo).
   const isResend = (quote?.sendCount ?? 0) >= 1;
@@ -88,6 +119,7 @@ export function OsQuoteSection({
       await generate.mutateAsync({
         publicNotes: notes || undefined,
         reason: isResend ? reason.trim() : undefined,
+        itemDiscounts: quoteItemDiscountPayload(),
       });
       toast.success(isResend ? 'Orçamento reenviado' : 'Orçamento gerado e enviado');
       setReason('');
@@ -160,6 +192,46 @@ export function OsQuoteSection({
 
         {canQuote && editable && canGenerate && (
           <div className="space-y-2">
+            {items.length > 0 && (
+              <div className="rounded-md border bg-muted/30 p-2">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                  Desconto por item do orçamento (%)
+                </p>
+                <div className="space-y-1.5">
+                  {items.map((item) => {
+                    const discountPercent = Number(itemDiscounts[item.id] || 0);
+                    const discountAmount = Number.isFinite(discountPercent)
+                      ? (item.total * Math.min(100, Math.max(0, discountPercent))) / 100
+                      : 0;
+                    return (
+                      <div
+                        key={item.id}
+                        className="grid grid-cols-[1fr_5.5rem] items-center gap-2 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{item.description}</p>
+                          <p className="text-muted-foreground">
+                            {formatCurrency(item.total)}
+                            {discountAmount > 0 && ` · -${formatCurrency(discountAmount)}`}
+                          </p>
+                        </div>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.01"
+                          value={itemDiscounts[item.id] ?? ''}
+                          onChange={(event) => updateItemDiscount(item.id, event.target.value)}
+                          className="h-8 rounded-md border bg-background px-2 text-right"
+                          placeholder="0"
+                          aria-label={`Desconto percentual de ${item.description}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

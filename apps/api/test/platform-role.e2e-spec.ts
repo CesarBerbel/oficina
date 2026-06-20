@@ -68,7 +68,12 @@ describe('Papel da plataforma (super admin) (e2e)', () => {
       .get('/api/auth/context')
       .set('X-Forwarded-Host', BASE)
       .expect(200);
-    expect(ctx.body).toEqual({ account: null, platform: true, suggestedSlug: null });
+    expect(ctx.body).toEqual({
+      account: null,
+      tenantSlug: null,
+      platform: true,
+      suggestedSlug: null,
+    });
   });
 
   it('super admin entra pelo apex (sem slug) e vê o overview da plataforma', async () => {
@@ -114,7 +119,12 @@ describe('Papel da plataforma (super admin) (e2e)', () => {
       .get('/api/auth/context')
       .set('X-Forwarded-Host', 'novaoficina.saecbpa.test')
       .expect(200);
-    expect(ctx.body).toEqual({ account: null, platform: false, suggestedSlug: 'novaoficina' });
+    expect(ctx.body).toEqual({
+      account: null,
+      tenantSlug: null,
+      platform: false,
+      suggestedSlug: 'novaoficina',
+    });
   });
 
   it('a lista de oficinas da plataforma não inclui a conta interna', async () => {

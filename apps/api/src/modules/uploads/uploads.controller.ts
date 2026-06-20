@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Permission } from '@oficina/shared';
 import { StorageService } from '../../infra/storage/storage.service';
+import { PrismaService } from '../../infra/prisma/prisma.service';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -62,6 +63,7 @@ export class UploadsController {
     private readonly config: ConfigService,
     private readonly quotas: QuotasService,
     private readonly assets: UploadAssetsService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Post()
@@ -78,7 +80,7 @@ export class UploadsController {
       throw new BadRequestException('Formato inválido. Envie PNG, JPG, WEBP ou GIF.');
     }
 
-    await this.quotas.consumeForTenant(actor.tenantId, 'UPLOADS_MONTH', 1);
+    await this.quotas.assertStorageAvailableForTenant(actor.tenantId, file.size);
 
     const filename = await this.storage.save(file.buffer, detected.extension);
     const path = this.storage.publicPath(filename);
@@ -89,15 +91,28 @@ export class UploadsController {
       '',
     );
     const url = `${base}${path}`;
-    const asset = await this.assets.register({
-      actor,
-      filename,
-      path,
-      url,
-      mime: detected.mime,
-      extension: detected.extension,
-      sizeBytes: file.size,
-    });
+    let asset: { id: string; url: string };
+    try {
+      asset = await this.prisma.$transaction(async (tx) => {
+        await this.quotas.consumeForTenantTx(tx, actor.tenantId, 'UPLOADS_MONTH', 1);
+        await this.quotas.assertStorageAvailableForTenantTx(tx, actor.tenantId, file.size);
+        return this.assets.register(
+          {
+            actor,
+            filename,
+            path,
+            url,
+            mime: detected.mime,
+            extension: detected.extension,
+            sizeBytes: file.size,
+          },
+          tx,
+        );
+      });
+    } catch (err) {
+      await this.storage.delete(filename);
+      throw err;
+    }
     return { id: asset.id, url: asset.url };
   }
 }

@@ -162,8 +162,11 @@ export function useRemoveItem(id: string) {
 export function useGenerateQuote(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { publicNotes?: string; reason?: string }) =>
-      api.post<unknown>(`${BASE}/${id}/quote`, input),
+    mutationFn: (input: {
+      publicNotes?: string;
+      reason?: string;
+      itemDiscounts?: { serviceOrderItemId: string; discountPercent: number }[];
+    }) => api.post<unknown>(`${BASE}/${id}/quote`, input),
     onSuccess: () => invalidate(qc, id),
   });
 }

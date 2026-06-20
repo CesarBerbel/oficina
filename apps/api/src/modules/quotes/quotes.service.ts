@@ -16,15 +16,17 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MessagingService } from '../messaging/messaging.service';
 import { OutboxService } from '../outbox/outbox.service';
-import { quoteInclude, toQuoteDto } from './quote.mapper';
+import { quoteInclude, toQuoteDto, type QuoteRow } from './quote.mapper';
 import { ServiceOrderDomainError } from '../service-orders/domain/service-order.errors';
 import { PurchasesService } from '../purchases/purchases.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { publicTokenExpiresAt } from '../../common/utils/public-token';
 
 const dec = (v: Prisma.Decimal | number | null | undefined): number => (v == null ? 0 : Number(v));
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 const brl = (n: number): string =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+const clampPercent = (n: number): number => round2(Math.min(100, Math.max(0, n)));
 
 interface RequestMeta {
   ip?: string | null;
@@ -83,6 +85,39 @@ export class QuotesService {
       throw new BadRequestException('Informe o motivo do reenvio do orçamento.');
     }
 
+    const orderItemIds = new Set(order.items.map((it) => it.id));
+    const discountByOrderItem = new Map<string, number>();
+    for (const row of input.itemDiscounts ?? []) {
+      if (!orderItemIds.has(row.serviceOrderItemId)) {
+        throw new BadRequestException('Desconto informado para item inválido do orçamento.');
+      }
+      discountByOrderItem.set(row.serviceOrderItemId, clampPercent(row.discountPercent));
+    }
+
+    const quoteItems = order.items.map((it) => {
+      const quantity = dec(it.quantity);
+      const unitPrice = dec(it.unitPrice);
+      const subtotal = round2(quantity * unitPrice);
+      const discountPercent = discountByOrderItem.get(it.id) ?? 0;
+      const discountAmount = round2((subtotal * discountPercent) / 100);
+      return {
+        item: it,
+        quantity,
+        unitPrice,
+        discountPercent,
+        discountAmount,
+        total: Math.max(0, round2(subtotal - discountAmount)),
+      };
+    });
+    const quoteTotalServices = round2(
+      quoteItems.filter((it) => it.item.kind === 'SERVICE').reduce((sum, it) => sum + it.total, 0),
+    );
+    const quoteTotalParts = round2(
+      quoteItems.filter((it) => it.item.kind === 'PART').reduce((sum, it) => sum + it.total, 0),
+    );
+    const quoteDiscount = dec(order.discount);
+    const quoteTotal = Math.max(0, round2(quoteTotalServices + quoteTotalParts - quoteDiscount));
+
     const quote = await this.prisma.$transaction(async (tx) => {
       const q = await tx.quote.upsert({
         where: { serviceOrderId: orderId },
@@ -92,24 +127,25 @@ export class QuotesService {
           status: 'ENVIADO',
           sendCount: 1,
           publicNotes: input.publicNotes ?? null,
-          totalServices: dec(order.totalServices),
-          totalParts: dec(order.totalParts),
-          discount: dec(order.discount),
-          total: dec(order.total),
+          totalServices: quoteTotalServices,
+          totalParts: quoteTotalParts,
+          discount: quoteDiscount,
+          total: quoteTotal,
         },
         update: {
           status: 'ENVIADO',
           sendCount: { increment: 1 },
           publicNotes: input.publicNotes ?? null,
-          totalServices: dec(order.totalServices),
-          totalParts: dec(order.totalParts),
-          discount: dec(order.discount),
-          total: dec(order.total),
+          totalServices: quoteTotalServices,
+          totalParts: quoteTotalParts,
+          discount: quoteDiscount,
+          total: quoteTotal,
           decisionType: null,
           decidedAt: null,
           decisionIp: null,
           decisionUa: null,
           signatureName: null,
+          signatureDoc: null,
         },
       });
 
@@ -117,15 +153,18 @@ export class QuotesService {
       // Cria os itens capturando o id de cada um, para reproduzir o vínculo
       // peça→serviço (parentItemId) que existe na OS dentro do orçamento.
       const idMap = new Map<string, string>(); // osItemId -> quoteItemId
-      for (const it of order.items) {
+      for (const quoteItem of quoteItems) {
+        const it = quoteItem.item;
         const createdItem = await tx.quoteItem.create({
           data: {
             quoteId: q.id,
             kind: it.kind,
             description: it.description,
-            quantity: dec(it.quantity),
-            unitPrice: dec(it.unitPrice),
-            total: dec(it.total),
+            quantity: quoteItem.quantity,
+            unitPrice: quoteItem.unitPrice,
+            discountPercent: quoteItem.discountPercent,
+            discountAmount: quoteItem.discountAmount,
+            total: quoteItem.total,
             serviceOrderItemId: it.id,
           },
         });
@@ -147,7 +186,7 @@ export class QuotesService {
       const movingToQuote = canTransition(order.status, 'ORCAMENTO');
       const historyStatus = movingToQuote ? 'ORCAMENTO' : order.status;
       const note = [
-        `${isResend ? 'Orçamento reenviado' : 'Orçamento enviado'} · ${brl(dec(order.total))}`,
+        `${isResend ? 'Orçamento reenviado' : 'Orçamento enviado'} · ${brl(quoteTotal)}`,
         isResend && input.reason ? `Motivo: ${input.reason}` : null,
       ]
         .filter(Boolean)
@@ -156,6 +195,7 @@ export class QuotesService {
         where: { id: orderId },
         data: {
           status: historyStatus,
+          publicTokenExpiresAt: publicTokenExpiresAt(),
           history: {
             create: {
               status: historyStatus,
@@ -284,15 +324,21 @@ export class QuotesService {
 
     const res = await this.messaging.sendQuoteEmail(actor.tenantId, orderId);
 
-    await this.prisma.serviceOrderEvent.create({
-      data: {
-        tenantId: actor.tenantId,
-        serviceOrderId: orderId,
-        type: 'STATUS_CHANGE',
-        title: 'E-mail de orçamento enviado',
-        description: `Link do orçamento enviado para ${res.to}`,
-        visibility: 'PUBLIC',
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.serviceOrder.update({
+        where: { id: orderId },
+        data: { publicTokenExpiresAt: publicTokenExpiresAt() },
+      });
+      await tx.serviceOrderEvent.create({
+        data: {
+          tenantId: actor.tenantId,
+          serviceOrderId: orderId,
+          type: 'STATUS_CHANGE',
+          title: 'E-mail de orçamento enviado',
+          description: `Link do orçamento enviado para ${res.to}`,
+          visibility: 'PUBLIC',
+        },
+      });
     });
 
     await this.notifications.notifyRoles(actor.tenantId, ['ADMIN', 'ATENDENTE'], {
@@ -343,10 +389,14 @@ export class QuotesService {
         tenantId: true,
         status: true,
         publicToken: true,
+        publicTokenExpiresAt: true,
         quote: { include: quoteInclude },
       },
     });
     if (!order?.quote) throw new NotFoundException('Orçamento não encontrado');
+    if (order.publicTokenExpiresAt && order.publicTokenExpiresAt < new Date()) {
+      throw new NotFoundException('Link do orçamento expirado');
+    }
 
     const quote = order.quote;
     if (quote.status !== 'ENVIADO') {
@@ -469,8 +519,8 @@ export class QuotesService {
                 serviceOrderId: order.id,
               },
             });
-            await this.recomputeOrderTotals(tx, order.id);
           }
+          await this.applyApprovedQuoteTotals(tx, order.id, quote, rejectedGroups);
 
           // Reserva o estoque das peças aprovadas e verifica se faltou estoque.
           // Com falta → "aguardando peça" (o pedido de compra é gerado pelo botão);
@@ -563,27 +613,28 @@ export class QuotesService {
   }
 
   /** Recalcula os totais da OS a partir dos itens restantes (menos o desconto). */
-  private async recomputeOrderTotals(tx: Prisma.TransactionClient, orderId: string): Promise<void> {
-    const items = await tx.serviceOrderItem.findMany({
-      where: { serviceOrderId: orderId },
-      select: { kind: true, total: true },
-    });
-    let services = 0;
-    let parts = 0;
-    for (const it of items) {
-      if (it.kind === 'SERVICE') services += dec(it.total);
-      else parts += dec(it.total);
-    }
-    const order = await tx.serviceOrder.findUniqueOrThrow({
-      where: { id: orderId },
-      select: { discount: true },
-    });
-    const total = round2(services + parts - dec(order.discount));
+  private async applyApprovedQuoteTotals(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+    quote: QuoteRow,
+    rejectedGroups: Set<string>,
+  ): Promise<void> {
+    const groupKey = (it: { id: string; parentItemId: string | null }) => it.parentItemId ?? it.id;
+    const approvedItems = quote.items.filter((it) => !rejectedGroups.has(groupKey(it)));
+    const services = approvedItems
+      .filter((it) => it.kind === 'SERVICE')
+      .reduce((sum, it) => sum + dec(it.total), 0);
+    const parts = approvedItems
+      .filter((it) => it.kind === 'PART')
+      .reduce((sum, it) => sum + dec(it.total), 0);
+    const discount = dec(quote.discount);
+    const total = round2(services + parts - discount);
     await tx.serviceOrder.update({
       where: { id: orderId },
       data: {
         totalServices: round2(services),
         totalParts: round2(parts),
+        discount,
         total: total < 0 ? 0 : total,
       },
     });

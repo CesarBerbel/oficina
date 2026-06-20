@@ -43,6 +43,7 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
 
   const quote = data.quote;
   const canDecide = quote && quote.status === 'ENVIADO';
+  const displayItems = quote?.items ?? data.items;
 
   // Totais recalculados ao vivo conforme o cliente marca/desmarca itens.
   const approvedItems = quote ? quote.items.filter((it) => isApproved(it)) : [];
@@ -52,12 +53,14 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
   const liveParts = approvedItems
     .filter((it) => it.kind === 'PART')
     .reduce((sum, it) => sum + it.total, 0);
-  const liveTotal = Math.max(0, liveServices + liveParts - data.discount);
+  const quoteDiscount = quote?.discount ?? data.discount;
+  const liveTotal = Math.max(0, liveServices + liveParts - quoteDiscount);
 
   // Na decisão usa os totais ao vivo; caso contrário, os totais do orçamento.
-  const shownServices = canDecide ? liveServices : data.totalServices;
-  const shownParts = canDecide ? liveParts : data.totalParts;
-  const shownTotal = canDecide ? liveTotal : data.total;
+  const shownServices = canDecide ? liveServices : (quote?.totalServices ?? data.totalServices);
+  const shownParts = canDecide ? liveParts : (quote?.totalParts ?? data.totalParts);
+  const shownDiscount = quote?.discount ?? data.discount;
+  const shownTotal = canDecide ? liveTotal : (quote?.total ?? data.total);
 
   // Só permite aprovar/recusar com nome preenchido e CPF/CNPJ válido.
   const nameOk = signature.trim().length > 0;
@@ -168,14 +171,15 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {data.items.length === 0 ? (
+            {displayItems.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sem itens ainda.</p>
             ) : (
               <div className="divide-y">
-                {data.items.map((it, i) => {
+                {displayItems.map((it, i) => {
                   const quoteItem = quote?.items[i];
                   const linked = !!quoteItem?.parentItemId;
                   const rejected = canDecide && quoteItem && !isApproved(quoteItem);
+                  const subtotal = it.quantity * it.unitPrice;
                   return (
                     <div
                       key={i}
@@ -197,12 +201,20 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {it.quantity.toLocaleString('pt-BR')} × {formatCurrency(it.unitPrice)}
+                            {'discountPercent' in it && it.discountPercent > 0
+                              ? ` · desconto ${it.discountPercent.toLocaleString('pt-BR')}% (-${formatCurrency(it.discountAmount)})`
+                              : ''}
                           </p>
                         </div>
                       </div>
-                      <span className="shrink-0 font-medium tabular-nums">
-                        {formatCurrency(it.total)}
-                      </span>
+                      <div className="shrink-0 text-right tabular-nums">
+                        {'discountPercent' in it && it.discountPercent > 0 && (
+                          <p className="text-xs text-muted-foreground line-through">
+                            {formatCurrency(subtotal)}
+                          </p>
+                        )}
+                        <p className="font-medium">{formatCurrency(it.total)}</p>
+                      </div>
                     </div>
                   );
                 })}
@@ -212,8 +224,8 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
             <div className="space-y-1 border-t pt-2 text-sm">
               <Row label="Serviços" value={formatCurrency(shownServices)} />
               <Row label="Peças" value={formatCurrency(shownParts)} />
-              {data.discount > 0 && (
-                <Row label="Desconto" value={`- ${formatCurrency(data.discount)}`} />
+              {shownDiscount > 0 && (
+                <Row label="Desconto geral" value={`- ${formatCurrency(shownDiscount)}`} />
               )}
               <div className="flex justify-between pt-1 text-base font-semibold">
                 <span>Total</span>

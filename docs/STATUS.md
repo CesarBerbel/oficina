@@ -1,6 +1,6 @@
 # Status real do projeto
 
-> Fonte única do estado atual do sistema. Atualizado em 2026-06.
+> Fonte única do estado atual do sistema. Atualizado em 2026-06-20.
 
 ## Visão geral
 
@@ -24,7 +24,8 @@ versionamento Git + GitHub e CI automatizado.
   aprovação → compra → execução → entrega), timeline de eventos, criação inline
   de cliente/veículo/peça/serviço/categoria nos formulários.
 - **Orçamento**: geração, envio, aprovação total/parcial e recusa via link público
-  com token; reenvio exige motivo e bloqueia após aprovação.
+  com token expirável; reenvio exige motivo, renova o prazo do link e bloqueia após aprovação.
+  Permite desconto percentual por item do orçamento, além do desconto geral da OS.
 - **Estoque/compras**: movimentações com baixa **atômica** (sem venda a descoberto),
   reservas, pedidos de compra e recebimento (parcial/total), importação de NF-e.
 - **Financeiro**: contas a receber/pagar geradas a partir de OS/compras, baixa e
@@ -41,7 +42,8 @@ versionamento Git + GitHub e CI automatizado.
 - **Outbox transacional** para mensagens de OS/orçamento (entrega ao-menos-uma-vez,
   backoff exponencial, recuperação de itens presos).
 - **Hardening de secrets**: em produção exige segredos JWT fortes/distintos, sem
-  placeholders, `ENCRYPTION_KEY` válida e cookies seguros.
+  placeholders, `ENCRYPTION_KEY` válida e cookies seguros. Login por host/conta
+  evita ambiguidade de e-mail entre filiais e exige seleção explícita quando necessário.
 - **Busca**: índices GIN `pg_trgm` nas colunas pesquisadas (clientes, veículos,
   peças, serviços, fornecedores, usuários).
 - **IA**: assistente de texto e geração de artigos (provedor configurável por tenant).
@@ -50,8 +52,9 @@ versionamento Git + GitHub e CI automatizado.
 ## Testes
 
 - **Unitários (API)**: 53 testes (Jest).
-- **E2E da API**: 12 suítes / 38 testes contra Postgres real — inclui multi-tenant,
+- **E2E da API**: suíte ampla contra Postgres real — inclui multi-tenant,
   concorrência de estoque, ciclo completo OS→orçamento→estoque→financeiro e outbox.
+  Consulte `apps/api/test` para a contagem efetiva atual.
 - **E2E de frontend (Playwright)**: login, navegação e cadastro pela UI — validado
   contra a stack real (API + Web).
 
@@ -71,13 +74,17 @@ Action composta `.github/actions/setup` (Node + pnpm + cache).
 
 ## Lacunas conhecidas / próximos passos
 
-- **Serviços grandes**: `leads` e `service-orders` tiveram mappers/includes/helpers
-  extraídos; ainda há lógica de negócio a decompor incrementalmente.
+- **Serviços grandes**: `leads`, `service-orders`, `quotes` e alguns painéis web
+  ainda concentram lógica relevante. A decomposição para use cases/componentes
+  menores deve continuar de forma incremental e coberta por testes.
 - **WhatsApp/SMS**: ainda sem provedor real plugado (e-mail já é real via SMTP).
 - **SaaS multi-domínio**: `TenantDomain` resolve o site por domínio próprio (em
   produção só **verificado**). A verificação é **automática por DNS**: o admin
   publica um registro **TXT** em `_oficina-verify.<domínio>` e a API confere o
   token (com diagnóstico de DNS na tela de domínios).
+- **Quotas SaaS**: limites mensais usam contadores transacionais; `STORAGE_MB` é
+  aplicado pelo uso real de `UploadAsset.sizeBytes`; criação de OS/upload consome
+  quota dentro da transação efetiva.
 
 ## Segurança (resumo do que já existe)
 
@@ -91,3 +98,8 @@ Action composta `.github/actions/setup` (Node + pnpm + cache).
 - **Métricas + alertas ativos**: `/api/metrics` reúne outbox, ledger, IA, SMTP,
   backup (heartbeat) e saúde; um monitor periódico notifica os admins
   (in-app + Web Push; e-mail nos críticos) com cooldown para não repetir.
+
+
+## Últimas correções relevantes
+
+Ver [`docs/CORRECOES_2026_06_20.md`](CORRECOES_2026_06_20.md) para a lista consolidada de correções de login multi-filial, quotas, expiração de token público, headers de segurança, Caddyfile por variável e desconto percentual por item do orçamento.

@@ -23,7 +23,14 @@ export type LoginInput = z.infer<typeof loginSchema>;
 /** Contexto de login resolvido pelo host (qual conta o subdomínio representa). */
 export interface LoginContextDto {
   /** Conta dona do host (subdomínio/domínio próprio), ou null no apex/dev. */
-  account: { name: string; slug: string } | null;
+  account: {
+    name: string;
+    slug: string;
+    /** Oficinas/filiais da conta. Quando há mais de uma, o login deve escolher uma. */
+    branches: { name: string; slug: string }[];
+  } | null;
+  /** Slug da filial resolvida pelo host quando o domínio aponta para uma oficina específica. */
+  tenantSlug: string | null;
   /** true no apex da plataforma (login do super admin). */
   platform: boolean;
   /**
