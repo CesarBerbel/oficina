@@ -90,8 +90,7 @@ export function ComboFormDialog({
     setToAdd('');
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(addAnother: boolean) {
     const payload = { name, description, serviceIds: services.map((s) => s.serviceId) };
     const schema = isEdit ? updateComboSchema : createComboSchema;
     const parsed = schema.safeParse(payload);
@@ -106,12 +105,26 @@ export function ComboFormDialog({
       } else {
         const createdCombo = (await create.mutateAsync(parsed.data as never)) as ComboDto;
         toast.success('Combo criado');
-        onCreated?.(createdCombo);
+        // Em "adicionar outro" não seleciona (mantém o fluxo de cadastro em série).
+        if (!addAnother) onCreated?.(createdCombo);
       }
-      onOpenChange(false);
+      if (addAnother && !isEdit) {
+        setName('');
+        setDescription('');
+        setServices([]);
+        setToAdd('');
+        setErrors({});
+      } else {
+        onOpenChange(false);
+      }
     } catch (err) {
       toast.error(apiErrorMessage(err, FIELD_LABELS));
     }
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void submit(false);
   }
 
   const available = (servicesData?.data ?? []).filter(
@@ -220,6 +233,16 @@ export function ComboFormDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
+            {!isEdit && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => void submit(true)}
+              >
+                Salvar e adicionar outro
+              </Button>
+            )}
             <Button type="submit" disabled={pending}>
               {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}

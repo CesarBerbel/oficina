@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   CreditCard,
+  MonitorSmartphone,
   Gauge,
   BellRing,
   ListChecks,
@@ -160,6 +161,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Oficinas', href: '/oficinas', icon: Building2, platformAdmin: true },
       { label: 'Contas', href: '/contas', icon: Store, platformAdmin: true },
       { label: 'Planos', href: '/planos', icon: CreditCard, platformAdmin: true },
+      { label: 'Sessões', href: '/sessoes', icon: MonitorSmartphone, platformAdmin: true },
     ],
   },
 ];

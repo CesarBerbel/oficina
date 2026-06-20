@@ -33,6 +33,7 @@ const PROTECTED_PREFIXES = [
   '/plataforma',
   '/relatorios',
   '/servicos',
+  '/sessoes',
   '/site-config',
   '/trocar-senha',
   '/usuarios',

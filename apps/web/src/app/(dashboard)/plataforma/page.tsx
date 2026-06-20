@@ -9,19 +9,14 @@ import {
   MonitorSmartphone,
   ShieldAlert,
   Store,
-  UserRound,
-  LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import {
-  useLogoutPlatformUserSessions,
   usePlatformOverview,
   usePlatformPlans,
   usePlatformSessions,
-  useRevokePlatformSession,
 } from '@/features/platform/use-accounts';
 import { CarLoader } from '@/components/car-loader';
-import { Button } from '@/components/ui/button';
 
 function Stat({
   label,
@@ -45,29 +40,11 @@ function Stat({
   );
 }
 
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
-}
-
-function compactUserAgent(value: string | null): string {
-  if (!value) return 'Não informado';
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length > 90 ? `${normalized.slice(0, 87)}...` : normalized;
-}
-
 export default function PlataformaPage() {
   const { user } = useAuth();
   const { data, isLoading } = usePlatformOverview();
-  const { data: sessions = [], isLoading: isLoadingSessions } = usePlatformSessions();
+  const { data: sessions = [] } = usePlatformSessions();
   const { data: plans = [] } = usePlatformPlans();
-  const revokeSession = useRevokePlatformSession();
-  const logoutUser = useLogoutPlatformUserSessions();
 
   if (!user?.platformAdmin) {
     return (
@@ -185,102 +162,23 @@ export default function PlataformaPage() {
         </div>
       )}
 
-      <section className="rounded-xl border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
-              <MonitorSmartphone className="size-5 text-primary" /> Sessões ativas
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Refresh tokens válidos, não revogados e ainda não expirados em todas as oficinas.
-            </p>
-          </div>
-          <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-            {isLoadingSessions ? 'Carregando...' : `${sessions.length} ativa(s)`}
-          </span>
+      <Link
+        href="/sessoes"
+        className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4 hover:bg-accent"
+      >
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <MonitorSmartphone className="size-5 text-primary" /> Sessões ativas
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {sessions.length} sessão(ões) ativa(s) nas oficinas. Gerencie (revogar/encerrar) na tela
+            dedicada.
+          </p>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-muted/60 text-left text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">Usuário</th>
-                <th className="px-4 py-3 font-medium">Conta / oficina</th>
-                <th className="px-4 py-3 font-medium">IP</th>
-                <th className="px-4 py-3 font-medium">Dispositivo</th>
-                <th className="px-4 py-3 font-medium">Criada/rotacionada</th>
-                <th className="px-4 py-3 font-medium">Expira</th>
-                <th className="px-4 py-3 text-right font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map((session) => (
-                <tr key={session.id} className="border-t">
-                  <td className="px-4 py-3 align-top">
-                    <div className="flex items-start gap-2">
-                      <UserRound className="mt-0.5 size-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{session.userName}</p>
-                        <p className="text-xs text-muted-foreground">{session.userEmail}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {session.role}
-                          {session.platformAdmin ? ' · Super admin' : ''}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 align-top">
-                    <p className="font-medium">{session.accountName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {session.tenantName} · {session.tenantSlug}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 align-top text-muted-foreground">
-                    {session.ip ?? 'Não informado'}
-                  </td>
-                  <td className="max-w-[280px] px-4 py-3 align-top text-muted-foreground">
-                    {compactUserAgent(session.userAgent)}
-                  </td>
-                  <td className="px-4 py-3 align-top text-muted-foreground">
-                    {formatDateTime(session.createdAt)}
-                  </td>
-                  <td className="px-4 py-3 align-top text-muted-foreground">
-                    {formatDateTime(session.expiresAt)}
-                  </td>
-                  <td className="px-4 py-3 align-top">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={revokeSession.isPending}
-                        onClick={() => revokeSession.mutate(session.id)}
-                      >
-                        Revogar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={logoutUser.isPending}
-                        onClick={() => logoutUser.mutate(session.userId)}
-                        title="Encerrar todas as sessões deste usuário"
-                      >
-                        <LogOut className="size-4" /> Todas
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {!isLoadingSessions && sessions.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                    Nenhuma sessão ativa encontrada.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+          Gerenciar <ArrowRight className="size-4" />
+        </span>
+      </Link>
     </div>
   );
 }

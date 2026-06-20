@@ -232,8 +232,7 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onCreated }: 
     }
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(addAnother: boolean) {
     const payload = {
       ...form,
       categories: form.categories.map((c) => c.trim()).filter(Boolean),
@@ -252,12 +251,23 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onCreated }: 
       } else {
         const createdCustomer = (await create.mutateAsync(parsed.data as never)) as CustomerDto;
         toast.success('Cliente criado');
-        onCreated?.(createdCustomer.id);
+        // Em "adicionar outro" não seleciona (mantém o fluxo de cadastro em série).
+        if (!addAnother) onCreated?.(createdCustomer.id);
       }
-      onOpenChange(false);
+      if (addAnother && !isEdit) {
+        setForm(empty);
+        setErrors({});
+      } else {
+        onOpenChange(false);
+      }
     } catch (err) {
       toast.error(apiErrorMessage(err, FIELD_LABELS));
     }
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void submit(false);
   }
 
   return (
@@ -459,6 +469,16 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onCreated }: 
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
+            {!isEdit && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => void submit(true)}
+              >
+                Salvar e adicionar outro
+              </Button>
+            )}
             <Button type="submit" disabled={pending}>
               {pending && <CarLoader className="size-4 animate-spin" />}
               {isEdit ? 'Salvar' : 'Criar'}
