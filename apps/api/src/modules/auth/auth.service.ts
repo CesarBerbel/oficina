@@ -477,23 +477,47 @@ export class AuthService {
   }
 
   async requestPasswordReset(
-    tenantSlug: string,
+    opts: { accountId?: string | null; tenantSlug?: string | null },
     email: string,
     meta: RequestMeta,
   ): Promise<{ ok: true }> {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
-      select: { id: true, name: true, active: true },
-    });
+    const select = {
+      id: true,
+      tenantId: true,
+      name: true,
+      email: true,
+      active: true,
+      tenant: { select: { name: true, active: true } },
+    } as const;
+    // Resolve o usuário pelo host (conta) ou pelo slug informado (apex/dev) —
+    // mesmo critério do login, para o fluxo seguir o subdomínio/domínio próprio.
+    let user: {
+      id: string;
+      tenantId: string;
+      name: string;
+      email: string;
+      active: boolean;
+      tenant: { name: string; active: boolean };
+    } | null = null;
+    if (opts.accountId) {
+      user = await this.prisma.user.findFirst({
+        where: { email, tenant: { accountId: opts.accountId } },
+        select,
+      });
+    } else if (opts.tenantSlug) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { slug: opts.tenantSlug },
+        select: { id: true },
+      });
+      user = tenant
+        ? await this.prisma.user.findUnique({
+            where: { tenantId_email: { tenantId: tenant.id, email } },
+            select,
+          })
+        : null;
+    }
 
-    const user = tenant?.active
-      ? await this.prisma.user.findUnique({
-          where: { tenantId_email: { tenantId: tenant.id, email } },
-          select: { id: true, tenantId: true, name: true, email: true, active: true },
-        })
-      : null;
-
-    if (tenant?.active && user?.active) {
+    if (user?.active && user.tenant.active) {
       await this.prisma.passwordResetToken.updateMany({
         where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
         data: { usedAt: new Date() },
@@ -512,7 +536,7 @@ export class AuthService {
       const text = [
         `Olá, ${user.name}.`,
         '',
-        `Recebemos uma solicitação para redefinir sua senha na ${tenant.name}.`,
+        `Recebemos uma solicitação para redefinir sua senha na ${user.tenant.name}.`,
         `Acesse o link abaixo para criar uma nova senha. Ele expira em 1 hora:`,
         resetUrl,
         '',

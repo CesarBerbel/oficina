@@ -107,13 +107,16 @@ export const listUsersQuerySchema = paginationQuerySchema.extend({
 });
 
 export const forgotPasswordSchema = z.object({
+  // Opcional: em subdomínio/domínio próprio a conta vem do host; no apex/dev é exigido.
   tenantSlug: z
     .string()
     .trim()
     .toLowerCase()
     .min(2, 'Informe a oficina')
     .max(80, 'Identificador da oficina muito longo')
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use apenas letras minúsculas, números e hífens'),
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use apenas letras minúsculas, números e hífens')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   email: z.string().trim().toLowerCase().email('E-mail inválido'),
 });
 

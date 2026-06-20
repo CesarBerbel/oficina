@@ -1,9 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Store, Check, X, Power, Copy, ShieldAlert } from 'lucide-react';
+import { Store, Check, X, Power, Copy, ShieldAlert, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AccountDto, AccountRequestDto, ProvisionedAccountDto } from '@oficina/shared';
+import type {
+  AccountDto,
+  AccountRequestDto,
+  ProvisionedAccountDto,
+  ResetAdminPasswordDto,
+} from '@oficina/shared';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { formatDate } from '@/lib/utils';
@@ -15,6 +20,7 @@ import {
   useSetAccountStatus,
   usePlatformPlans,
   useAssignAccountPlan,
+  useResetAccountAdminPassword,
 } from '@/features/platform/use-accounts';
 import { CarLoader } from '@/components/car-loader';
 import { Button } from '@/components/ui/button';
@@ -45,8 +51,12 @@ export default function ContasPage() {
   const setStatus = useSetAccountStatus();
   const plans = usePlatformPlans();
   const assignPlan = useAssignAccountPlan();
+  const resetPw = useResetAccountAdminPassword();
   const confirm = useConfirm();
   const [provisioned, setProvisioned] = useState<ProvisionedAccountDto | null>(null);
+  const [resetResult, setResetResult] = useState<
+    (ResetAdminPasswordDto & { accountName: string }) | null
+  >(null);
 
   if (!user?.platformAdmin) {
     return (
@@ -99,6 +109,22 @@ export default function ContasPage() {
       toast.success('Plano atualizado');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Falha ao atualizar plano');
+    }
+  }
+
+  async function onResetPassword(a: AccountDto) {
+    const ok = await confirm({
+      title: 'Resetar senha do admin',
+      description: `Gerar uma nova senha temporária para o admin de "${a.name}"? As sessões ativas dele serão encerradas e a troca será obrigatória no próximo login.`,
+      confirmLabel: 'Gerar nova senha',
+    });
+    if (!ok) return;
+    try {
+      const result = await resetPw.mutateAsync(a.id);
+      setResetResult({ ...result, accountName: a.name });
+      toast.success('Senha redefinida');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Falha ao resetar a senha');
     }
   }
 
@@ -167,6 +193,42 @@ export default function ContasPage() {
                 <Copy className="size-4" /> Copiar
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setProvisioned(null)}>
+                <X className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resetResult && (
+        <div className="rounded-xl border border-amber-600/30 bg-amber-600/10 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1 text-sm">
+              <p className="font-semibold text-amber-700">
+                Senha redefinida — repasse ao admin de {resetResult.accountName}:
+              </p>
+              <p>
+                <span className="text-muted-foreground">E-mail:</span> {resetResult.adminEmail}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Senha temporária:</span>{' '}
+                <code className="rounded bg-background px-1.5 py-0.5 font-mono">
+                  {resetResult.tempPassword}
+                </code>
+              </p>
+            </div>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard?.writeText(resetResult.tempPassword);
+                  toast.success('Senha copiada');
+                }}
+              >
+                <Copy className="size-4" /> Copiar
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setResetResult(null)}>
                 <X className="size-4" />
               </Button>
             </div>
@@ -289,10 +351,21 @@ export default function ContasPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => onToggle(a)}>
-                          <Power className="size-4" />
-                          {a.status === 'SUSPENDED' ? 'Reativar' : 'Suspender'}
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={resetPw.isPending}
+                            onClick={() => onResetPassword(a)}
+                            title="Gerar nova senha temporária para o admin"
+                          >
+                            <KeyRound className="size-4" /> Senha
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => onToggle(a)}>
+                            <Power className="size-4" />
+                            {a.status === 'SUSPENDED' ? 'Reativar' : 'Suspender'}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
