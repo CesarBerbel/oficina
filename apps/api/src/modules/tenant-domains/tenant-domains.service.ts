@@ -118,6 +118,15 @@ export class TenantDomainsService {
       return false;
     }
     if (!host) return false;
+    // Em dev, libera localhost/*.localhost/127.0.0.1 para testar multi-tenant
+    // sem precisar provisionar/verificar cada subdomínio. Em produção, segue
+    // exigindo domínio verificado.
+    if (
+      (process.env.NODE_ENV ?? 'development') !== 'production' &&
+      (host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1')
+    ) {
+      return true;
+    }
     return this.isAllowedForTls(host);
   }
 
