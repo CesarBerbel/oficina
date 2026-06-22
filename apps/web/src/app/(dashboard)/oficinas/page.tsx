@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Power, Trash2, Building2 } from 'lucide-react';
+import { Power, Trash2, Building2 } from 'lucide-react';
 import { CarLoader } from '@/components/car-loader';
 import { toast } from 'sonner';
 import type { PlatformTenantDto } from '@oficina/shared';
@@ -13,7 +12,6 @@ import {
   useSetTenantActive,
   useDeleteTenant,
 } from '@/features/platform/use-platform';
-import { BranchFormDialog } from '@/features/platform/branch-form-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -28,7 +26,6 @@ import {
 
 export default function OficinasPage() {
   const { user } = useAuth();
-  const [branchOpen, setBranchOpen] = useState(false);
   const { data: tenants, isLoading } = usePlatformTenants();
   const setActive = useSetTenantActive();
   const del = useDeleteTenant();
@@ -92,19 +89,12 @@ export default function OficinasPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <Building2 className="size-6 text-primary" /> Oficinas
-          </h1>
-          <p className="text-muted-foreground">Matriz e filiais cadastradas na plataforma.</p>
-        </div>
-        <Button onClick={() => setBranchOpen(true)}>
-          <Plus className="size-4" /> Nova filial
-        </Button>
+      <div>
+        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+          <Building2 className="size-6 text-primary" /> Oficinas
+        </h1>
+        <p className="text-muted-foreground">Matriz e filiais cadastradas na plataforma.</p>
       </div>
-
-      <BranchFormDialog open={branchOpen} onOpenChange={setBranchOpen} />
 
       {/* Desktop */}
       <div className="hidden rounded-xl border md:block">
