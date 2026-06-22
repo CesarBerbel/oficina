@@ -5,6 +5,11 @@ import {
   CreditCard,
   Plus,
   Pencil,
+  Copy,
+  Power,
+  MoreVertical,
+  LayoutGrid,
+  Table2,
   ShieldAlert,
   Users,
   Store,
@@ -35,6 +40,31 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 const FEATURES = planFeatureKeySchema.options;
 
@@ -48,6 +78,8 @@ const FEATURE_ICONS: Record<PlanFeatureKey, LucideIcon> = {
   MESSAGES_MONTH: MessageSquare,
   CUSTOM_DOMAINS: Globe,
 };
+
+type ViewMode = 'cards' | 'compare';
 
 type LimitForm = { enabled: boolean; limit: string };
 type FormState = {
@@ -95,14 +127,48 @@ function formFromPlan(plan: PlanDto): FormState {
   };
 }
 
-/** Resumo curto de um limite para os cartões de planos. */
+/** Form pré-preenchido para duplicar: novo código e nome marcado como cópia. */
+function formFromPlanAsCopy(plan: PlanDto): FormState {
+  return { ...formFromPlan(plan), code: '', name: `${plan.name} (cópia)`, active: true };
+}
+
+/** Monta o payload de upsert a partir de um plano existente (para ações rápidas). */
+function planToUpsertInput(plan: PlanDto, overrides: Partial<UpsertPlanInput> = {}): UpsertPlanInput {
+  return {
+    code: plan.code,
+    name: plan.name,
+    description: plan.description ?? undefined,
+    active: plan.active,
+    priceCents: plan.priceCents,
+    currency: plan.currency,
+    billingInterval: plan.billingInterval,
+    limits: FEATURES.map((feature) => {
+      const l = plan.limits.find((x) => x.feature === feature);
+      return { feature, enabled: l?.enabled ?? true, limit: l?.limit ?? null };
+    }),
+    ...overrides,
+  };
+}
+
+/** Resumo curto de um limite para os cartões/tabela de planos. */
 function limitLabel(enabled: boolean, limit: number | null): string {
   if (!enabled) return 'Bloqueado';
   return limit == null ? 'Ilimitado' : String(limit);
 }
 
+/** Classe de estilo para o valor de um limite (bloqueado / ilimitado / numérico). */
+function limitValueClass(enabled: boolean, limit: number | null): string {
+  if (!enabled) return 'text-muted-foreground/60 line-through';
+  if (limit == null) return 'text-primary';
+  return '';
+}
+
 function formatPrice(priceCents: number): string {
   return priceCents === 0 ? 'Grátis' : `R$ ${(priceCents / 100).toFixed(2)}`;
+}
+
+function intervalSuffix(interval: PlanDto['billingInterval']): string {
+  return interval === 'YEARLY' ? '/ano' : '/mês';
 }
 
 /** Interruptor (on/off) reutilizável. */
@@ -139,8 +205,11 @@ export default function PlanosPage() {
   const { user } = useAuth();
   const plans = usePlatformPlans();
   const upsert = useUpsertPlan();
+  const confirm = useConfirm();
   const [form, setForm] = useState<FormState>(blankForm());
   const [editingCode, setEditingCode] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [view, setView] = useState<ViewMode>('cards');
 
   if (!user?.platformAdmin) {
     return (
@@ -154,15 +223,22 @@ export default function PlanosPage() {
     );
   }
 
-  function startNew() {
+  function openNew() {
     setForm(blankForm());
     setEditingCode(null);
+    setDialogOpen(true);
   }
 
-  function startEdit(plan: PlanDto) {
+  function openEdit(plan: PlanDto) {
     setForm(formFromPlan(plan));
     setEditingCode(plan.code);
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    setDialogOpen(true);
+  }
+
+  function openDuplicate(plan: PlanDto) {
+    setForm(formFromPlanAsCopy(plan));
+    setEditingCode(null);
+    setDialogOpen(true);
   }
 
   function setLimit(feature: PlanFeatureKey, patch: Partial<LimitForm>) {
@@ -170,6 +246,25 @@ export default function PlanosPage() {
       ...f,
       limits: { ...f.limits, [feature]: { ...f.limits[feature], ...patch } },
     }));
+  }
+
+  async function toggleActive(plan: PlanDto) {
+    const deactivating = plan.active;
+    const ok = await confirm({
+      title: deactivating ? 'Desativar plano?' : 'Reativar plano?',
+      description: deactivating
+        ? 'O plano deixa de aparecer para novas contas. Contas que já o usam não são afetadas.'
+        : 'O plano volta a ficar disponível para atribuição às contas.',
+      confirmLabel: deactivating ? 'Desativar' : 'Reativar',
+      destructive: deactivating,
+    });
+    if (!ok) return;
+    try {
+      await upsert.mutateAsync(planToUpsertInput(plan, { active: !plan.active }));
+      toast.success(deactivating ? 'Plano desativado' : 'Plano reativado');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Falha ao atualizar o plano');
+    }
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -198,187 +293,256 @@ export default function PlanosPage() {
     try {
       await upsert.mutateAsync(parsed.data);
       toast.success(editingCode ? 'Plano atualizado' : 'Plano criado');
-      startNew();
+      setDialogOpen(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Falha ao salvar o plano');
     }
   }
 
+  const list = plans.data ?? [];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <CreditCard className="size-5" />
-        </span>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Planos</h1>
-          <p className="text-sm text-muted-foreground">
-            Defina os planos do SaaS e o que cada um libera. Atribua um plano a uma conta na tela de
-            Contas.
-          </p>
+      {/* Cabeçalho */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <CreditCard className="size-5" />
+          </span>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Planos</h1>
+            <p className="text-sm text-muted-foreground">
+              Defina os planos do SaaS e o que cada um libera. Atribua um plano a uma conta na tela
+              de Contas.
+            </p>
+          </div>
         </div>
+        <Button onClick={openNew}>
+          <Plus className="size-4" /> Novo plano
+        </Button>
       </div>
 
-      {/* Formulário criar/editar */}
-      <form onSubmit={onSubmit} className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-6 py-4">
-          <div className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              {editingCode ? <Pencil className="size-4" /> : <Plus className="size-4" />}
-            </span>
-            <div>
-              <h2 className="text-base font-semibold leading-tight">
-                {editingCode ? 'Editar plano' : 'Novo plano'}
-              </h2>
-              {editingCode && (
-                <span className="text-xs text-muted-foreground">Código: {editingCode}</span>
-              )}
-            </div>
-          </div>
-          {editingCode && (
-            <Button type="button" variant="outline" size="sm" onClick={startNew}>
-              <Plus className="size-4" /> Novo plano
-            </Button>
-          )}
+      {/* Barra de ferramentas: contagem + alternância de visualização */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Planos cadastrados</h2>
+          {!!list.length && <Badge variant="secondary">{list.length}</Badge>}
         </div>
-
-        <div className="space-y-6 p-6">
-          {/* Identificação */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="code">Código (identificador)</Label>
-              <Input
-                id="code"
-                value={form.code}
-                disabled={!!editingCode}
-                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toLowerCase() }))}
-                placeholder="ex.: pro"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="ex.: Pro"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="price">Preço (R$ / período)</Label>
-              <Input
-                id="price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.priceReais}
-                onChange={(e) => setForm((f) => ({ ...f, priceReais: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="interval">Cobrança</Label>
-              <Select
-                id="interval"
-                value={form.billingInterval}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    billingInterval: e.target.value as 'MONTHLY' | 'YEARLY',
-                  }))
-                }
-              >
-                <option value="MONTHLY">Mensal</option>
-                <option value="YEARLY">Anual</option>
-              </Select>
-            </div>
+        {list.length >= 2 && (
+          <div className="inline-flex rounded-lg border bg-muted/30 p-0.5">
+            <button
+              type="button"
+              onClick={() => setView('cards')}
+              aria-pressed={view === 'cards'}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                view === 'cards'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <LayoutGrid className="size-4" /> Cartões
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('compare')}
+              aria-pressed={view === 'compare'}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                view === 'compare'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Table2 className="size-4" /> Comparar
+            </button>
           </div>
+        )}
+      </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="description">Descrição (opcional)</Label>
-            <Textarea
-              id="description"
-              rows={2}
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="Resumo do plano"
+      {/* Conteúdo */}
+      {plans.isLoading ? (
+        <div className="rounded-xl border bg-card p-10">
+          <CarLoader />
+        </div>
+      ) : list.length === 0 ? (
+        <div className="rounded-xl border border-dashed bg-card p-10 text-center">
+          <CreditCard className="mx-auto mb-3 size-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Nenhum plano cadastrado ainda.</p>
+          <Button className="mt-4" onClick={openNew}>
+            <Plus className="size-4" /> Criar primeiro plano
+          </Button>
+        </div>
+      ) : view === 'compare' ? (
+        <PlanComparison plans={list} onEdit={openEdit} />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {list.map((plan) => (
+            <PlanCard
+              key={plan.id}
+              plan={plan}
+              isEditing={editingCode === plan.code && dialogOpen}
+              onEdit={() => openEdit(plan)}
+              onDuplicate={() => openDuplicate(plan)}
+              onToggleActive={() => toggleActive(plan)}
             />
-          </div>
+          ))}
+        </div>
+      )}
 
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <p className="text-sm font-medium">Plano ativo</p>
-              <p className="text-xs text-muted-foreground">Disponível para atribuição às contas</p>
-            </div>
-            <Toggle
-              checked={form.active}
-              onChange={(v) => setForm((f) => ({ ...f, active: v }))}
-              label="Plano ativo"
-            />
-          </div>
+      {/* Modal criar/editar */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingCode ? 'Editar plano' : 'Novo plano'}</DialogTitle>
+            <DialogDescription>
+              {editingCode
+                ? `Código: ${editingCode}`
+                : 'Defina os dados do plano e os limites de cada recurso.'}
+            </DialogDescription>
+          </DialogHeader>
 
-          {/* Limites por recurso */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Limites por recurso</h3>
-              <span className="text-xs text-muted-foreground">Campo vazio = ilimitado</span>
+          <form id="plan-form" onSubmit={onSubmit} className="space-y-6">
+            {/* Identificação */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="code">Código (identificador)</Label>
+                <Input
+                  id="code"
+                  value={form.code}
+                  disabled={!!editingCode}
+                  onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toLowerCase() }))}
+                  placeholder="ex.: pro"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Nome</Label>
+                <Input
+                  id="name"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="ex.: Pro"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="price">Preço (R$ / período)</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.priceReais}
+                  onChange={(e) => setForm((f) => ({ ...f, priceReais: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="interval">Cobrança</Label>
+                <Select
+                  id="interval"
+                  value={form.billingInterval}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      billingInterval: e.target.value as 'MONTHLY' | 'YEARLY',
+                    }))
+                  }
+                >
+                  <option value="MONTHLY">Mensal</option>
+                  <option value="YEARLY">Anual</option>
+                </Select>
+              </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {FEATURES.map((feature) => {
-                const row = form.limits[feature];
-                const Icon = FEATURE_ICONS[feature];
-                return (
-                  <div
-                    key={feature}
-                    className={`rounded-lg border p-3 transition-colors ${
-                      row.enabled ? 'bg-card' : 'bg-muted/30'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span
-                          className={`flex size-7 shrink-0 items-center justify-center rounded-md ${
-                            row.enabled
-                              ? 'bg-primary/10 text-primary'
-                              : 'bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          <Icon className="size-4" />
-                        </span>
-                        <span className="truncate text-sm font-medium">
-                          {PLAN_FEATURE_LABELS[feature]}
-                        </span>
-                      </div>
-                      <Toggle
-                        checked={row.enabled}
-                        onChange={(v) => setLimit(feature, { enabled: v })}
-                        label={`Habilitar ${PLAN_FEATURE_LABELS[feature]}`}
-                      />
-                    </div>
-                    <div className="mt-2.5">
-                      {row.enabled ? (
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={row.limit}
-                          onChange={(e) => setLimit(feature, { limit: e.target.value })}
-                          placeholder="Ilimitado"
-                          className="h-9"
+
+            <div className="space-y-1.5">
+              <Label htmlFor="description">Descrição (opcional)</Label>
+              <Textarea
+                id="description"
+                rows={2}
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Resumo do plano"
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">Plano ativo</p>
+                <p className="text-xs text-muted-foreground">Disponível para atribuição às contas</p>
+              </div>
+              <Toggle
+                checked={form.active}
+                onChange={(v) => setForm((f) => ({ ...f, active: v }))}
+                label="Plano ativo"
+              />
+            </div>
+
+            {/* Limites por recurso */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Limites por recurso</h3>
+                <span className="text-xs text-muted-foreground">Campo vazio = ilimitado</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {FEATURES.map((feature) => {
+                  const row = form.limits[feature];
+                  const Icon = FEATURE_ICONS[feature];
+                  return (
+                    <div
+                      key={feature}
+                      className={`rounded-lg border p-3 transition-colors ${
+                        row.enabled ? 'bg-card' : 'bg-muted/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span
+                            className={`flex size-7 shrink-0 items-center justify-center rounded-md ${
+                              row.enabled
+                                ? 'bg-primary/10 text-primary'
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            <Icon className="size-4" />
+                          </span>
+                          <span className="truncate text-sm font-medium">
+                            {PLAN_FEATURE_LABELS[feature]}
+                          </span>
+                        </div>
+                        <Toggle
+                          checked={row.enabled}
+                          onChange={(v) => setLimit(feature, { enabled: v })}
+                          label={`Habilitar ${PLAN_FEATURE_LABELS[feature]}`}
                         />
-                      ) : (
-                        <p className="flex h-9 items-center text-xs text-muted-foreground">
-                          Recurso bloqueado neste plano
-                        </p>
-                      )}
+                      </div>
+                      <div className="mt-2.5">
+                        {row.enabled ? (
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={row.limit}
+                            onChange={(e) => setLimit(feature, { limit: e.target.value })}
+                            placeholder="Ilimitado"
+                            className="h-9"
+                          />
+                        ) : (
+                          <p className="flex h-9 items-center text-xs text-muted-foreground">
+                            Recurso bloqueado neste plano
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          </form>
 
-          <div className="flex justify-end">
-            <Button type="submit" disabled={upsert.isPending}>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button type="submit" form="plan-form" disabled={upsert.isPending}>
               {upsert.isPending ? (
                 <>
                   <CarLoader className="size-4 animate-spin" /> Salvando…
@@ -389,112 +553,182 @@ export default function PlanosPage() {
                 'Criar plano'
               )}
             </Button>
-          </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/** Cartão de um plano com menu de ações (editar, duplicar, ativar/desativar). */
+function PlanCard({
+  plan,
+  isEditing,
+  onEdit,
+  onDuplicate,
+  onToggleActive,
+}: {
+  plan: PlanDto;
+  isEditing: boolean;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onToggleActive: () => void;
+}) {
+  const byFeature = new Map(plan.limits.map((l) => [l.feature, l]));
+  return (
+    <div
+      className={`flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md ${
+        isEditing ? 'ring-2 ring-primary' : ''
+      } ${plan.active ? '' : 'opacity-75'}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-lg font-semibold leading-tight">{plan.name}</div>
+          <div className="text-xs text-muted-foreground">{plan.code}</div>
         </div>
-      </form>
-
-      {/* Lista de planos */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Planos cadastrados</h2>
-          {!!plans.data?.length && <Badge variant="secondary">{plans.data.length}</Badge>}
+        <div className="flex shrink-0 items-center gap-1">
+          <Badge variant={plan.active ? 'success' : 'secondary'}>
+            {plan.active ? 'Ativo' : 'Inativo'}
+          </Badge>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="-mr-1 size-8 text-muted-foreground"
+                aria-label="Ações do plano"
+              >
+                <MoreVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="size-4" /> Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onDuplicate}>
+                <Copy className="size-4" /> Duplicar
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={onToggleActive}
+                className={plan.active ? 'text-destructive focus:text-destructive' : ''}
+              >
+                <Power className="size-4" /> {plan.active ? 'Desativar' : 'Reativar'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+      </div>
 
-        {plans.isLoading ? (
-          <div className="rounded-xl border bg-card p-10">
-            <CarLoader />
-          </div>
-        ) : !plans.data || plans.data.length === 0 ? (
-          <div className="rounded-xl border border-dashed bg-card p-10 text-center">
-            <CreditCard className="mx-auto mb-3 size-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Nenhum plano cadastrado ainda. Crie o primeiro no formulário acima.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {plans.data.map((plan) => {
-              const byFeature = new Map(plan.limits.map((l) => [l.feature, l]));
-              const isEditing = editingCode === plan.code;
-              return (
-                <div
-                  key={plan.id}
-                  className={`flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md ${
-                    isEditing ? 'ring-2 ring-primary' : ''
-                  } ${plan.active ? '' : 'opacity-75'}`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="truncate text-lg font-semibold leading-tight">
-                        {plan.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{plan.code}</div>
-                    </div>
-                    <Badge variant={plan.active ? 'success' : 'secondary'}>
-                      {plan.active ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </div>
-
-                  <div className="mt-3 flex items-baseline gap-1">
-                    <span className="text-2xl font-bold tabular-nums">
-                      {formatPrice(plan.priceCents)}
-                    </span>
-                    {plan.priceCents > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        {plan.billingInterval === 'YEARLY' ? '/ano' : '/mês'}
-                      </span>
-                    )}
-                  </div>
-
-                  {plan.description && (
-                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                      {plan.description}
-                    </p>
-                  )}
-
-                  <ul className="mt-4 space-y-2 border-t pt-4 text-sm">
-                    {FEATURES.map((feature) => {
-                      const l = byFeature.get(feature);
-                      const enabled = l?.enabled ?? true;
-                      const limit = l?.limit ?? null;
-                      const Icon = FEATURE_ICONS[feature];
-                      return (
-                        <li key={feature} className="flex items-center justify-between gap-2">
-                          <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
-                            <Icon className="size-3.5 shrink-0" />
-                            <span className="truncate">{PLAN_FEATURE_LABELS[feature]}</span>
-                          </span>
-                          <span
-                            className={`shrink-0 font-medium tabular-nums ${
-                              !enabled
-                                ? 'text-muted-foreground/60 line-through'
-                                : limit == null
-                                  ? 'text-primary'
-                                  : ''
-                            }`}
-                          >
-                            {limitLabel(enabled, limit)}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-4 w-full"
-                    onClick={() => startEdit(plan)}
-                  >
-                    <Pencil className="size-4" /> Editar
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
+      <div className="mt-3 flex items-baseline gap-1">
+        <span className="text-2xl font-bold tabular-nums">{formatPrice(plan.priceCents)}</span>
+        {plan.priceCents > 0 && (
+          <span className="text-sm text-muted-foreground">{intervalSuffix(plan.billingInterval)}</span>
         )}
       </div>
+
+      {plan.description && (
+        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{plan.description}</p>
+      )}
+
+      <ul className="mt-4 space-y-2 border-t pt-4 text-sm">
+        {FEATURES.map((feature) => {
+          const l = byFeature.get(feature);
+          const enabled = l?.enabled ?? true;
+          const limit = l?.limit ?? null;
+          const Icon = FEATURE_ICONS[feature];
+          return (
+            <li key={feature} className="flex items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                <Icon className="size-3.5 shrink-0" />
+                <span className="truncate">{PLAN_FEATURE_LABELS[feature]}</span>
+              </span>
+              <span className={`shrink-0 font-medium tabular-nums ${limitValueClass(enabled, limit)}`}>
+                {limitLabel(enabled, limit)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+
+      <Button type="button" variant="outline" size="sm" className="mt-4 w-full" onClick={onEdit}>
+        <Pencil className="size-4" /> Editar
+      </Button>
+    </div>
+  );
+}
+
+/** Tabela comparativa: recursos nas linhas, planos nas colunas. */
+function PlanComparison({ plans, onEdit }: { plans: PlanDto[]; onEdit: (plan: PlanDto) => void }) {
+  return (
+    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="sticky left-0 z-10 bg-card">Recurso</TableHead>
+            {plans.map((plan) => (
+              <TableHead key={plan.id} className="min-w-[9rem] text-center align-top">
+                <div className="flex flex-col items-center gap-1 py-2">
+                  <span className="font-semibold text-foreground">{plan.name}</span>
+                  <span className="text-lg font-bold tabular-nums text-foreground">
+                    {formatPrice(plan.priceCents)}
+                    {plan.priceCents > 0 && (
+                      <span className="ml-0.5 text-xs font-normal text-muted-foreground">
+                        {intervalSuffix(plan.billingInterval)}
+                      </span>
+                    )}
+                  </span>
+                  {!plan.active && (
+                    <Badge variant="secondary" className="font-normal">
+                      Inativo
+                    </Badge>
+                  )}
+                </div>
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {FEATURES.map((feature) => {
+            const Icon = FEATURE_ICONS[feature];
+            return (
+              <TableRow key={feature}>
+                <TableCell className="sticky left-0 z-10 bg-card">
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Icon className="size-4 shrink-0" />
+                    <span className="font-medium text-foreground">
+                      {PLAN_FEATURE_LABELS[feature]}
+                    </span>
+                  </span>
+                </TableCell>
+                {plans.map((plan) => {
+                  const l = plan.limits.find((x) => x.feature === feature);
+                  const enabled = l?.enabled ?? true;
+                  const limit = l?.limit ?? null;
+                  return (
+                    <TableCell
+                      key={plan.id}
+                      className={`text-center font-medium tabular-nums ${limitValueClass(enabled, limit)}`}
+                    >
+                      {limitLabel(enabled, limit)}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            );
+          })}
+          <TableRow className="hover:bg-transparent">
+            <TableCell className="sticky left-0 z-10 bg-card" />
+            {plans.map((plan) => (
+              <TableCell key={plan.id} className="text-center">
+                <Button variant="outline" size="sm" onClick={() => onEdit(plan)}>
+                  <Pencil className="size-4" /> Editar
+                </Button>
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableBody>
+      </Table>
     </div>
   );
 }
