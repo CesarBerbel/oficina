@@ -4,7 +4,33 @@
  * Em caso de 401, tenta um refresh transparente uma vez e repete a requisição.
  */
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
+function resolveApiUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
+  // Em dev, no browser, fala com a API pelo proxy de mesma origem (/api-proxy,
+  // ver next.config.mjs). Assim o cookie de sessão nasce first-party do
+  // subdomínio da oficina (<slug>.localhost) — o middleware do front depende
+  // dele. Falar direto com localhost:3333 deixaria o cookie preso ao host
+  // `localhost`, invisível em `<slug>.localhost`. Em produção (web e API na
+  // mesma origem atrás do proxy) usa a URL configurada diretamente.
+  if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+    return '/api-proxy';
+  }
+  return configured;
+}
+
+export const API_URL = resolveApiUrl();
+
+/**
+ * Acrescenta o host atual do browser à URL como ?host=. Em dev, web e API ficam
+ * em portas diferentes, então a API nunca recebe o subdomínio da oficina pelo
+ * Host — ela o lê deste parâmetro para resolver o tenant. Em produção a API
+ * ignora o parâmetro e usa o host do proxy, então é seguro enviar sempre.
+ */
+export function withBrowserHost(path: string): string {
+  if (typeof window === 'undefined' || !window.location.host) return path;
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}host=${encodeURIComponent(window.location.host)}`;
+}
 
 let accessToken: string | null = null;
 

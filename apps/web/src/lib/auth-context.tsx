@@ -10,7 +10,7 @@ import {
   useState,
 } from 'react';
 import type { AuthUser, LoginResponse, Permission } from '@oficina/shared';
-import { api, setAccessToken, API_URL } from './api';
+import { api, setAccessToken, withBrowserHost, API_URL } from './api';
 
 type Status = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string, tenantSlug?: string) => {
       const data = await api.post<LoginResponse>(
-        '/auth/login',
+        withBrowserHost('/auth/login'),
         // tenantSlug só vai no apex/dev; no subdomínio a conta vem do host.
         { email, password, ...(tenantSlug ? { tenantSlug } : {}) },
         { skipAuthRetry: true },

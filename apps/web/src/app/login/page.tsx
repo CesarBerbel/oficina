@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { loginSchema, type LoginContextDto } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
-import { api } from '@/lib/api';
+import { api, withBrowserHost } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,7 +39,7 @@ export default function LoginPage() {
   useEffect(() => {
     let active = true;
     api
-      .get<LoginContextDto>('/auth/context')
+      .get<LoginContextDto>(withBrowserHost('/auth/context'))
       .then((ctx) => {
         if (!active) return;
         // Subdomínio inexistente → manda para o cadastro com o slug preenchido.

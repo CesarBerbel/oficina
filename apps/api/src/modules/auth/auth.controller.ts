@@ -71,6 +71,26 @@ export class AuthController {
     return raw ? raw.toString().split(',')[0].trim().toLowerCase() : null;
   }
 
+  private isProduction(): boolean {
+    return (this.config.get<string>('NODE_ENV') ?? process.env.NODE_ENV) === 'production';
+  }
+
+  /**
+   * Host efetivo para resolver a oficina no login. Em produção vem sempre da
+   * cadeia confiável do proxy (X-Forwarded-Host/Host). Em desenvolvimento, web
+   * (3000) e API (3333) ficam em portas diferentes, então o browser nunca manda
+   * o subdomínio no Host — ele o informa via ?host=, honrado apenas FORA de
+   * produção (em produção é ignorado, evitando spoofing do tenant).
+   */
+  private effectiveHost(req: Request): string | null {
+    const real = this.requestHost(req);
+    if (this.isProduction()) return real;
+    const override = Array.isArray(req.query?.host) ? req.query.host[0] : req.query?.host;
+    const normalized =
+      typeof override === 'string' ? override.split(',')[0].trim().toLowerCase() : null;
+    return normalized || real;
+  }
+
   /** Origem pública segura para links enviados por e-mail. */
   private requestOriginForLinks(req: Request): string | null {
     const origin = req.headers.origin;
@@ -124,6 +144,17 @@ export class AuthController {
     } catch {
       /* origem malformada → barra abaixo */
     }
+    // Dev: web (3000) e API (3333) em portas diferentes; libera localhost e
+    // *.localhost para o fluxo multi-tenant (mesma regra do CORS em dev). Em
+    // produção segue exigindo a origem confiável acima.
+    if (!this.isProduction()) {
+      try {
+        const host = new URL(origin).hostname.toLowerCase();
+        if (host === 'localhost' || host.endsWith('.localhost') || host === '127.0.0.1') return;
+      } catch {
+        /* origem malformada → barra abaixo */
+      }
+    }
     throw new ForbiddenException('Origem não autorizada');
   }
 
@@ -142,7 +173,7 @@ export class AuthController {
   ): Promise<LoginResponse> {
     // Apex da plataforma → login do super admin; subdomínio → conta da oficina;
     // apex/dev sem base → pelo slug informado.
-    const target = await this.auth.resolveLoginTarget(this.requestHost(req));
+    const target = await this.auth.resolveLoginTarget(this.effectiveHost(req));
     const session = await this.auth.login(
       {
         tenantSlug: body.tenantSlug ?? target.tenantSlug ?? null,
@@ -161,7 +192,7 @@ export class AuthController {
   @Public()
   @Get('context')
   context(@Req() req: Request) {
-    return this.auth.loginContext(this.requestHost(req));
+    return this.auth.loginContext(this.effectiveHost(req));
   }
 
   @Public()
@@ -189,7 +220,7 @@ export class AuthController {
     @Req() req: Request,
   ) {
     // Resolve a conta pelo host (subdomínio/domínio próprio); no apex/dev usa o slug.
-    const target = await this.auth.resolveLoginTarget(this.requestHost(req));
+    const target = await this.auth.resolveLoginTarget(this.effectiveHost(req));
     return this.auth.requestPasswordReset(
       { accountId: target.accountId, tenantSlug: body.tenantSlug ?? target.tenantSlug ?? null },
       body.email,

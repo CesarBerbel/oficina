@@ -7,7 +7,7 @@ import { Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { forgotPasswordSchema, type LoginContextDto } from '@oficina/shared';
 import { CarLoader } from '@/components/car-loader';
-import { api } from '@/lib/api';
+import { api, withBrowserHost } from '@/lib/api';
 import { apiErrorMessage, zodFieldErrors } from '@/lib/form-errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
   useEffect(() => {
     let active = true;
     api
-      .get<LoginContextDto>('/auth/context')
+      .get<LoginContextDto>(withBrowserHost('/auth/context'))
       .then((ctx) => {
         if (!active) return;
         if (ctx.suggestedSlug) {
@@ -78,7 +78,9 @@ export default function ForgotPasswordPage() {
     setErrors({});
     setSubmitting(true);
     try {
-      await api.post('/auth/forgot-password', parsed.data, { skipAuthRetry: true });
+      await api.post(withBrowserHost('/auth/forgot-password'), parsed.data, {
+        skipAuthRetry: true,
+      });
       setSent(true);
       toast.success('Solicitação registrada');
     } catch (err) {
