@@ -11,6 +11,7 @@ import { useSiteSettings, useUpdateSiteSettings } from '@/features/content/use-c
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageUpload } from '@/components/image-upload';
@@ -82,6 +83,7 @@ export default function SiteConfigPage() {
   const update = useUpdateSiteSettings();
   const [form, setForm] = useState<Record<string, string>>({});
   const [published, setPublished] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [cepLoading, setCepLoading] = useState(false);
 
@@ -98,6 +100,7 @@ export default function SiteConfigPage() {
       }
       setForm(f);
       setPublished(data.published);
+      setDarkMode(data.darkMode);
       setErrors({});
     }
   }, [data]);
@@ -154,7 +157,7 @@ export default function SiteConfigPage() {
   }
 
   async function save() {
-    const payload = { ...form, published };
+    const payload = { ...form, published, darkMode };
     const parsed = updateSiteSettingsSchema.safeParse(payload);
     if (!parsed.success) {
       const fieldErrors = zodFieldErrors(parsed.error, FIELD_LABELS);
@@ -206,6 +209,22 @@ export default function SiteConfigPage() {
         <label htmlFor="published" className="text-sm font-medium">
           Site publicado (visível ao público)
         </label>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-4">
+        <div>
+          <p className="text-sm font-medium">Tema do site público</p>
+          <p className="text-xs text-muted-foreground">Como os visitantes veem o seu site.</p>
+        </div>
+        <Select
+          aria-label="Tema do site público"
+          value={darkMode ? 'dark' : 'light'}
+          onChange={(e) => setDarkMode(e.target.value === 'dark')}
+          className="w-40"
+        >
+          <option value="light">Claro</option>
+          <option value="dark">Escuro</option>
+        </Select>
       </div>
 
       <div className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2">

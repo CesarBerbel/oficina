@@ -64,6 +64,8 @@ export const updateSiteSettingsSchema = z.object({
   heroImageUrl: optionalText(500),
   capacity: optionalCapacity,
   published: z.boolean().optional(),
+  // Tema do site público: true = escuro, false = claro.
+  darkMode: z.boolean().optional(),
 });
 export type UpdateSiteSettingsInput = z.infer<typeof updateSiteSettingsSchema>;
 
@@ -98,6 +100,8 @@ export interface SiteSettingsDto {
   heroImageUrl: string | null;
   capacity: number | null;
   published: boolean;
+  /** Tema do site público: true = escuro, false = claro. */
+  darkMode: boolean;
 }
 
 /** Serviço exibido no site (subconjunto público do catálogo). */

@@ -33,9 +33,11 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const name = s?.shopName ?? 'Oficina';
   const waNumber = s?.whatsapp?.replace(/\D/g, '') || '';
   const waHref = waNumber ? `https://wa.me/${waNumber}` : null;
+  // Tema escolhido pelo admin (padrão escuro); força claro/escuro no site público.
+  const themeClass = s?.darkMode === false ? 'theme-light' : 'theme-dark';
 
   return (
-    <div className="theme-dark flex min-h-dvh flex-col bg-background text-foreground">
+    <div className={`${themeClass} flex min-h-dvh flex-col bg-background text-foreground`}>
       <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur">
         <div className="container flex h-20 items-center justify-between">
           <Link href="/site" className="flex items-center gap-2 font-semibold">

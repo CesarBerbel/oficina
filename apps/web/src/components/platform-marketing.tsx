@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   Check,
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const FEATURES = [
   {
@@ -55,6 +56,7 @@ export function PlatformMarketing() {
             Oficina<span className="text-muted-foreground">SaaS</span>
           </span>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link
               href="/login"
               className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"

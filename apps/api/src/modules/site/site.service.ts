@@ -59,6 +59,7 @@ export class SiteService {
       heroImageUrl: s.heroImageUrl,
       capacity: s.capacity,
       published: s.published,
+      darkMode: s.darkMode,
     };
   }
 

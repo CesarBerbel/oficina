@@ -1,13 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
-import { KeyRound, Menu, Moon, Sun, LogOut } from 'lucide-react';
+import { KeyRound, Menu, LogOut } from 'lucide-react';
 import { USER_ROLE_LABELS, type UserRole } from '@oficina/shared';
 import { useAuth } from '@/lib/auth-context';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { GlobalSearchDialog } from '@/features/global-search/global-search-dialog';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +20,6 @@ import {
 export function AppTopbar({ onMenu }: { onMenu?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { theme, setTheme } = useTheme();
 
   async function handleLogout() {
     await logout();
@@ -52,15 +51,7 @@ export function AppTopbar({ onMenu }: { onMenu?: () => void }) {
 
       <NotificationBell />
 
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Alternar tema"
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      >
-        <Sun className="size-5 dark:hidden" />
-        <Moon className="hidden size-5 dark:block" />
-      </Button>
+      <ThemeToggle />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
