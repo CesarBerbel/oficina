@@ -460,70 +460,85 @@ export function OsDetailView({ id, variant }: { id: string; variant: 'full' | 't
 
   const eventTimeline = <OsEventTimeline events={os.events ?? []} />;
 
-  // Abas: agrupam as seções por tarefa para evitar uma tela densa/com scroll.
-  // Orçamento só na versão completa; Técnico só na versão do técnico.
+  // Abas: agrupam as seções por tarefa. Na versão completa, Resumo financeiro e
+  // Timeline saem das abas para uma lateral fixa (sempre visíveis); por isso o
+  // Histórico vira aba só na versão do técnico, que não tem a lateral.
   const contentTabs = (
     [
       { key: 'resumo', label: 'Resumo' },
       { key: 'itens', label: 'Itens' },
       showQuote ? { key: 'orcamento', label: 'Orçamento' } : null,
       showTechTab ? { key: 'tecnico', label: 'Técnico' } : null,
-      { key: 'historico', label: 'Histórico' },
+      isTech ? { key: 'historico', label: 'Histórico' } : null,
     ] as ({ key: OsTab; label: string } | null)[]
   ).filter((t): t is { key: OsTab; label: string } => t !== null);
+
+  const tabsNav = (
+    <div className="flex gap-1 overflow-x-auto rounded-xl bg-muted p-1">
+      {contentTabs.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          onClick={() => setTab(t.key)}
+          className={cn(
+            'whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
+            tab === t.key
+              ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const tabPanels = (
+    <>
+      {tab === 'resumo' && (
+        <div className="space-y-6">
+          {customerVehicle}
+          {diagnosisCard}
+          {/* Na versão completa o salvar fica na lateral, junto do financeiro. */}
+          {!showFinancial && saveButton}
+        </div>
+      )}
+      {tab === 'itens' && <div className="space-y-6">{itemsCard}</div>}
+      {tab === 'orcamento' && showQuote && <div className="space-y-6">{quoteSection}</div>}
+      {tab === 'tecnico' && <div className="space-y-6">{technicalPanel}</div>}
+      {tab === 'historico' && <div className="space-y-6">{eventTimeline}</div>}
+    </>
+  );
 
   return (
     <div className="space-y-6">
       {cover}
 
-      {/* Entradas de estado primeiro, próximas ações depois */}
+      {/* Progresso da OS sempre no topo */}
       {showTimeline && statusTimeline}
       {statusActions}
 
-      {/* Conteúdo em abas (desktop e mobile) */}
-      <div className="space-y-4">
-        <div className="flex gap-1 overflow-x-auto rounded-xl bg-muted p-1">
-          {contentTabs.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={cn(
-                'whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
-                tab === t.key
-                  ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
+      {showFinancial ? (
+        // Versão completa: abas à esquerda; resumo financeiro e timeline numa
+        // lateral fixa (sticky no desktop), sempre visíveis.
+        <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+          <div className="space-y-4 lg:col-span-2">
+            {tabsNav}
+            {tabPanels}
+          </div>
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-2rem)] lg:self-start">
+            {financialSummary}
+            {saveButton}
+            <div className="min-h-0 flex-1 lg:overflow-y-auto">{eventTimeline}</div>
+          </aside>
         </div>
-
-        {tab === 'resumo' &&
-          (showFinancial ? (
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="space-y-6 lg:col-span-2">
-                {customerVehicle}
-                {diagnosisCard}
-              </div>
-              <div className="space-y-6">
-                {financialSummary}
-                {saveButton}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {customerVehicle}
-              {diagnosisCard}
-              {saveButton}
-            </div>
-          ))}
-        {tab === 'itens' && <div className="space-y-6">{itemsCard}</div>}
-        {tab === 'orcamento' && showQuote && <div className="space-y-6">{quoteSection}</div>}
-        {tab === 'tecnico' && <div className="space-y-6">{technicalPanel}</div>}
-        {tab === 'historico' && <div className="space-y-6">{eventTimeline}</div>}
-      </div>
+      ) : (
+        // Versão do técnico: layout enxuto em coluna única.
+        <div className="space-y-4">
+          {tabsNav}
+          {tabPanels}
+        </div>
+      )}
     </div>
   );
 }
