@@ -134,6 +134,38 @@ export async function openAuthedResource(path: string): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+/**
+ * Baixa um recurso binário autenticado forçando o "Salvar como" do navegador.
+ * Usa o access token em memória (um `<a href>` direto não carrega o Bearer).
+ */
+export async function downloadAuthedResource(path: string, fallbackName: string): Promise<void> {
+  let res = await fetch(`${API_URL}${path}`, {
+    credentials: 'include',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+  if (res.status === 401 && (await tryRefresh())) {
+    res = await fetch(`${API_URL}${path}`, {
+      credentials: 'include',
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    });
+  }
+  if (!res.ok) throw new ApiError(res.status, 'Falha ao gerar o arquivo');
+
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = /filename="?([^"]+)"?/i.exec(disposition);
+  const filename = match?.[1] ?? fallbackName;
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export async function uploadAuthedFile(file: File): Promise<{ url: string }> {
   const form = new FormData();
   form.append('file', file);

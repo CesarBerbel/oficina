@@ -34,6 +34,7 @@ import { MetricsModule } from './modules/metrics/metrics.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { AccountsModule } from './modules/accounts/accounts.module';
 import { PlatformSessionsModule } from './modules/platform-sessions/platform-sessions.module';
+import { BackupModule } from './modules/backup/backup.module';
 import { TenantDomainsModule } from './modules/tenant-domains/tenant-domains.module';
 import { SaasModule } from './modules/saas/saas.module';
 import { SiteModule } from './modules/site/site.module';
@@ -93,6 +94,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     TenantsModule,
     AccountsModule,
     PlatformSessionsModule,
+    BackupModule,
     TenantDomainsModule,
     SaasModule,
     DashboardModule,
