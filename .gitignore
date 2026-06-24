@@ -58,3 +58,6 @@ chatgpt/
 
 # temporário do fluxo de credencial gh
 crq.txt
+
+# artefatos de teste com curl (cookies de sessão) — nunca versionar
+cookies.txt

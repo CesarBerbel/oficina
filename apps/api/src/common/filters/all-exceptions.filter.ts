@@ -60,6 +60,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
         status = HttpStatus.NOT_FOUND;
         code = 'NOT_FOUND';
         message = 'Registro não encontrado.';
+      } else if (exception.code === 'P2002') {
+        status = HttpStatus.CONFLICT;
+        code = 'UNIQUE_CONFLICT';
+        message = 'Já existe um registro com esse valor.';
+        details = { target: exception.meta?.target };
       } else {
         this.logger.error(exception.message, exception.stack);
       }
