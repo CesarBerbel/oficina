@@ -1,15 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import AdmZip from 'adm-zip';
+import type { Archiver } from 'archiver';
 import { existsSync, statSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
+import { PassThrough } from 'node:stream';
 import type { BackupStatusDto } from '@oficina/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { encodeValue, type BackupMeta } from './backup-codec';
 
 /** Tempo máximo (ms) que a transação de leitura do dump pode durar. */
 const DUMP_TX_TIMEOUT_MS = 30 * 60 * 1000;
+/** Linhas lidas por página em cada tabela (mantém a memória limitada). */
+const PAGE_SIZE = 1000;
+
+/** Escreve no stream respeitando backpressure (aguarda 'drain' quão preciso). */
+function writeChunk(stream: PassThrough, chunk: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    stream.write(chunk, (err) => (err ? reject(err) : undefined));
+    if (!stream.writableNeedDrain) resolve();
+    else stream.once('drain', resolve);
+  });
+}
 
 @Injectable()
 export class BackupService {
@@ -135,58 +147,91 @@ export class BackupService {
     };
   }
 
+  /** Nome do arquivo de backup (carimbado pela hora atual). */
+  filename(now: Date = new Date()): string {
+    return `oficina_backup_${this.stamp(now)}.zip`;
+  }
+
   /**
-   * Gera o backup lógico completo: um `.zip` com `database.ndjson` (todas as
-   * tabelas), `manifest.json` e a pasta `uploads/`. A leitura do banco roda numa
-   * transação RepeatableRead para capturar um snapshot consistente.
+   * Gera o backup lógico e o escreve no `archive` (zip) já conectado à resposta:
+   * `database.ndjson` (todas as tabelas), `manifest.json` e a pasta `uploads/`.
+   *
+   * Streaming de ponta a ponta para manter a memória limitada: cada tabela é
+   * lida por páginas (keyset via `ctid`) dentro de uma transação RepeatableRead
+   * (snapshot consistente), e as linhas são escritas no zip à medida que chegam.
+   * Os uploads são adicionados direto do disco. Nada é materializado inteiro.
    */
-  async generate(): Promise<{ buffer: Buffer; filename: string }> {
+  async streamTo(archive: Archiver): Promise<void> {
     const order = await this.tablesInRestoreOrder();
-    const counts: Record<string, number> = {};
-    const chunks: string[] = [];
-
-    await this.prisma.$transaction(
-      async (tx) => {
-        for (const table of order) {
-          if (!/^[A-Za-z0-9_]+$/.test(table)) continue; // defesa: nome vem do catálogo
-          const rows = await tx.$queryRawUnsafe<Record<string, unknown>[]>(
-            `SELECT * FROM "${table}"`,
-          );
-          counts[table] = rows.length;
-          for (const row of rows) {
-            chunks.push(JSON.stringify({ t: table, r: encodeValue(row) }));
-          }
-        }
-      },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-        timeout: DUMP_TX_TIMEOUT_MS,
-      },
-    );
-
     const now = new Date();
+    const counts: Record<string, number> = {};
+
+    // `database.ndjson` é alimentado por um PassThrough enquanto lemos o banco.
+    const db = new PassThrough();
+    archive.append(db, { name: 'database.ndjson' });
+
     const meta: BackupMeta = {
       format: 'oficina-logical-backup',
       version: 1,
       createdAt: now.toISOString(),
       appVersion: process.env.APP_VERSION ?? 'unknown',
       tables: order,
-      counts,
     };
-    const ndjson = [JSON.stringify({ _meta: meta }), ...chunks].join('\n') + '\n';
+    await writeChunk(db, JSON.stringify({ _meta: meta }) + '\n');
 
-    const zip = new AdmZip();
-    zip.addFile('manifest.json', Buffer.from(JSON.stringify(meta, null, 2), 'utf8'));
-    zip.addFile('database.ndjson', Buffer.from(ndjson, 'utf8'));
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          for (const table of order) {
+            if (!/^[A-Za-z0-9_]+$/.test(table)) continue; // defesa: nome vem do catálogo
+            let cursor = '(0,0)';
+            let n = 0;
+            for (;;) {
+              // `ctid` é o id físico da linha: existe em qualquer tabela (mesmo
+              // sem PK) e é ordenável — keyset estável dentro do snapshot. Volta
+              // como texto (Prisma não desserializa o tipo `tid`), mas a ordenação
+              // e o cursor usam o `tid` real (t.ctid) para a ordem ser correta.
+              const rows = await tx.$queryRawUnsafe<Record<string, unknown>[]>(
+                `SELECT t.ctid::text AS ctid, t.* FROM "${table}" t ` +
+                  `WHERE t.ctid > $1::tid ORDER BY t.ctid LIMIT $2`,
+                cursor,
+                PAGE_SIZE,
+              );
+              if (rows.length === 0) break;
+              for (const row of rows) {
+                cursor = String(row.ctid);
+                delete row.ctid; // pseudo-coluna, não faz parte do dump
+                await writeChunk(db, JSON.stringify({ t: table, r: encodeValue(row) }) + '\n');
+                n += 1;
+              }
+              if (rows.length < PAGE_SIZE) break;
+            }
+            counts[table] = n;
+          }
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+          timeout: DUMP_TX_TIMEOUT_MS,
+        },
+      );
+      db.end();
+    } catch (err) {
+      db.destroy(err as Error);
+      throw err;
+    }
 
+    // Manifesto (com as contagens, só para conferência) e uploads do disco.
+    archive.append(Buffer.from(JSON.stringify({ ...meta, counts }, null, 2), 'utf8'), {
+      name: 'manifest.json',
+    });
     const dir = this.uploadsDir();
     if (existsSync(dir) && statSync(dir).isDirectory()) {
-      zip.addLocalFolder(dir, 'uploads');
+      archive.directory(dir, 'uploads');
     }
 
     const totalRows = Object.values(counts).reduce((a, b) => a + b, 0);
     this.logger.log(`Backup gerado: ${order.length} tabelas, ${totalRows} linhas.`);
 
-    return { buffer: zip.toBuffer(), filename: `oficina_backup_${this.stamp(now)}.zip` };
+    await archive.finalize();
   }
 }

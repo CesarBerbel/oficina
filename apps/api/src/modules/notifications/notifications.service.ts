@@ -340,16 +340,25 @@ export class NotificationsService {
   }
 
   async subscribePush(userId: string, input: PushSubscribeInput): Promise<void> {
-    await this.prisma.pushSubscription.upsert({
-      where: { endpoint: input.endpoint },
-      create: {
-        userId,
-        endpoint: input.endpoint,
-        p256dh: input.keys.p256dh,
-        auth: input.keys.auth,
-      },
-      update: { userId, p256dh: input.keys.p256dh, auth: input.keys.auth },
-    });
+    // Chave (userId, endpoint): cada usuário tem a sua inscrição. Antes, com o
+    // endpoint único global, reenviar o endpoint de outro usuário reatribuía a
+    // inscrição (sequestro). Limpamos o mesmo endpoint em OUTROS usuários
+    // (navegador reaproveitado por outra conta) e fazemos upsert do atual.
+    await this.prisma.$transaction([
+      this.prisma.pushSubscription.deleteMany({
+        where: { endpoint: input.endpoint, userId: { not: userId } },
+      }),
+      this.prisma.pushSubscription.upsert({
+        where: { userId_endpoint: { userId, endpoint: input.endpoint } },
+        create: {
+          userId,
+          endpoint: input.endpoint,
+          p256dh: input.keys.p256dh,
+          auth: input.keys.auth,
+        },
+        update: { p256dh: input.keys.p256dh, auth: input.keys.auth },
+      }),
+    ]);
   }
 
   async unsubscribePush(userId: string, endpoint: string): Promise<void> {

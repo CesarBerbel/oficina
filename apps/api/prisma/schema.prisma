@@ -1295,13 +1295,16 @@ model Notification {
 model PushSubscription {
   id        String   @id @default(cuid())
   userId    String
-  endpoint  String   @unique
+  endpoint  String
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Único por (usuário, endpoint), não por endpoint global: assim um usuário não
+  // consegue sequestrar a inscrição de push de outro reenviando o mesmo endpoint.
+  @@unique([userId, endpoint])
   @@index([userId])
   @@map("push_subscriptions")
 }

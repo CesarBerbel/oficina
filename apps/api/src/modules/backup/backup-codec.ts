@@ -74,6 +74,9 @@ export interface BackupMeta {
   appVersion: string;
   /** Tabelas na ordem de restauração (pais antes dos filhos). */
   tables: string[];
-  /** Linhas por tabela (conferência). */
-  counts: Record<string, number>;
+  /**
+   * Linhas por tabela (conferência). Opcional na linha `_meta` do NDJSON, pois
+   * no modo streaming a contagem só é conhecida ao final — fica no manifest.json.
+   */
+  counts?: Record<string, number>;
 }
