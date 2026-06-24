@@ -64,9 +64,20 @@ export class AuthController {
     };
   }
 
-  /** Host real da requisição (atrás do proxy: X-Forwarded-Host). */
+  /**
+   * Host real da requisição (atrás do proxy: X-Forwarded-Host).
+   *
+   * Em dev/teste honra o override `x-public-host` (mesma ferramenta usada nos
+   * endpoints públicos): o front client-side chama a API direto em localhost:3333,
+   * então o subdomínio do browser não chega pelo Host — ele é repassado por esse
+   * header. Em produção (ou com PUBLIC_STRICT_HOST=true) o override é ignorado e
+   * vale só o host real, evitando que alguém force a oficina/conta resolvida.
+   */
   private requestHost(req: Request): string | null {
-    const xfh = req.headers['x-forwarded-host'];
+    const allowOverrides =
+      process.env.NODE_ENV !== 'production' && process.env.PUBLIC_STRICT_HOST !== 'true';
+    const override = allowOverrides ? req.headers['x-public-host'] : undefined;
+    const xfh = override ?? req.headers['x-forwarded-host'];
     const raw = (Array.isArray(xfh) ? xfh[0] : xfh) ?? req.headers.host ?? null;
     return raw ? raw.toString().split(',')[0].trim().toLowerCase() : null;
   }

@@ -134,7 +134,11 @@ export default async function SiteHome() {
   ]);
   if (!data) {
     const ctx = await getLoginContext();
-    // Subdomínio livre (sem oficina) → cadastro de oficina já com o slug preenchido.
+    // Subdomínio livre (sem oficina): pedido pendente → aguardando aprovação;
+    // senão → cadastro de oficina já com o slug preenchido.
+    if (ctx?.pendingRequest) {
+      redirect('/aguardando');
+    }
     if (ctx?.suggestedSlug) {
       redirect(`/comecar?slug=${encodeURIComponent(ctx.suggestedSlug)}`);
     }

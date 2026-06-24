@@ -6,6 +6,7 @@
   "testTimeout": 45000,
   "maxWorkers": 1,
   "detectOpenHandles": true,
+  "setupFiles": ["<rootDir>/support/e2e-setup.ts"],
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },

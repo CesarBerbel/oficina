@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Wrench, ShieldCheck, Globe, Rocket, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { createAccountRequestSchema } from '@oficina/shared';
@@ -87,9 +86,6 @@ export default function ComecarPage() {
             </span>
             Oficina
           </span>
-          <Link href="/login" className="text-sm font-medium text-primary hover:underline">
-            Já tenho conta
-          </Link>
         </div>
       </header>
 

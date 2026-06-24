@@ -13,6 +13,7 @@ import type {
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PasswordService } from '../../infra/security/password.service';
 import { AuditService } from '../audit/audit.service';
+import { AuthService } from '../auth/auth.service';
 import { seedMessageTemplates } from '../messaging/default-templates';
 import { seedDefaultCategories } from '../categories/default-categories';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user';
@@ -25,6 +26,7 @@ export class AccountsService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly audit: AuditService,
+    private readonly auth: AuthService,
   ) {}
 
   /** Domínio-base da plataforma (ex.: saecbpa.com). Vazio = não cria subdomínio. */
@@ -261,6 +263,32 @@ export class AccountsService {
       adminEmail: req.email,
     });
     await this.prisma.accountRequest.update({ where: { id }, data: { status: 'APPROVED' } });
+
+    // Avisa o solicitante e envia um link seguro de "definir senha" para o 1º
+    // acesso. Best-effort: a conta já foi provisionada, então uma falha de e-mail
+    // não deve derrubar a aprovação (o admin ainda tem a senha temporária).
+    try {
+      const admin = await this.prisma.user.findUnique({
+        where: { tenantId_email: { tenantId: result.tenant.id, email: req.email } },
+        select: { id: true },
+      });
+      if (admin) {
+        await this.auth.sendAccountWelcomeLink({
+          userId: admin.id,
+          email: req.email,
+          name: req.contactName,
+          accountName: req.name,
+          slug: req.slug,
+        });
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Conta ${result.account.slug} provisionada, mas falhou o e-mail de boas-vindas: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+
     return result;
   }
 

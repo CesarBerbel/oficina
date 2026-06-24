@@ -4,7 +4,37 @@
  * Em caso de 401, tenta um refresh transparente uma vez e repete a requisição.
  */
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
+const CONFIGURED_API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api';
+
+/**
+ * Base das chamadas à API a partir do browser.
+ *
+ * Em produção a web e a API são same-origin (o proxy roteia `/api` no mesmo host),
+ * então o cookie httpOnly de refresh é first-party e tudo funciona direto.
+ *
+ * Em dev a web roda em `*.localhost:3000` e a API em `localhost:3333` (cross-origin):
+ * um cookie setado pela API ficaria preso em `localhost` e NÃO chegaria ao
+ * subdomínio onde o middleware roda — o login "passa" mas rebate pro /login. Para
+ * espelhar produção, no browser passamos pelo proxy same-origin do Next
+ * (`/api-proxy`, definido no next.config): o Set-Cookie volta como first-party do
+ * host atual e o refresh também fica same-origin. Em produção (ou se a API já for
+ * same-origin) usamos a URL configurada direto.
+ */
+function resolveApiBase(): string {
+  if (typeof window === 'undefined' || process.env.NODE_ENV === 'production') {
+    return CONFIGURED_API_URL;
+  }
+  try {
+    if (new URL(CONFIGURED_API_URL, window.location.origin).origin !== window.location.origin) {
+      return '/api-proxy';
+    }
+  } catch {
+    /* URL relativa já é same-origin → usa direto */
+  }
+  return CONFIGURED_API_URL;
+}
+
+export const API_URL = resolveApiBase();
 
 let accessToken: string | null = null;
 
@@ -42,6 +72,10 @@ async function rawRequest<T>(path: string, options: RequestOptions = {}): Promis
     headers: {
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      // A API é chamada direto em localhost:3333, então o subdomínio do browser
+      // não chega pelo Host. Repassa-o por x-public-host para a API resolver a
+      // conta/oficina pelo host real (override só honrado em dev; ignorado em prod).
+      ...(typeof window !== 'undefined' ? { 'x-public-host': window.location.host } : {}),
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
