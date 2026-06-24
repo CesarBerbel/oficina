@@ -15,8 +15,13 @@ PROJECT_NAME=${COMPOSE_PROJECT_NAME:-oficina}
 
 if [ -f "$ENV_FILE" ]; then
   set -a
+  # O `.` do POSIX busca o arquivo no PATH quando o nome nao tem barra (sh=dash),
+  # entao garantimos um caminho relativo para carregar do diretorio atual.
   # shellcheck disable=SC1090
-  . "$ENV_FILE"
+  case "$ENV_FILE" in
+    */*) . "$ENV_FILE" ;;
+    *) . "./$ENV_FILE" ;;
+  esac
   set +a
 fi
 

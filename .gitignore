@@ -37,6 +37,9 @@ apps/api/prisma/*.db
 apps/api/uploads/
 !apps/api/uploads/.gitkeep
 
+# backups gerados (dumps do banco — NUNCA versionar; contêm dados sensíveis)
+backups/
+
 # os
 .DS_Store
 Thumbs.db
