@@ -52,12 +52,16 @@ export class AuthService {
   }
 
   private appUrl(): string {
-    return (
-      this.config.get<string>('APP_URL') ??
-      this.config.get<string>('WEB_URL') ??
-      this.config.get<string>('FRONTEND_URL') ??
-      'http://localhost:3000'
-    ).replace(/\/$/, '');
+    // APP_URL é validado com default '' (env.ts), então `??` não cai no fallback:
+    // pegamos o 1º candidato NÃO-vazio e incluímos WEB_ORIGIN (var canônica de
+    // origem web do projeto, setada nos e2e e default localhost:3000).
+    const candidate = [
+      this.config.get<string>('APP_URL'),
+      this.config.get<string>('WEB_URL'),
+      this.config.get<string>('FRONTEND_URL'),
+      this.config.get<string>('WEB_ORIGIN'),
+    ].find((value) => typeof value === 'string' && value.trim() !== '');
+    return (candidate ?? 'http://localhost:3000').replace(/\/+$/, '');
   }
 
   /**
