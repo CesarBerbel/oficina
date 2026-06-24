@@ -14,6 +14,7 @@ export const revalidate = 0;
 export default async function HomePage() {
   const ctx = await getLoginContext();
   if (ctx?.account) redirect('/site');
+  if (ctx?.pendingRequest) redirect('/aguardando');
   if (ctx?.suggestedSlug) redirect(`/comecar?slug=${encodeURIComponent(ctx.suggestedSlug)}`);
   return <PlatformMarketing />;
 }

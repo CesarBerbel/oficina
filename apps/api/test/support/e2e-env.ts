@@ -12,6 +12,14 @@ const DEFAULT_TEST_ENV = {
   ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
   RATE_LIMIT_TTL: '60',
   RATE_LIMIT_MAX: '1000',
+  // Login tem throttle próprio (default 5/min); relaxa nos e2e, que disparam
+  // vários logins por arquivo no mesmo app (throttler em memória não reseta).
+  AUTH_LOGIN_RATE_LIMIT: '1000',
+  // Determinismo: o ConfigModule carrega o .env da raiz (que pode ter flags de
+  // produção, ex.: TENANT_DOMAIN_REQUIRE_VERIFIED=true) e ele vazaria para os
+  // testes. Pinamos aqui (process.env já setado vence o dotenv) para que a
+  // resolução por domínio próprio não exija verificação nos e2e.
+  TENANT_DOMAIN_REQUIRE_VERIFIED: 'false',
   STORAGE_DRIVER: 'local',
   STORAGE_LOCAL_DIR: '/tmp/oficina-e2e-uploads',
   MAIL_DRIVER: 'log',

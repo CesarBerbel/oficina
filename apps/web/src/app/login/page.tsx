@@ -42,6 +42,11 @@ export default function LoginPage() {
       .get<LoginContextDto>('/auth/context')
       .then((ctx) => {
         if (!active) return;
+        // Subdomínio livre com pedido pendente → tela de aguardando aprovação.
+        if (ctx.pendingRequest) {
+          router.replace('/aguardando');
+          return;
+        }
         // Subdomínio inexistente → manda para o cadastro com o slug preenchido.
         if (ctx.suggestedSlug) {
           router.replace(`/comecar?slug=${encodeURIComponent(ctx.suggestedSlug)}`);

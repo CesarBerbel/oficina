@@ -73,6 +73,7 @@ describe('Papel da plataforma (super admin) (e2e)', () => {
       tenantSlug: null,
       platform: true,
       suggestedSlug: null,
+      pendingRequest: false,
     });
   });
 
@@ -124,6 +125,7 @@ describe('Papel da plataforma (super admin) (e2e)', () => {
       tenantSlug: null,
       platform: false,
       suggestedSlug: 'novaoficina',
+      pendingRequest: false,
     });
   });
 

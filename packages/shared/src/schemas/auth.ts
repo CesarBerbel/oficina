@@ -38,6 +38,11 @@ export interface LoginContextDto {
    * cadastro de uma nova oficina. null quando não se aplica.
    */
   suggestedSlug: string | null;
+  /**
+   * true quando já existe um pedido de criação de conta pendente para o slug
+   * sugerido — a tela deve mostrar "aguardando aprovação" em vez do cadastro.
+   */
+  pendingRequest: boolean;
 }
 
 const optionalInstallText = (max: number) =>

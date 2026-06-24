@@ -39,6 +39,10 @@ export default function ForgotPasswordPage() {
       .get<LoginContextDto>('/auth/context')
       .then((ctx) => {
         if (!active) return;
+        if (ctx.pendingRequest) {
+          router.replace('/aguardando');
+          return;
+        }
         if (ctx.suggestedSlug) {
           router.replace(`/comecar?slug=${encodeURIComponent(ctx.suggestedSlug)}`);
           return;

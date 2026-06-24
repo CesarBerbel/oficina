@@ -52,12 +52,34 @@ export class AuthService {
   }
 
   private appUrl(): string {
-    return (
-      this.config.get<string>('APP_URL') ??
-      this.config.get<string>('WEB_URL') ??
-      this.config.get<string>('FRONTEND_URL') ??
-      'http://localhost:3000'
-    ).replace(/\/$/, '');
+    // APP_URL é validado com default '' (env.ts), então `??` não cai no fallback:
+    // pegamos o 1º candidato NÃO-vazio e incluímos WEB_ORIGIN (var canônica de
+    // origem web do projeto, setada nos e2e e default localhost:3000).
+    const candidate = [
+      this.config.get<string>('APP_URL'),
+      this.config.get<string>('WEB_URL'),
+      this.config.get<string>('FRONTEND_URL'),
+      this.config.get<string>('WEB_ORIGIN'),
+    ].find((value) => typeof value === 'string' && value.trim() !== '');
+    return (candidate ?? 'http://localhost:3000').replace(/\/+$/, '');
+  }
+
+  /**
+   * Origem web (scheme + porta do app) no subdomínio de uma conta. Ex.: app em
+   * http://localhost:3000 + slug "x" + base "localhost" → http://x.localhost:3000.
+   * Sem PLATFORM_BASE_DOMAIN, cai na origem padrão do app (acesso por slug).
+   */
+  private accountWebOrigin(slug: string): string {
+    const app = this.appUrl();
+    const base = (process.env.PLATFORM_BASE_DOMAIN ?? '').trim().toLowerCase();
+    if (!base) return app;
+    try {
+      const url = new URL(app);
+      url.hostname = `${slug}.${base}`;
+      return url.origin;
+    } catch {
+      return app;
+    }
   }
 
   private buildAuthUser(user: {
@@ -238,7 +260,13 @@ export class AuthService {
   /** Contexto de login do host (para a tela de login decidir o que mostrar). */
   async loginContext(host: string | null): Promise<LoginContextDto> {
     if (this.isPlatformHost(host)) {
-      return { account: null, tenantSlug: null, platform: true, suggestedSlug: null };
+      return {
+        account: null,
+        tenantSlug: null,
+        platform: true,
+        suggestedSlug: null,
+        pendingRequest: false,
+      };
     }
     const tenant = await this.resolveTenantByHost(host);
     if (tenant) {
@@ -252,14 +280,25 @@ export class AuthService {
         tenantSlug: tenant.tenantSlug,
         platform: false,
         suggestedSlug: null,
+        pendingRequest: false,
       };
     }
     // Sem conta: subdomínio livre da base → sugere o slug para o cadastro.
+    // Se já houver um pedido pendente para esse slug, sinaliza para a tela
+    // mostrar "aguardando aprovação" em vez de pedir o cadastro de novo.
+    const suggestedSlug = this.suggestedSlugFor(host);
+    const pendingRequest = suggestedSlug
+      ? !!(await this.prisma.accountRequest.findFirst({
+          where: { slug: suggestedSlug, status: 'PENDING' },
+          select: { id: true },
+        }))
+      : false;
     return {
       account: null,
       tenantSlug: null,
       platform: false,
-      suggestedSlug: this.suggestedSlugFor(host),
+      suggestedSlug,
+      pendingRequest,
     };
   }
 
@@ -641,6 +680,59 @@ export class AuthService {
     }
 
     return { ok: true };
+  }
+
+  /**
+   * Gera um link de "definir senha" para um usuário recém-provisionado e envia o
+   * e-mail de boas-vindas. Usado quando a plataforma aprova um pedido: o admin da
+   * oficina recebe um link seguro (token de uso único) em vez de uma senha
+   * temporária trafegada. Best-effort: falha de e-mail não derruba a aprovação.
+   */
+  async sendAccountWelcomeLink(input: {
+    userId: string;
+    email: string;
+    name: string;
+    accountName: string;
+    slug: string;
+  }): Promise<void> {
+    // Invalida links pendentes e cria um novo (validade maior p/ o 1º acesso: 48h).
+    await this.prisma.passwordResetToken.updateMany({
+      where: { userId: input.userId, usedAt: null, expiresAt: { gt: new Date() } },
+      data: { usedAt: new Date() },
+    });
+    const token = randomBytes(32).toString('hex');
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userId: input.userId,
+        tokenHash: this.hashToken(token),
+        expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+      },
+    });
+
+    const base = this.accountWebOrigin(input.slug);
+    const link = `${base}/redefinir-senha?token=${token}`;
+    const text = [
+      `Olá, ${input.name}.`,
+      '',
+      `A sua oficina "${input.accountName}" foi liberada na plataforma Oficina!`,
+      'Para o primeiro acesso, defina a sua senha pelo link abaixo (expira em 48 horas):',
+      link,
+      '',
+      `Depois é só entrar em ${base}/login.`,
+    ].join('\n');
+
+    const mailResult = await this.mail.send({
+      to: input.email,
+      subject: 'Sua oficina foi liberada — defina a sua senha',
+      text,
+      html: text.replace(/\n/g, '<br />'),
+    });
+
+    if (mailResult.skipped) {
+      this.logger.warn(
+        `SMTP não configurado. Link de definição de senha para ${input.email}: ${link}`,
+      );
+    }
   }
 
   async resetPassword(token: string, password: string): Promise<{ ok: true }> {
