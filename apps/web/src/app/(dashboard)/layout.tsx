@@ -10,7 +10,7 @@ import { AppTopbar } from '@/components/app-topbar';
 import { cn } from '@/lib/utils';
 
 // Áreas que o super admin (plataforma) pode acessar.
-const PLATFORM_PATHS = ['/plataforma', '/contas', '/oficinas', '/planos', '/sessoes'];
+const PLATFORM_PATHS = ['/plataforma', '/contas', '/oficinas', '/planos', '/sessoes', '/backup'];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();

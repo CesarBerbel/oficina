@@ -24,6 +24,7 @@ import {
   Building2,
   Store,
   Activity,
+  DatabaseBackup,
   type LucideIcon,
 } from 'lucide-react';
 import { Permission } from '@oficina/shared';
@@ -162,6 +163,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Contas', href: '/contas', icon: Store, platformAdmin: true },
       { label: 'Planos', href: '/planos', icon: CreditCard, platformAdmin: true },
       { label: 'Sessões', href: '/sessoes', icon: MonitorSmartphone, platformAdmin: true },
+      { label: 'Backup', href: '/backup', icon: DatabaseBackup, platformAdmin: true },
     ],
   },
 ];

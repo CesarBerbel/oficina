@@ -57,6 +57,18 @@ export interface HealthMetricsDto {
   dbOk: boolean;
 }
 
+/** Estado exibido na página de backup do super admin. */
+export interface BackupStatusDto {
+  /** Último backup agendado conhecido (heartbeat gravado pelo scripts/backup.sh). */
+  heartbeat: BackupMetricsDto;
+  /** Tamanho atual do banco (bytes), via pg_database_size. */
+  dbSizeBytes: number;
+  /** Quantidade de tabelas que entram no dump (exclui _prisma_migrations). */
+  tableCount: number;
+  /** Arquivos de upload que serão incluídos no backup. */
+  uploads: { fileCount: number; sizeBytes: number };
+}
+
 export interface SessionMetricsDto {
   active: number;
   expiring24h: number;
