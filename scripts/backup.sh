@@ -13,16 +13,26 @@ POSTGRES_SERVICE=${POSTGRES_SERVICE:-postgres}
 UPLOADS_VOLUME=${UPLOADS_VOLUME:-oficina_uploads}
 PROJECT_NAME=${COMPOSE_PROJECT_NAME:-oficina}
 
+# Carrega o .env no estilo dotenv/compose: o valor e tudo apos o 1o '=', sem
+# executar o conteudo como shell. Assim, valores com espaco sem aspas
+# (ex.: NOME=Oficina Modelo) nao quebram o backup, ao contrario de
+# `. "$ENV_FILE"`, que exigiria um arquivo shell-valido.
 if [ -f "$ENV_FILE" ]; then
-  set -a
-  # O `.` do POSIX busca o arquivo no PATH quando o nome nao tem barra (sh=dash),
-  # entao garantimos um caminho relativo  para carregar do diretorio atual.
-  # shellcheck disable=SC1090
-  case "$ENV_FILE" in
-    */*) . "$ENV_FILE" ;;  
-    *) . "./$ENV_FILE" ;;
-  esac
-  set +a
+  while IFS= read -r line || [ -n "$line" ]; do
+    line=$(printf '%s' "$line" | tr -d '\r')
+    case "$line" in ''|'#'*) continue ;; esac
+    case "$line" in *=*) ;; *) continue ;; esac
+    key=${line%%=*}
+    val=${line#*=}
+    key=${key#export }
+    key=$(printf '%s' "$key" | tr -d ' ')
+    [ -n "$key" ] || continue
+    case "$val" in
+      \"*\") val=${val#\"}; val=${val%\"} ;;
+      \'*\') val=${val#\'}; val=${val%\'} ;;
+    esac
+    export "$key=$val"
+  done < "$ENV_FILE"
 fi
 
 : "${POSTGRES_USER:?POSTGRES_USER nao definido}"
