@@ -120,10 +120,7 @@ export class BackupService {
     const sizeRows = await this.prisma.$queryRaw<{ size: bigint }[]>`
       SELECT pg_database_size(current_database()) AS size
     `;
-    const [tables, uploads] = await Promise.all([
-      this.tablesInRestoreOrder(),
-      this.uploadsStats(),
-    ]);
+    const [tables, uploads] = await Promise.all([this.tablesInRestoreOrder(), this.uploadsStats()]);
 
     return {
       heartbeat: {
@@ -161,7 +158,10 @@ export class BackupService {
           }
         }
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: DUMP_TX_TIMEOUT_MS },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+        timeout: DUMP_TX_TIMEOUT_MS,
+      },
     );
 
     const now = new Date();
